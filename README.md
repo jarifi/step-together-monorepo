@@ -40,5 +40,3 @@
   - `http://127.0.0.1:8000/challenges`
   - `http://127.0.0.1:8000/challenge_progresses`
   - `http://127.0.0.1:8000/schritt_logs`
-    SECRET_KEY="your-super-secret-and-secure-key"
-    ACCESS_TOKEN_EXPIRE_MINUTES=30
