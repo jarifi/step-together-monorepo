@@ -3,7 +3,6 @@
     python -m venv venv
     ```
     ```
-    (Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
     ```
     ```
     .\venv\Scripts\Activate.ps1
@@ -13,7 +12,7 @@
     ```
 2.  **Datenbank erstellen:**
     Mariadb Server installieren und Datenbank step_together erstellen falls nicht vorhanden
-    -Optional(Benutze step-together.sql um die Testdaten zu seeden oder mach mit Step 4 weiter
+    -Optional(Benutze step-together.sql im Ordner app/db um die Testdaten zu seeden oder mach mit Step 3 weiter
 
     - **Option 2: Direkt mit Uvicorn im Terminal (z.B. in VS Code)**
       ```bash
@@ -21,7 +20,8 @@
       ```
 
 ## Nutzung
-
+3.  **Installiere Rest Client Plugin um die test.http zu vverwenden:**
+4.  **Verfügbare Endpoints mit test.http testen:**
 - **API-Dokumentation (Swagger UI):**
 - **Verfügbare Basis-Endpunkte:**
   - `http://127.0.0.1:8000/users`
