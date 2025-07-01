@@ -1,20 +1,18 @@
 1.  **Virtuelle Umgebung erstellen und aktivieren, sowie Abhängigkeiten installieren:**
 
-    ```
-    python -m venv venv
-    ```
+- Öffne das Terminal und führe die unten aufgeführten Befehle in der angegebenen Reihenfolge aus.
 
-    ```
+  ```
+  python -m venv venv
+  ```
 
-    ```
+  ```
+  .\venv\Scripts\Activate.ps1
+  ```
 
-    ```
-    .\venv\Scripts\Activate.ps1
-    ```
-
-    ```
-    pip install -r requirements.txt
-    ```
+  ```
+  pip install -r requirements.txt
+  ```
 
 2.  **Datenbank erstellen:**
     Mariadb Server installieren und Datenbank step_together_api erstellen falls nicht vorhanden oder
