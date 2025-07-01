@@ -71,8 +71,8 @@ dmypy.json
 *.so
 
 # Local env files
-.env
-.env.*
+#.env
+#.env.*
 
 # Docker
 *.pid
