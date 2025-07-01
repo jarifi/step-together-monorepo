@@ -31,7 +31,7 @@
     uvicorn app.main:app --reload
     ```
 5.  **Verfügbare Endpoints mit test.http testen:**
-    - Öffne die Datei test.http und finde Test2 und klick Send Request
+    Öffne die Datei test.http, suche den Abschnitt Test2 und klicke auf Send Request, um das JWT-Token zu erhalten. Anschließend kannst du die unten aufgeführten Endpoints - - mit diesem Token aufrufen.
 
 - **Verfügbare Basis-Endpunkte:**
   - `http://127.0.0.1:8000/users`
