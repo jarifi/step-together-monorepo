@@ -16,7 +16,8 @@
 
 2.  **Datenbank erstellen:**
     Mariadb Server installieren und Datenbank step_together_api erstellen falls nicht vorhanden oder
-    -Optional(Benutze step-together.sql im Ordner app/db um die Testdaten zu seeden oder mach mit Step 3 weiter
+    -Optional(Benutze step-together.sql im Ordner app/db um die Testdaten zu seeden oder mach mit Step 3 weiter.
+    Benutzen HeidiSQL für Datenbank-Administration
 
 ## Nutzung
 
