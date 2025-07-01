@@ -4,7 +4,7 @@
 
 # Define a variable to store the access token after login
 # You will copy the token from the login response and paste it here
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZUBleGFtcGxlLmNvbSIsInVzZXJfaWQiOjEsImV4cCI6MTc1MTM1MzU2Nn0.79jhz8dgIwZDzqBIhIdQ-jMj3X4R3HeTmr5e6jS_jfc
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZUBleGFtcGxlLmNvbSIsInVzZXJfaWQiOjEsImV4cCI6MTc1MTM1ODc0M30.5I4vhElItvzVVBqEltigks6hj9iGs5tW-GenQpQRzwg
 ### 1. Create a New User (POST /api/v1/users/)
 # This endpoint does not require authentication.
 POST {{baseUrl}}/users/
