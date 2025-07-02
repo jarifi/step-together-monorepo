@@ -1,18 +1,18 @@
-# # File: app/schema/challenge_progress.py
+# File: app/schema/challenge_progress.py
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
 class ChallengeProgressUpdate(BaseModel):
-    gelaufene_strecke: float
-    insgesamt_schritte: int
+    distance_covered: float  # was gelaufene_strecke
+    total_steps: int         # was insgesamt_schritte
 
 class ChallengeProgressResponse(BaseModel):
     id: int
     user_id: int
     challenge_id: int
-    gelaufene_strecke: float
-    insgesamt_schritte: int
+    distance_covered: float  # was gelaufene_strecke
+    total_steps: int         # was insgesamt_schritte
     updated_at: datetime
 
     class Config:

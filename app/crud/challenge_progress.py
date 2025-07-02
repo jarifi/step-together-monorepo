@@ -6,8 +6,8 @@ def create_challenge_progress(db: Session, user_id: int, challenge_id: int, prog
     progress = ChallengeProgress(
         user_id=user_id,
         challenge_id=challenge_id,
-        gelaufene_strecke=progress_data.gelaufene_strecke,
-        insgesamt_schritte=progress_data.insgesamt_schritte
+        distance_covered=progress_data.distance_covered,   # renamed
+        total_steps=progress_data.total_steps              # renamed
     )
     db.add(progress)
     db.commit()
@@ -24,8 +24,8 @@ def update_challenge_progress(db: Session, progress_id: int, progress_data: Chal
     progress = db.query(ChallengeProgress).filter(ChallengeProgress.id == progress_id).first()
     if not progress:
         return None
-    progress.gelaufene_strecke = progress_data.gelaufene_strecke
-    progress.insgesamt_schritte = progress_data.insgesamt_schritte
+    progress.distance_covered = progress_data.distance_covered   # renamed
+    progress.total_steps = progress_data.total_steps             # renamed
     db.commit()
     db.refresh(progress)
     return progress

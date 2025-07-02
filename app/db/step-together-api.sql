@@ -50,41 +50,21 @@ CREATE TABLE IF NOT EXISTS `challenge_progress` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `challenge_id` int(11) NOT NULL,
-  `gelaufene_strecke` double NOT NULL,
-  `insgesamte_schritte` int(11) NOT NULL,
+  `distance_covered` double NOT NULL,
+  `total_steps` int(11) NOT NULL,
   `updated_at` datetime(3) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.challenge_progress: ~6 rows (ungefähr)
 DELETE FROM `challenge_progress`;
-INSERT INTO `challenge_progress` (`id`, `user_id`, `challenge_id`, `gelaufene_strecke`, `insgesamte_schritte`, `updated_at`) VALUES
+INSERT INTO `challenge_progress` (`id`, `user_id`, `challenge_id`, `distance_covered`, `total_steps`, `updated_at`) VALUES
 	(1, 1, 1, 7, 10000, '2025-05-14 11:44:47.654'),
 	(2, 2, 1, 6, 8000, '2025-05-14 11:44:47.654'),
 	(3, 1, 2, 7, 10000, '2025-05-14 13:42:50.763'),
 	(4, 2, 2, 6, 8000, '2025-05-14 13:42:50.763'),
 	(5, 1, 3, 7, 10000, '2025-05-20 08:23:39.232'),
 	(6, 2, 3, 6, 8000, '2025-05-20 08:23:39.232');
-
--- Exportiere Struktur von Tabelle step_together_api.challenge_progresses
-DROP TABLE IF EXISTS `challenge_progresses`;
-CREATE TABLE IF NOT EXISTS `challenge_progresses` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `challenge_id` int(11) DEFAULT NULL,
-  `gelaufene_strecke` float NOT NULL,
-  `insgesamt_schritte` int(11) NOT NULL,
-  `updated_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`),
-  KEY `challenge_id` (`challenge_id`),
-  KEY `ix_challenge_progresses_id` (`id`),
-  CONSTRAINT `challenge_progresses_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
-  CONSTRAINT `challenge_progresses_ibfk_2` FOREIGN KEY (`challenge_id`) REFERENCES `challenges` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Exportiere Daten aus Tabelle step_together_api.challenge_progresses: ~0 rows (ungefähr)
-DELETE FROM `challenge_progresses`;
 
 -- Exportiere Struktur von Tabelle step_together_api.schritt_logs
 DROP TABLE IF EXISTS `schritt_logs`;
