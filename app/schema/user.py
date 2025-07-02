@@ -28,7 +28,7 @@ PasswordString = Annotated[
 class UserBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=50, pattern="^[a-zA-Z ]+$")
     email: EmailStr
-    schrittlaenge: Optional[Annotated[float, Field(ge=0, le=200)]] = None
+    step_length: Optional[Annotated[float, Field(ge=0, le=200)]] = None
     model_config = ConfigDict(from_attributes=True)
 
 class UserCreate(UserBase):
@@ -57,7 +57,7 @@ class UserUpdate(BaseModel):
         None, min_length=2, max_length=50, pattern="^[a-zA-Z ]+$"
     )
     email: Optional[EmailStr] = None
-    schrittlaenge: Optional[Annotated[float, Field(ge=0, le=200)]] = None
+    step_length: Optional[Annotated[float, Field(ge=0, le=200)]] = None
     password: Optional[PasswordString] = None
     model_config = ConfigDict(from_attributes=True)
 

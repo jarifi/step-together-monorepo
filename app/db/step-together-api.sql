@@ -93,14 +93,14 @@ CREATE TABLE IF NOT EXISTS `schritt_logs` (
   `user_id` int(11) NOT NULL,
   `challenge_id` int(11) NOT NULL,
   `team_id` int(11) NOT NULL,
-  `datum` datetime(3) NOT NULL,
-  `anzahl_schritte` int(11) NOT NULL,
+  `date` datetime(3) NOT NULL,
+  `number_of_steps` int(11) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.schritt_logs: ~6 rows (ungefähr)
 DELETE FROM `schritt_logs`;
-INSERT INTO `schritt_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `datum`, `anzahl_schritte`) VALUES
+INSERT INTO `schritt_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `number_of_steps`) VALUES
 	(1, 1, 1, 1, '2025-05-03 00:00:00.000', 10000),
 	(2, 2, 1, 1, '2025-05-03 00:00:00.000', 8000),
 	(3, 1, 2, 2, '2025-05-03 00:00:00.000', 10000),
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` varchar(100) NOT NULL,
   `email` varchar(255) NOT NULL,
   `hashed_password` varchar(255) NOT NULL,
-  `schrittlaenge` double DEFAULT NULL,
+  `step_length` double DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `is_verified` tinyint(1) NOT NULL DEFAULT 0,
   `verification_token` varchar(100) DEFAULT NULL,
@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 
 -- Exportiere Daten aus Tabelle step_together_api.users: ~9 rows (ungefähr)
 DELETE FROM `users`;
-INSERT INTO `users` (`id`, `name`, `email`, `hashed_password`, `schrittlaenge`, `is_active`, `is_verified`, `verification_token`, `password_reset_token`, `failed_login_attempts`, `locked_until`, `created_at`, `updated_at`) VALUES
+INSERT INTO `users` (`id`, `name`, `email`, `hashed_password`, `step_length`, `is_active`, `is_verified`, `verification_token`, `password_reset_token`, `failed_login_attempts`, `locked_until`, `created_at`, `updated_at`) VALUES
 	(1, 'Test User', 'alice@example.com', '$2b$12$O2zu3sjsx3k8CtygosOyT.ynRP5ctnJuNyi3AECxhf/qaRaZAgbXS', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-06-26 11:49:36.046', '2025-06-26 13:49:57.175'),
 	(2, 'Bob Smith', 'bob@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.75, 1, 1, NULL, NULL, 0, NULL, '2025-05-14 11:44:47.624', '2025-06-26 13:25:51.875'),
 	(3, 'Charlie Brown', 'charlie@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.8, 1, 0, NULL, NULL, 0, NULL, '2025-05-14 11:44:47.624', '2025-06-26 13:25:48.872'),

@@ -107,7 +107,7 @@ def decode_access_token(token: str) -> TokenData:
             email=email,
             user_id=user_id_int,
             name=payload.get("name"),
-            schrittlaenge=payload.get("schrittlaenge"),
+            step_length=payload.get("step_length"),
         )
     except JWTError as e:
         raise HTTPException(

@@ -5,15 +5,15 @@ class SchrittLogCreate(BaseModel):
     user_id: int
     challenge_id: int
     team_id: int
-    anzahl_schritte: int
+    number_of_steps: int
 
 class SchrittLogResponse(BaseModel):
     id: int
     user_id: int
     challenge_id: int
     team_id: int
-    datum: datetime
-    anzahl_schritte: int
+    date: datetime
+    number_of_steps: int
 
     class Config:
         from_attributes = True

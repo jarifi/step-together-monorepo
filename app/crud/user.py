@@ -24,7 +24,7 @@ def create_user(db: Session, user: UserCreate):
         email=user.email,
         hashed_password=hashed_password,  # Store hashed password
         name=user.name,
-        schrittlaenge=user.schrittlaenge,
+        step_length=user.step_length,
         is_active=True,
         is_verified=False
     )

@@ -9,4 +9,4 @@ class TokenData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[int] = None
     name: Optional[str] = None # Include if you expect 'name' in payload
-    schrittlaenge: Optional[float] = None # Include if you expect 'schrittlaenge' in payload
+    step_length: Optional[float] = None # Include if you expect 'step_length' in payload

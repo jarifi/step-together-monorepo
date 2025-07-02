@@ -10,7 +10,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)  # Changed from password
-    schrittlaenge = Column(Float, nullable=True)
+    step_length = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     verification_token = Column(String(100), nullable=True)
