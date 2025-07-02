@@ -9,4 +9,4 @@ class TeamMember(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     team_id = Column(Integer, ForeignKey("teams.id"))
-    beitrittsdatum = Column(DateTime, default=datetime.utcnow)
+    joining_date = Column(DateTime, default=datetime.utcnow)

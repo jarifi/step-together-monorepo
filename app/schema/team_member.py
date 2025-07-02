@@ -11,7 +11,7 @@ class TeamMemberResponse(BaseModel):
     id: int
     user_id: int
     team_id: int
-    beitrittsdatum: Optional[datetime] = None
+    joining_date: Optional[datetime] = None
 
     class Config:
         from_attributes = True

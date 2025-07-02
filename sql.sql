@@ -132,13 +132,13 @@ CREATE TABLE IF NOT EXISTS `team_members` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `team_id` int(11) NOT NULL,
-  `beitrittsdatum` datetime(3) NOT NULL,
+  `joining_date` datetime(3) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together.team_members: ~6 rows (ungefähr)
 DELETE FROM `team_members`;
-INSERT INTO `team_members` (`id`, `user_id`, `team_id`, `beitrittsdatum`) VALUES
+INSERT INTO `team_members` (`id`, `user_id`, `team_id`, `joining_date`) VALUES
 	(1, 1, 1, '2025-05-01 00:00:00.000'),
 	(2, 2, 1, '2025-05-02 00:00:00.000'),
 	(3, 1, 2, '2025-05-01 00:00:00.000'),
