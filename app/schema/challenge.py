@@ -21,7 +21,7 @@ class ChallengeUpdate(BaseModel):
     """Schema for challenge updates (PATCH/PUT requests)"""
     name: Optional[str] = Field(None, max_length=255, example="Updated Challenge Name")
     start_location: Optional[str] = Field(None, max_length=255)
-    ziel_location: Optional[str] = Field(None, max_length=255)
+    target_location: Optional[str] = Field(None, max_length=255)
     distance: Optional[float] = Field(None, gt=0)
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
