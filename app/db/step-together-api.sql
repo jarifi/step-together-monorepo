@@ -25,12 +25,12 @@ DROP TABLE IF EXISTS `challenges`;
 CREATE TABLE IF NOT EXISTS `challenges` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(191) NOT NULL,
-  `start_ort` varchar(191) NOT NULL,
-  `ziel_ort` varchar(191) NOT NULL,
-  `streckenlaenge` double NOT NULL,
-  `start_datum` datetime(3) NOT NULL,
-  `end_datum` datetime(3) NOT NULL,
-  `ersteller_id` int(11) NOT NULL,
+  `start_location` varchar(191) NOT NULL,
+  `end_location` varchar(191) NOT NULL,
+  `distance` double NOT NULL,
+  `start_date` datetime(3) NOT NULL,
+  `end_date` datetime(3) NOT NULL,
+  `creator_id` int(11) NOT NULL,
   `team_id` int(11) NOT NULL,
   `created_at` datetime(3) NOT NULL DEFAULT current_timestamp(3),
   `updated_at` datetime(3) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `challenges` (
 
 -- Exportiere Daten aus Tabelle step_together_api.challenges: ~3 rows (ungefähr)
 DELETE FROM `challenges`;
-INSERT INTO `challenges` (`id`, `name`, `start_ort`, `ziel_ort`, `streckenlaenge`, `start_datum`, `end_datum`, `ersteller_id`, `team_id`, `created_at`, `updated_at`) VALUES
+INSERT INTO `challenges` (`id`, `name`, `start_location`, `end_location`, `distance`, `start_date`, `end_date`, `creator_id`, `team_id`, `created_at`, `updated_at`) VALUES
 	(1, 'Spring Challenge', 'Berlin', 'Hamburg', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 1, '2025-05-14 11:44:47.646', '2025-05-14 11:44:47.646'),
 	(2, 'Spring Challenge', 'Berlin', 'Hamburg', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 2, '2025-05-14 13:42:50.754', '2025-05-14 13:42:50.754'),
 	(3, 'Spring Challenge', 'Berlin', 'Hamburg', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 3, '2025-05-20 08:23:39.224', '2025-05-20 08:23:39.224');
