@@ -4,14 +4,18 @@
 
 # Define a variable to store the access token after login
 # You will copy the token from the login response and paste it here
+<<<<<<< HEAD
 @accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZTFAZXhhbXBsZS5jb20iLCJ1c2VyX2lkIjoyMCwiZXhwIjoxNzUxNDU1NzY3fQ.ZEPa_fTmFy2bKIsjHBWuJtZTUc17EKjhY036GdEun_I
+=======
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZTFAZXhhbXBsZS5jb20iLCJ1c2VyX2lkIjoyMCwiZXhwIjoxNzUxMzc4NjAzfQ.8aZIbDBpUy4eAfL5Kpb4gC1J99Y1lcq9Tzk9J67uFt4
+>>>>>>> 636b40157c210bbd2f3214cb76932473d7f49609
 ### 1. Create a New User (POST /api/v1/users/)
 # This endpoint does not require authentication.
 POST {{baseUrl}}/users/
 Content-Type: application/json
 
 {
-    "email": "alice1@example.com",
+    "email": "alice2@example.com",
     "password": "StrongPassword123",
     "password_confirm": "StrongPassword123",
     "name": "Test User",

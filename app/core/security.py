@@ -1,4 +1,5 @@
 # File: app/core/security.py
+from app.core.config import settings
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Annotated
 import os # Import the os module
@@ -27,7 +28,7 @@ else:
 
 # --- JWT Configuration ---
 # Get SECRET_KEY from environment variable
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = settings.SECRET_KEY
 if SECRET_KEY is None:
     # Raise an error if the secret key is not set, as it's critical
     print("DEBUG: SECRET_KEY is None after os.getenv()") # Debug print for None case
@@ -35,9 +36,9 @@ if SECRET_KEY is None:
 else:
     print(f"DEBUG: SECRET_KEY loaded: '{SECRET_KEY}' (Length: {len(SECRET_KEY)})") # Debug print for loaded key
 
-ALGORITHM = "HS256"
+ALGORITHM = settings.ALGORITHM
 # Get ACCESS_TOKEN_EXPIRE_MINUTES from environment variable, with a default
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 print(f"DEBUG: ACCESS_TOKEN_EXPIRE_MINUTES loaded: {ACCESS_TOKEN_EXPIRE_MINUTES}") # Debug print for expire minutes
 
 
