@@ -1,0 +1,15 @@
+@baseUrl = http://127.0.0.1:8000/api/v1
+
+### 1. Login to Get Access Token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "alice1@example.com",
+    "password": "StrongPassword123" 
+}
+
+### 2. Get All Users Using Access Token
+GET {{baseUrl}}/users/
+Authorization: Bearer {{login.response.body.access_token}}

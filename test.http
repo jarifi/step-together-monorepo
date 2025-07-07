@@ -1,17 +1,83 @@
 ### VS Code REST Client Requests for FastAPI User Endpoints
 
+
+
+
+
 @baseUrl = http://127.0.0.1:8000/api/v1
 
 # Define a variable to store the access token after login
 # You will copy the token from the login response and paste it here
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZTFAZXhhbXBsZS5jb20iLCJ1c2VyX2lkIjoyMCwiZXhwIjoxNzUxNDYxMTA1fQ.ozrf9uFGWm1SZNP_Rs5kJa7iJJEY_g0CxIY4KmaidmU
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5caCI6IkpXVCJ9.eyJzdWIiOiJhbGljZTFAZXhhbXBsZS5jb20iLCJ1c2VyX2lkIjoyMCwiZXhwIjoxNzUxNTUyMjcyfQ.eIXMtmlZC4WrgA2pk2sC2pxatvgq5EyqUI3l0fwCaxY
+
+### 2. User Login (POST /api/v1/auth/login)
+# Replace with your actual auth login endpoint and credentials.
+# The response will contain the access_token. Copy it and paste it into @accessToken variable above.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "alice1@example.com",
+    "password": "StrongPassword123" 
+}
+
+
+### 3. Get All Users (GET /api/v1/users/)
+# Requires authentication using the obtained access token.
+GET {{baseUrl}}/users/
+Authorization: Bearer {{accessToken}}
+
+### 3.1. Get All Team Members (GET /api/v1/team_members/)
+# Requires authentication using the obtained access token.
+# This endpoint is used to retrieve all team members.
+GET {{baseUrl}}/team_members/
+Authorization: Bearer {{accessToken}}
+
+### 3.2. Get All Challenges (GET /api/v1/challenges/)
+# Requires authentication using the obtained access token.
+# This endpoint is used to retrieve all challenges
+GET {{baseUrl}}/challenges
+Authorization: Bearer {{accessToken}}
+
+### 3.3. Get All Teams (GET /api/v1/teams/)
+# Requires authentication using the obtained access token.
+# This endpoint is used to retrieve all teams.
+GET {{baseUrl}}/teams
+Authorization: Bearer {{accessToken}}
+
+### 4. Get Current User (GET /api/v1/users/me)
+# Requires authentication using the obtained access token.
+
+### 3.4. Get All Progesses (GET /api/v1/challenge_progress/)
+# Requires authentication using the obtained access token.
+# This endpoint is used to retrieve all Progresses.
+GET {{baseUrl}}/challenge_progress
+Authorization: Bearer {{accessToken}}
+
+### 4. Get Current User (GET /api/v1/users/me)
+# Requires authentication using the obtained access token.
+
+
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{accessToken}}
+
+### 5. Get User by ID (GET /api/v1/users/{user_id})
+# Replace {user_id} with an actual user ID (e.g., 1, 2, etc.).
+# Requires authentication.
+GET {{baseUrl}}/users/2
+Authorization: Bearer {{accessToken}}
+
+
+
+
+
 ### 1. Create a New User (POST /api/v1/users/)
 # This endpoint does not require authentication.
 POST {{baseUrl}}/users/
 Content-Type: application/json
 
 {
-    "email": "alice1@example.com",
+    "email": "alice11@example.com",
     "password": "StrongPassword123",
     "password_confirm": "StrongPassword123",
     "name": "Test User",
@@ -71,61 +137,8 @@ Authorization: Bearer {{accessToken}}
     "updated_at": "2025-07-01T14:00:39"
   
 }
-### 2. User Login (POST /api/v1/auth/login)
-# Replace with your actual auth login endpoint and credentials.
-# The response will contain the access_token. Copy it and paste it into @accessToken variable above.
-POST {{baseUrl}}/auth/login
-Content-Type: application/json
-
-{
-    "email": "alice1@example.com",
-    "password": "StrongPassword123" 
-}
-
-### 3. Get All Users (GET /api/v1/users/)
-# Requires authentication using the obtained access token.
-GET {{baseUrl}}/users/
-Authorization: Bearer {{accessToken}}
-
-### 3.1. Get All Team Members (GET /api/v1/team_members/)
-# Requires authentication using the obtained access token.
-# This endpoint is used to retrieve all team members.
-GET {{baseUrl}}/team_members/
-Authorization: Bearer {{accessToken}}
-
-### 3.2. Get All Challenges (GET /api/v1/challenges/)
-# Requires authentication using the obtained access token.
-# This endpoint is used to retrieve all challenges
-GET {{baseUrl}}/challenges
-Authorization: Bearer {{accessToken}}
-
-### 3.3. Get All Teams (GET /api/v1/teams/)
-# Requires authentication using the obtained access token.
-# This endpoint is used to retrieve all teams.
-GET {{baseUrl}}/teams
-Authorization: Bearer {{accessToken}}
-
-### 4. Get Current User (GET /api/v1/users/me)
-# Requires authentication using the obtained access token.
-
-### 3.4. Get All Progesses (GET /api/v1/challenge_progress/)
-# Requires authentication using the obtained access token.
-# This endpoint is used to retrieve all Progresses.
-GET {{baseUrl}}/challenge_progress
-Authorization: Bearer {{accessToken}}
-
-### 4. Get Current User (GET /api/v1/users/me)
-# Requires authentication using the obtained access token.
 
 
-GET {{baseUrl}}/users/me
-Authorization: Bearer {{accessToken}}
-
-### 5. Get User by ID (GET /api/v1/users/{user_id})
-# Replace {user_id} with an actual user ID (e.g., 1, 2, etc.).
-# Requires authentication.
-GET {{baseUrl}}/users/2
-Authorization: Bearer {{accessToken}}
 
 ### 6. Update an Existing User (PUT /api/v1/users/{user_id})
 # Replace {user_id} with the ID of the user you want to update.
