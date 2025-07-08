@@ -157,7 +157,7 @@ INSERT INTO `users` (`id`, `name`, `email`, `hashed_password`, `step_length`, `i
 	(11, 'Eva Johnson', 'eva@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.85, 1, 1, NULL, NULL, 0, NULL, '2025-05-27 09:50:11.845', '2025-06-26 13:25:43.416'),
 	(12, 'Leonie Schmidt', 'leonie@bfi.at', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.8, 1, 1, NULL, NULL, 0, NULL, '2025-06-02 06:31:21.612', '2025-06-26 13:25:38.774'),
 	(13, 'Test User', 'testuser@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-06-26 11:23:56.643', '2025-06-26 11:23:56.643'),
-	(20, 'Test User', 'alice1@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-01 11:12:15.144', '2025-07-01 11:12:15.144'),
+	(20, 'Alicia Keys', 'alicia@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-01 11:12:15.144', '2025-07-01 11:12:15.144'),
 	(21, 'Test User', 'alice2@example.com', '$2b$12$QiesKjhlRLSJVPgNmVCR5eODcTlnN64K5HQHlRy6F8pOqH/NdiCg2', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-01 13:34:23.797', '2025-07-01 13:34:23.797');
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
