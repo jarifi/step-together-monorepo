@@ -48,3 +48,52 @@ def test_create_team_success(client, db_session, test_user):
     assert "id" in data
     assert data["name"] == payload["name"]
     assert data["creator_id"] == payload["creator_id"]
+
+def test_get_all_teams(client, db_session, test_user):
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": test_user.email, "password": "StrongPassword123"}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    payload1 = {
+        "name": "Fast Flyers",
+        "creator_id": test_user.id,
+        "updated_at": datetime.now().isoformat()
+    }
+    payload2 = {
+        "name": "Trail Blazers",
+        "creator_id": test_user.id,
+        "updated_at": datetime.now().isoformat()
+    }
+
+    response1 = client.post(
+        "/api/v1/teams/",
+        json=payload1,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response1.status_code == 201
+
+    response2 = client.post(
+        "/api/v1/teams/",
+        json=payload2,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response2.status_code == 201
+
+    get_response = client.get(
+        "/api/v1/teams/",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    print(f"GET /teams/ response status: {get_response.status_code}")
+    print(f"GET /teams/ response body: {get_response.json()}")
+
+    assert get_response.status_code == 200
+    data = get_response.json()
+    assert isinstance(data, list)
+
+    assert any (team["name"] == "Fast Flyers" for team in data)
+    assert any (team["name"] == "Trail Blazers" for team in data)
+    assert any (team["creator_id"] == test_user.id for team in data)

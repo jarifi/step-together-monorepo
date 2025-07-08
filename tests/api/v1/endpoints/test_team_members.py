@@ -57,3 +57,52 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
     data = response.json()
     assert data["user_id"] == payload["user_id"]
     assert data["team_id"] == payload["team_id"]
+
+def test_get_all_team_members(client, db_session, test_user, test_team):
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": test_user.email, "password": "StrongPassword123"}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    payload1 = {
+        "user_id": test_user.id,
+        "team_id": test_team.id,
+        "joining_date": datetime.now().isoformat()
+    }
+    payload2 = {
+        "user_id": test_user.id,
+        "team_id": test_team.id,
+        "joining_date": datetime.now().isoformat()
+    }
+
+    response1 = client.post(
+        "/api/v1/team_members/",
+        json=payload2,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response1.status_code == 201
+
+    response2 = client.post(
+        "/api/v1/team_members/",
+        json=payload2,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response2.status_code == 201
+
+    get_response = client.get(
+        "/api/v1/team_members/",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    print(f"GET /team_members/ respnse status: {get_response.status_code}")
+    print(f"GET /team_members/ response body: {get_response.json()}")
+
+    assert get_response.status_code == 200
+    data = get_response.json()
+    assert isinstance(data,list)
+    assert any(
+        member["user_id"] == test_user.id and member["team_id"] == test_team.id
+        for member in data
+    )
