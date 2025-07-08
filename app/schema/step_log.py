@@ -1,13 +1,13 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-class SchrittLogCreate(BaseModel):
+class StepLogCreate(BaseModel):
     user_id: int
     challenge_id: int
     team_id: int
     number_of_steps: int
 
-class SchrittLogResponse(BaseModel):
+class StepLogResponse(BaseModel):
     id: int
     user_id: int
     challenge_id: int

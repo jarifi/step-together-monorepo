@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, DateTime, ForeignKey
 from app.db.base import Base
 
-class SchrittLog(Base):
-    __tablename__ = "schritt_logs"
+class StepLog(Base):
+    __tablename__ = "step_logs"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -15,8 +15,8 @@ class SchrittLog(Base):
 # from datetime import datetime
 # from app.database import Base
 
-# class SchrittLog(Base):
-#     __tablename__ = "schritt_logs"
+# class StepLog(Base):
+#     __tablename__ = "step_logs"
 
 #     id = Column(Integer, primary_key=True, index=True)
 #     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)        # Added ForeignKey

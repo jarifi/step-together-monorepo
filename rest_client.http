@@ -6,10 +6,30 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "alice1@example.com",
+    "email": "alice@example.com",
     "password": "StrongPassword123" 
 }
 
 ### 2. Get All Users Using Access Token
 GET {{baseUrl}}/users/
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 3. Get All Teams Using Access Token
+GET {{baseUrl}}/teams/
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 4. Get All Team Members Using Access Token
+GET {{baseUrl}}/team_members
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 5. Get All Challanges Using Access Token
+GET {{baseUrl}}/challenges/
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 6. Get All Challange_progresses Using Access Token
+GET {{baseUrl}}/challenge_progress/
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 7. Get All Step_logs Using Access Token
+GET {{baseUrl}}/step_logs/
 Authorization: Bearer {{login.response.body.access_token}}

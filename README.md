@@ -40,4 +40,4 @@
   - `http://127.0.0.1:8000/team_members`
   - `http://127.0.0.1:8000/challenges`
   - `http://127.0.0.1:8000/challenge_progresses`
-  - `http://127.0.0.1:8000/schritt_logs`
+  - `http://127.0.0.1:8000/step_length`

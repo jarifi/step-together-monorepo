@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS `challenges` (
   `created_at` datetime(3) NOT NULL DEFAULT current_timestamp(3),
   `updated_at` datetime(3) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.challenges: ~4 rows (ungefähr)
 DELETE FROM `challenges`;
@@ -67,9 +67,9 @@ INSERT INTO `challenge_progress` (`id`, `user_id`, `challenge_id`, `distance_cov
 	(5, 1, 3, 7, 10000, '2025-05-20 08:23:39.232'),
 	(6, 2, 3, 6, 8000, '2025-05-20 08:23:39.232');
 
--- Exportiere Struktur von Tabelle step_together_api.schritt_logs
-DROP TABLE IF EXISTS `schritt_logs`;
-CREATE TABLE IF NOT EXISTS `schritt_logs` (
+-- Exportiere Struktur von Tabelle step_together_api.step_logs
+DROP TABLE IF EXISTS `step_logs`;
+CREATE TABLE IF NOT EXISTS `step_logs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `challenge_id` int(11) NOT NULL,
@@ -79,9 +79,9 @@ CREATE TABLE IF NOT EXISTS `schritt_logs` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportiere Daten aus Tabelle step_together_api.schritt_logs: ~6 rows (ungefähr)
-DELETE FROM `schritt_logs`;
-INSERT INTO `schritt_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `number_of_steps`) VALUES
+-- Exportiere Daten aus Tabelle step_together_api.step_logs: ~6 rows (ungefähr)
+DELETE FROM `step_logs`;
+INSERT INTO `step_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `number_of_steps`) VALUES
 	(1, 1, 1, 1, '2025-05-03 00:00:00.000', 20),
 	(2, 1, 1, 1, '2025-05-04 00:00:00.000', 10),
 	(3, 1, 2, 2, '2025-05-03 00:00:00.000', 10000),
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at` datetime(3) NOT NULL DEFAULT current_timestamp(3) ON UPDATE current_timestamp(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_key` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.users: ~10 rows (ungefähr)
 DELETE FROM `users`;

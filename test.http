@@ -8,7 +8,7 @@
 
 # Define a variable to store the access token after login
 # You will copy the token from the login response and paste it here
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5caCI6IkpXVCJ9.eyJzdWIiOiJhbGljZTFAZXhhbXBsZS5jb20iLCJ1c2VyX2lkIjoyMCwiZXhwIjoxNzUxNTUyMjcyfQ.eIXMtmlZC4WrgA2pk2sC2pxatvgq5EyqUI3l0fwCaxY
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZTFAZXhhbXBsZS5jb20iLCJ1c2VyX2lkIjoyMiwiZXhwIjoxNzUxODkwNTU4fQ.baxMu5HemNnPvocxYPdldjkQkG7W0afEk-5T6-SubPU
 
 ### 2. User Login (POST /api/v1/auth/login)
 # Replace with your actual auth login endpoint and credentials.
@@ -17,7 +17,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "alice1@example.com",
+    "email": "alice@example.com",
     "password": "StrongPassword1234" 
 }
 
