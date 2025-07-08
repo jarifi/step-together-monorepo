@@ -70,3 +70,55 @@ def test_create_challenge_ppogress_success(client, db_session, test_user, test_c
     assert data["user_id"] == payload["user_id"]
     assert data["challenge_id"] == payload["challenge_id"]
     assert data["distance_covered"] == payload["distance_covered"]
+
+def test_get_all_challenge_progresses(client, db_session, test_user, test_challenge):
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": test_user.email, "password": "StrongPassword123"}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    payload1 = {
+        "user_id": test_user.id,
+        "challenge_id": test_challenge.id,
+        "distance_covered": 12.5,
+        "total_steps": 2500,
+        "updated_at": datetime.now().isoformat(),
+    }
+    payload2 = {
+        "user_id": test_user.id,
+        "challenge_id": test_challenge.id,
+        "distance_covered": 25.0,
+        "total_steps": 5000,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    response1 = client.post(
+        f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}",
+        json=payload1,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response1.status_code == 201
+
+    response2 = client.post(
+        f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}",
+        json=payload2,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response2.status_code == 201
+
+    get_response = client.get(
+        "/api/v1/challenge_progress/",
+        headers={"Authorization": f"Bearer {token}"}    
+    )
+
+    print(f"GET /challenge_progress/ response status: {get_response.status_code}")
+    print(f"GET /challenge_progress/ response body: {get_response.json()}")
+
+    assert get_response.status_code == 200
+    data = get_response.json()
+    assert isinstance(data, list)
+    assert any(cp["distance_covered"] == 12.5 for cp in data)
+    assert any(cp["distance_covered"] == 25.0 for cp in data)
+    assert any(cp["user_id"] == test_user.id for cp in data)

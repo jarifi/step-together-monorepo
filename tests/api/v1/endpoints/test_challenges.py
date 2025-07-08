@@ -48,3 +48,40 @@ def test_create_challenge_success(client, db_session, test_creator):
     assert "id" in data
     assert data["name"] == payload["name"]
     assert data["start_location"] == payload["start_location"]
+
+def test_get_all_challenges(client, db_session, test_creator):
+    team_id = 1
+
+    challenge1 = {
+        "name": "5K Walk Challenge",
+        "start_location": "Hamburg",
+        "target_location": "Frankfurt",
+        "distance": 300.0,
+        "start_date": datetime.now().isoformat(),
+        "end_date": (datetime.now() + timedelta(days=15)).isoformat(),
+        "creator_id": test_creator.id,
+        "team_id": team_id
+    }
+    challenge2 = {
+        "name": "Marathon Challenge",
+        "start_location": "Paris",
+        "target_location": "Lyon",
+        "distance": 42195.0,
+        "start_date": datetime.now().isoformat(),
+        "end_date": (datetime.now() + timedelta(days=60)).isoformat(),
+        "creator_id": test_creator.id,
+        "team_id": team_id
+    }
+
+    client.post("/api/v1/challenges/", json=challenge1)
+    client.post("/api/v1/challenges/", json=challenge2)
+
+    response = client.get("/api/v1/challenges/")
+    print(f"GET /challenges response status: {response.status_code}")
+    print(f"GET /challenges response body: {response.json()}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert any(ch["name"] == "5K Walk Challenge" for ch in data)
+    assert any(ch["name"] == "Marathon Challenge" for ch in data)
