@@ -37,12 +37,13 @@ CREATE TABLE IF NOT EXISTS `challenges` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportiere Daten aus Tabelle step_together_api.challenges: ~3 rows (ungefähr)
+-- Exportiere Daten aus Tabelle step_together_api.challenges: ~4 rows (ungefähr)
 DELETE FROM `challenges`;
 INSERT INTO `challenges` (`id`, `name`, `start_location`, `target_location`, `distance`, `start_date`, `end_date`, `creator_id`, `team_id`, `created_at`, `updated_at`) VALUES
 	(1, 'Spring Challenge', 'Berlin', 'Hamburg', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 1, '2025-05-14 11:44:47.646', '2025-05-14 11:44:47.646'),
 	(2, 'Spring Challenge', 'Berlin', 'Hamburg', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 2, '2025-05-14 13:42:50.754', '2025-05-14 13:42:50.754'),
-	(3, 'Spring Challenge', 'Berlin', 'Hamburg', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 3, '2025-05-20 08:23:39.224', '2025-05-20 08:23:39.224');
+	(3, 'Spring Challenge', 'Berlin', 'Hamburg', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 3, '2025-05-20 08:23:39.224', '2025-05-20 08:23:39.224'),
+	(4, 'Nice Challenge', 'Liverpool', 'London', 300, '2025-05-01 00:00:00.000', '2025-06-01 00:00:00.000', 1, 2, '2025-07-03 20:09:12.832', '2025-07-03 20:09:12.832');
 
 -- Exportiere Struktur von Tabelle step_together_api.challenge_progress
 DROP TABLE IF EXISTS `challenge_progress`;
@@ -81,8 +82,8 @@ CREATE TABLE IF NOT EXISTS `schritt_logs` (
 -- Exportiere Daten aus Tabelle step_together_api.schritt_logs: ~6 rows (ungefähr)
 DELETE FROM `schritt_logs`;
 INSERT INTO `schritt_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `number_of_steps`) VALUES
-	(1, 1, 1, 1, '2025-05-03 00:00:00.000', 10000),
-	(2, 2, 1, 1, '2025-05-03 00:00:00.000', 8000),
+	(1, 1, 1, 1, '2025-05-03 00:00:00.000', 20),
+	(2, 1, 1, 1, '2025-05-04 00:00:00.000', 10),
 	(3, 1, 2, 2, '2025-05-03 00:00:00.000', 10000),
 	(4, 2, 2, 2, '2025-05-03 00:00:00.000', 8000),
 	(5, 1, 3, 3, '2025-05-03 00:00:00.000', 10000),
@@ -147,18 +148,19 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `users_email_key` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportiere Daten aus Tabelle step_together_api.users: ~9 rows (ungefähr)
+-- Exportiere Daten aus Tabelle step_together_api.users: ~10 rows (ungefähr)
 DELETE FROM `users`;
 INSERT INTO `users` (`id`, `name`, `email`, `hashed_password`, `step_length`, `is_active`, `is_verified`, `verification_token`, `password_reset_token`, `failed_login_attempts`, `locked_until`, `created_at`, `updated_at`) VALUES
-	(1, 'Test User', 'alice@example.com', '$2b$12$O2zu3sjsx3k8CtygosOyT.ynRP5ctnJuNyi3AECxhf/qaRaZAgbXS', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-06-26 11:49:36.046', '2025-06-26 13:49:57.175'),
-	(2, 'Bob Smith', 'bob@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.75, 1, 1, NULL, NULL, 0, NULL, '2025-05-14 11:44:47.624', '2025-06-26 13:25:51.875'),
-	(3, 'Charlie Brown', 'charlie@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.8, 1, 0, NULL, NULL, 0, NULL, '2025-05-14 11:44:47.624', '2025-06-26 13:25:48.872'),
-	(10, 'David Miller', 'david@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.85, 1, 0, NULL, NULL, 0, NULL, '2025-05-27 09:17:34.053', '2025-06-26 13:25:46.108'),
-	(11, 'Eva Johnson', 'eva@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.85, 1, 1, NULL, NULL, 0, NULL, '2025-05-27 09:50:11.845', '2025-06-26 13:25:43.416'),
-	(12, 'Leonie Schmidt', 'leonie@bfi.at', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.8, 1, 1, NULL, NULL, 0, NULL, '2025-06-02 06:31:21.612', '2025-06-26 13:25:38.774'),
-	(13, 'Test User', 'testuser@example.com', '$2b$12$yPB7YI0/TD.A9xhyYlm6r.smn5YZS80IeoJFbwRp4prDCBju3o9oC', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-06-26 11:23:56.643', '2025-06-26 11:23:56.643'),
-	(20, 'Alicia Keys', 'alicia@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-01 11:12:15.144', '2025-07-01 11:12:15.144'),
-	(21, 'Test User', 'alice2@example.com', '$2b$12$QiesKjhlRLSJVPgNmVCR5eODcTlnN64K5HQHlRy6F8pOqH/NdiCg2', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-01 13:34:23.797', '2025-07-01 13:34:23.797');
+	(1, 'Test User', 'alice@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-06-26 11:49:36.046', '2025-07-08 10:23:45.586'),
+	(2, 'Bob Smith', 'bob@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 1, NULL, NULL, 0, NULL, '2025-05-14 11:44:47.624', '2025-07-08 10:23:47.551'),
+	(3, 'Charlie Brown', 'charlie@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.8, 1, 0, NULL, NULL, 0, NULL, '2025-05-14 11:44:47.624', '2025-07-08 10:23:49.303'),
+	(10, 'David Miller', 'david@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.85, 1, 0, NULL, NULL, 0, NULL, '2025-05-27 09:17:34.053', '2025-07-08 10:23:51.347'),
+	(11, 'Eva Johnson', 'eva@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.85, 1, 1, NULL, NULL, 0, NULL, '2025-05-27 09:50:11.845', '2025-07-08 10:23:53.003'),
+	(12, 'Leonie Schmidt', 'leonie@bfi.at', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.8, 1, 1, NULL, NULL, 0, NULL, '2025-06-02 06:31:21.612', '2025-07-08 10:23:54.654'),
+	(13, 'Test User', 'testuser@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-06-26 11:23:56.643', '2025-07-08 10:23:43.113'),
+	(20, 'Alicia Keys', 'alicia@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-01 11:12:15.144', '2025-07-08 09:25:48.942'),
+	(21, 'Test User', 'alice2@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-01 13:34:23.797', '2025-07-08 10:24:00.687'),
+	(22, 'Test User', 'alice11@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-03 13:48:27.757', '2025-07-08 10:24:02.259');
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
