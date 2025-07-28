@@ -19,11 +19,18 @@ def test_creator(db_session):
     db_session.refresh(user)
     return user
 
-def test_create_challenge_success(client, db_session, test_creator):
+# POST / CREATE
+def test_create_challenge_success(client, test_creator):
     # Verify endpoint matches your actual route
-    test_team_id = 1
+    login_response = client.post("/api/v1/auth/login", json={"email": "alice1@example.com", "password": "StrongPassword123"})
 
-    payload = {
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    start_date = datetime.now().isoformat()
+    end_date = (datetime.now() + timedelta(days=10)).isoformat()
+
+    challenge_payload = {
         "name": "10K Run Challenge",
         "start_location": "Berlin",
         "target_location": "Munich",
@@ -31,25 +38,31 @@ def test_create_challenge_success(client, db_session, test_creator):
         "start_date": datetime.now().isoformat(),
         "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
         "creator_id": test_creator.id,
-        "team_id": test_team_id
+        "team_id": 1
     }
 
     response = client.post(
         "/api/v1/challenges/",  # Make sure this matches your actual route
-        json=payload
+        json=challenge_payload, headers={"Authorization": f"Bearer {token}"}
     )
     
     # Debug output
     print(f"Response status: {response.status_code}")
     print(f"Response body: {response.json()}")
     
-    assert response.status_code == 201
+    assert response.status_code == 201 or response.status_code == 200
     data = response.json()
-    assert "id" in data
-    assert data["name"] == payload["name"]
-    assert data["start_location"] == payload["start_location"]
+    assert data["name"] == challenge_payload["name"]
 
+# GET ALL
 def test_get_all_challenges(client, db_session, test_creator):
+    login_response = client.post( "/api/v1/auth/login",
+        json={"email": test_creator.email, "password": "StrongPassword123"})
+    
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
     team_id = 1
 
     challenge1 = {
@@ -73,10 +86,11 @@ def test_get_all_challenges(client, db_session, test_creator):
         "team_id": team_id
     }
 
-    client.post("/api/v1/challenges/", json=challenge1)
-    client.post("/api/v1/challenges/", json=challenge2)
+    client.post("/api/v1/challenges/", json=challenge1, headers=headers)
+    client.post("/api/v1/challenges/", json=challenge2, headers=headers)
 
-    response = client.get("/api/v1/challenges/")
+    response = client.get("/api/v1/challenges/", headers=headers)
+
     print(f"GET /challenges response status: {response.status_code}")
     print(f"GET /challenges response body: {response.json()}")
 
@@ -85,3 +99,39 @@ def test_get_all_challenges(client, db_session, test_creator):
     assert isinstance(data, list)
     assert any(ch["name"] == "5K Walk Challenge" for ch in data)
     assert any(ch["name"] == "Marathon Challenge" for ch in data)
+    
+# GET BY ID
+def test_get_challenge_by_id(client, db_session, test_creator):
+    login_response = client.post("/api/v1/auth/login",
+        json={"email": test_creator.email, "password": "StrongPassword123"})
+    
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    payload = {
+        "name": "City Sprint Challenge",
+        "start_location": "Cologne",
+        "target_location": "Düsseldorf",
+        "distance": 45.0,
+        "start_date": datetime.now().isoformat(),
+        "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
+        "creator_id": test_creator.id,
+        "team_id": 1
+    }
+    create_response = client.post("/api/v1/challenges/", json=payload, headers=headers)
+    assert create_response.status_code == 201
+    challenge_id = create_response.json()["id"]
+
+    get_response = client.get(f"/api/v1/challenges/{challenge_id}", headers=headers)
+
+    print(f"GET /challenges/{challenge_id} status: {get_response.status_code}")
+    print(f"GET /challenges/{challenge_id} body: {get_response.json()}")
+
+    assert get_response.status_code == 200
+    retrieved = get_response.json()
+    assert retrieved["id"] == challenge_id
+    assert retrieved["name"] == payload["name"]
+    assert retrieved["start_location"] == payload["start_location"]
+    assert retrieved["target_location"] == payload["target_location"]

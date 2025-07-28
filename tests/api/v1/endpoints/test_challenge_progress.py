@@ -38,7 +38,8 @@ def test_challenge(db_session, test_user):
     db_session.refresh(challenge)
     return challenge
 
-def test_create_challenge_ppogress_success(client, db_session, test_user, test_challenge):
+# POST / CREATE
+def test_create_challenge_progress_success(client, db_session, test_user, test_challenge):
     # Verify endpoint matches your actual route
     login_response = client.post(
         "/api/v1/auth/login",
@@ -71,6 +72,7 @@ def test_create_challenge_ppogress_success(client, db_session, test_user, test_c
     assert data["challenge_id"] == payload["challenge_id"]
     assert data["distance_covered"] == payload["distance_covered"]
 
+# GET ALL
 def test_get_all_challenge_progresses(client, db_session, test_user, test_challenge):
     login_response = client.post(
         "/api/v1/auth/login",
@@ -122,3 +124,39 @@ def test_get_all_challenge_progresses(client, db_session, test_user, test_challe
     assert any(cp["distance_covered"] == 12.5 for cp in data)
     assert any(cp["distance_covered"] == 25.0 for cp in data)
     assert any(cp["user_id"] == test_user.id for cp in data)
+
+# GET BY ID
+def test_get_challenge_progress_by_id(client, db_session, test_user, test_challenge):
+    login_response = client.post("/api/v1/auth/login",
+        json={"email": test_user.email, "password": "StrongPassword123"})
+    
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    payload = {
+        "user_id": test_user.id,
+        "challenge_id": test_challenge.id,
+        "distance_covered": 12.5,
+        "total_steps": 2500,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    create_response = client.post(f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}", json=payload, headers=headers)
+    assert create_response.status_code == 201
+    progress_data = create_response.json()
+    challenge_progress_id = progress_data["id"]
+
+    get_response = client.get(f"/api/v1/challenge_progress/{challenge_progress_id}", headers=headers)
+
+    print(f"GET /challenge_progress/{challenge_progress_id} status: {get_response.status_code}")
+    print(f"GET /challenge_progress/{challenge_progress_id} body: {get_response.json()}")
+
+    assert get_response.status_code == 200
+    data = get_response.json()
+    assert data["id"] == challenge_progress_id
+    assert data["user_id"] == test_user.id
+    assert data["challenge_id"] == test_challenge.id
+    assert data["distance_covered"] == 12.5
+    assert data["total_steps"] == 2500

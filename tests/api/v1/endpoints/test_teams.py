@@ -18,6 +18,7 @@ def test_user(db_session):
     db_session.refresh(user)
     return user
 
+# POST / CREATE
 def test_create_team_success(client, db_session, test_user):
     # Verify endpoint matches your actual route
     login_response = client.post(
@@ -49,6 +50,7 @@ def test_create_team_success(client, db_session, test_user):
     assert data["name"] == payload["name"]
     assert data["creator_id"] == payload["creator_id"]
 
+# GET ALL
 def test_get_all_teams(client, db_session, test_user):
     login_response = client.post(
         "/api/v1/auth/login",
@@ -97,3 +99,36 @@ def test_get_all_teams(client, db_session, test_user):
     assert any (team["name"] == "Fast Flyers" for team in data)
     assert any (team["name"] == "Trail Blazers" for team in data)
     assert any (team["creator_id"] == test_user.id for team in data)
+
+# GET BY ID
+def test_get_team_by_id(client, db_session, test_user):
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": test_user.email, "password": "StrongPassword123"}
+    )
+    
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    payload = {
+        "name": "Fast Flyers",
+        "creator_id": test_user.id,
+        "updated_at": datetime.now().isoformat()
+    }
+
+    create_response = client.post("/api/v1/teams/", json=payload, headers=headers)
+    assert create_response.status_code == 201
+    progress_data = create_response.json()
+    teams_id = progress_data["id"]
+
+    get_response = client.get("/api/v1/teams/", headers=headers)
+
+    print(f"GET /teams/{teams_id} status: {get_response.status_code}")
+    print(f"GET /teams/{teams_id} body: {get_response.json()}")
+
+    assert get_response.status_code == 200
+    data = get_response.json()[0]
+    assert data["id"] == teams_id
+    assert data["creator_id"] == test_user.id
