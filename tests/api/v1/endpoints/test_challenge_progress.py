@@ -57,7 +57,7 @@ def test_create_challenge_progress_success(client, db_session, test_user, test_c
     }
 
     response = client.post(
-        f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}",  # Make sure this matches your actual route
+        f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}",
         json=payload,
         headers={"Authorization": f"Bearer {token}"}
     )
@@ -73,7 +73,7 @@ def test_create_challenge_progress_success(client, db_session, test_user, test_c
     assert data["distance_covered"] == payload["distance_covered"]
 
 # GET / READ
-def test_get_all_challenge_progresses(client, db_session, test_user, test_challenge):
+def test_get_all_challenge_progress_success(client, db_session, test_user, test_challenge):
     login_response = client.post(
         "/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"}
@@ -126,7 +126,7 @@ def test_get_all_challenge_progresses(client, db_session, test_user, test_challe
     assert any(cp["user_id"] == test_user.id for cp in data)
 
 # GET BY ID
-def test_get_challenge_progress_by_id(client, db_session, test_user, test_challenge):
+def test_get_challenge_progress_by_id_success(client, db_session, test_user, test_challenge):
     login_response = client.post("/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"})
     

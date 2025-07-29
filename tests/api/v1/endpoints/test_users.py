@@ -13,7 +13,7 @@ def test_create_user_success(client, db_session):
     }
 
     response = client.post(
-        "/api/v1/users/",  # Make sure this matches your actual route
+        "/api/v1/users/",
         json=payload
     )
     
@@ -30,7 +30,7 @@ def test_create_user_success(client, db_session):
     assert data["is_verified"] is False
 
 # GET / READ
-def test_get_all_users(client, db_session):
+def test_get_all_users_success(client, db_session):
 
     payload = {
         "name": "Alice",
@@ -64,7 +64,7 @@ def test_get_all_users(client, db_session):
     assert any(u["email"] == payload["email"] for u in users)
 
 # GET BY ID
-def test_get_user_by_id(client, db_session):
+def test_get_user_by_id_success(client, db_session):
     payload = {
         "name": "Alice",
         "email": "alice2@example.com",

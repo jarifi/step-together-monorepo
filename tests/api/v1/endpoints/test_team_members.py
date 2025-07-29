@@ -45,7 +45,7 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
     }
 
     response = client.post(
-        "/api/v1/team_members/",  # Make sure this matches your actual route
+        "/api/v1/team_members/",
         json=payload,
         headers={"Authorization": f"Bearer {token}"}
     )
@@ -60,7 +60,7 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
     assert data["team_id"] == payload["team_id"]
 
 # GET ALL
-def test_get_all_team_members(client, db_session, test_user, test_team):
+def test_get_all_team_members_success(client, db_session, test_user, test_team):
     login_response = client.post(
         "/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"}
@@ -110,7 +110,7 @@ def test_get_all_team_members(client, db_session, test_user, test_team):
     )
 
 # GET BY ID
-def test_get_team_member_by_id(client, db_session, test_user, test_team):
+def test_get_team_member_by_id_success(client, db_session, test_user, test_team):
     login_response = client.post(
         "/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"}

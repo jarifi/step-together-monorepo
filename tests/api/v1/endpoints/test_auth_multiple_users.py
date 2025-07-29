@@ -32,7 +32,7 @@ def test_login_success(client, test_users):
     # Verify endpoint matches your actual route
     for user, password in test_users:
         response = client.post(
-            "/api/v1/auth/login",  # Make sure this matches your actual route
+            "/api/v1/auth/login",
             json={"email": user.email, "password": password}
     )
     

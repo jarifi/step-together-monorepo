@@ -42,7 +42,7 @@ def test_create_challenge_success(client, test_user):
     }
 
     response = client.post(
-        "/api/v1/challenges/",  # Make sure this matches your actual route
+        "/api/v1/challenges/",
         json=challenge_payload, headers={"Authorization": f"Bearer {token}"}
     )
     
@@ -55,7 +55,7 @@ def test_create_challenge_success(client, test_user):
     assert data["name"] == challenge_payload["name"]
 
 # GET / READ
-def test_get_all_challenges(client, db_session, test_user):
+def test_get_all_challenges_success(client, db_session, test_user):
     login_response = client.post( "/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"})
     
@@ -101,7 +101,7 @@ def test_get_all_challenges(client, db_session, test_user):
     assert any(ch["name"] == "Marathon Challenge" for ch in data)
     
 # GET BY ID
-def test_get_challenge_by_id(client, db_session, test_user):
+def test_get_challenge_by_id_success(client, db_session, test_user):
     login_response = client.post("/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"})
     

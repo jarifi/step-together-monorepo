@@ -73,7 +73,7 @@ def test_create_step_log_success(client, db_session, test_user, test_challenge):
     assert data["number_of_steps"] == payload["number_of_steps"]
 
 # GET / READ
-def test_get_all_step_logs(client, db_session, test_user, test_challenge):
+def test_get_all_step_logs_success(client, db_session, test_user, test_challenge):
     login_response = client.post(
         "/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"}
@@ -126,7 +126,7 @@ def test_get_all_step_logs(client, db_session, test_user, test_challenge):
     assert all(sl["user_id"] == test_user.id for sl in data)
 
 # GET BY ID
-def test_get_step_log_by_id(client, db_session, test_user, test_challenge):
+def test_get_step_log_by_id_success(client, db_session, test_user, test_challenge):
     login_response = client.post("/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPassword123"})
     
