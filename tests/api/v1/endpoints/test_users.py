@@ -140,3 +140,35 @@ def test_update_user_success(client, db_session):
     assert updated_data["id"] == user_id
     assert updated_data["name"] == update_payload["name"]
     assert updated_data["email"] == update_payload["email"]
+
+# DELETE
+def test_delete_user_success(client, db_session):
+    payload = {
+        "name": "Alice",
+        "email": "alice2@example.com",
+        "password": "StrongPassword123",
+        "password_confirm": "StrongPassword123",
+        "step_length": 0.75,
+    }
+
+    create_response = client.post(
+        f"/api/v1/users/",
+        json=payload
+    )
+
+    assert create_response.status_code == 201
+    user_id = create_response.json()["id"]
+    login_response = client.post("/api/v1/auth/login", json={"email": payload["email"], "password": payload["password"]})
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+
+    delete_response = client.delete(
+        f"/api/v1/users/{user_id}",
+        headers=headers
+    )
+
+    print(f"DELETE /users/{user_id} status: {delete_response.status_code}")
+    assert delete_response.status_code == 204

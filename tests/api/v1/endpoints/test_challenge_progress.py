@@ -206,3 +206,43 @@ def test_update_challenge_progress_success(client, db_session, test_user, test_c
     assert updated_data["id"] == progress_id
     assert updated_data["distance_covered"] == update_payload["distance_covered"]
     assert updated_data["total_steps"] == update_payload["total_steps"]
+
+# DELETE
+def test_delete_challenge_progress_success(client, db_session, test_user, test_challenge):
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    payload = {
+        "user_id": test_user.id,
+        "challenge_id": test_challenge.id,
+        "distance_covered": 20.0,
+        "total_steps": 4000,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    create_response = client.post(
+        f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}",
+        json=payload,
+        headers=headers
+    )
+
+    assert create_response.status_code == 201
+    progress_id = create_response.json()["id"]
+
+    delete_response = client.delete(
+        f"/api/v1/challenge_progress/{progress_id}",
+        headers=headers
+    )
+
+    print(f"DELETE /challenge_progress/{progress_id} status: {delete_response.status_code}")
+    assert delete_response.status_code == 204
+
+    get_response = client.get(
+        f"/api/v1/challenge_progress/{progress_id}",
+        headers=headers
+    )
+
+    assert get_response.status_code == 404

@@ -130,15 +130,53 @@ def test_get_team_member_by_id(client, db_session, test_user, test_team):
     create_response = client.post("/api/v1/team_members/", json=payload, headers=headers)
     assert create_response.status_code == 201
     progress_data = create_response.json()
-    team_members_id = progress_data["id"]
+    team_member_id = progress_data["id"]
 
     get_response = client.get("/api/v1/team_members/", headers=headers)
 
-    print(f"GET /team_members/{team_members_id} status: {get_response.status_code}")
-    print(f"GET /team_members/{team_members_id} body: {get_response.json()}")
+    print(f"GET /team_members/{team_member_id} status: {get_response.status_code}")
+    print(f"GET /team_members/{team_member_id} body: {get_response.json()}")
 
     assert get_response.status_code == 200
     data = get_response.json()[0]
-    assert data["id"] == team_members_id
+    assert data["id"] == team_member_id
     assert data["user_id"] == test_user.id
     assert data["team_id"] == test_team.id
+
+# DELETE
+def test_delete_team_member_success(client, db_session, test_user, test_team):
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    payload = {
+        "user_id": test_user.id,
+        "team_id": test_team.id,
+        "joining_date": datetime.now().isoformat()
+    }
+
+    create_response = client.post(
+        f"/api/v1/team_members/",
+        json=payload,
+        headers=headers
+    )
+
+    assert create_response.status_code == 201
+    team_member_id = create_response.json()["id"]
+
+    delete_response = client.delete(
+        f"/api/v1/team_members/{team_member_id}",
+        headers=headers
+    )
+
+    print(f"DELETE /team_memberrs/{team_member_id} status: {delete_response.status_code}")
+    assert delete_response.status_code == 204
+
+    get_response = client.get(
+        f"/api/v1/team_members/{team_member_id}",
+        headers=headers
+    )
+
+    assert get_response.status_code == 404

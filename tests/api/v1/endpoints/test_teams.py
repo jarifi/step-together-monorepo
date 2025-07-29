@@ -174,3 +174,41 @@ def test_update_team_success(client, db_session, test_user):
     updated_data = update_response.json()
     assert updated_data["id"] == team_id
     assert updated_data["name"] == update_payload["name"]
+
+# DELETE
+def test_delete_team_success(client, db_session, test_user):
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    payload = {
+        "name": "Fast Flyers",
+        "creator_id": test_user.id,
+        "updated_at": datetime.now().isoformat() 
+    }
+
+    create_response = client.post(
+        f"/api/v1/teams/",
+        json=payload,
+        headers=headers
+    )
+
+    assert create_response.status_code == 201
+    team_id = create_response.json()["id"]
+
+    delete_response = client.delete(
+        f"/api/v1/teams/{team_id}",
+        headers=headers
+    )
+
+    print(f"DELETE /teams/{team_id} status: {delete_response.status_code}")
+    assert delete_response.status_code == 204
+
+    get_response = client.get(
+        f"/api/v1/teams/{team_id}",
+        headers=headers
+    )
+
+    assert get_response.status_code == 404
