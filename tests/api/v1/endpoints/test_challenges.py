@@ -54,7 +54,7 @@ def test_create_challenge_success(client, test_creator):
     data = response.json()
     assert data["name"] == challenge_payload["name"]
 
-# GET ALL
+# GET / READ
 def test_get_all_challenges(client, db_session, test_creator):
     login_response = client.post( "/api/v1/auth/login",
         json={"email": test_creator.email, "password": "StrongPassword123"})
@@ -107,7 +107,6 @@ def test_get_challenge_by_id(client, db_session, test_creator):
     
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
-
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
@@ -135,3 +134,51 @@ def test_get_challenge_by_id(client, db_session, test_creator):
     assert retrieved["name"] == payload["name"]
     assert retrieved["start_location"] == payload["start_location"]
     assert retrieved["target_location"] == payload["target_location"]
+
+# PUT / UPDATE
+def test_update_challenge_success(client, test_creator):
+    login_response = client.post( "/api/v1/auth/login",
+        json={"email": test_creator.email, "password": "StrongPassword123"})
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_payload = {
+        "name": "City Challenge",
+        "start_location": "Cologne",
+        "target_location": "Düsseldorf",
+        "distance": 50.0,
+        "start_date": datetime.now().isoformat(),
+        "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
+        "creator_id": test_creator.id,
+        "team_id": 1
+    }
+    create_response = client.post(
+        f"/api/v1/challenges/",
+        json=create_payload,
+        headers=headers
+    )
+    assert create_response.status_code == 201
+    challenge_id = create_response.json()["id"]
+
+    update_payload = {
+        "name": "New City Challenge",
+        "distance": 80.0,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    update_response = client.put(
+        f"/api/v1/challenges/{challenge_id}",
+        json=update_payload,
+        headers=headers
+    )
+
+    print(f"PUT /challenges/{challenge_id} status: {update_response.status_code}")
+    print(f"PUT /challenges/{challenge_id} body: {update_response.json()}")
+
+    assert update_response.status_code == 200
+    updated_data = update_response.json()
+    assert updated_data["id"] == challenge_id
+    assert updated_data["name"] == update_payload["name"]
+    assert updated_data["distance"] == update_payload["distance"]

@@ -50,7 +50,7 @@ def test_create_team_success(client, db_session, test_user):
     assert data["name"] == payload["name"]
     assert data["creator_id"] == payload["creator_id"]
 
-# GET ALL
+# GET / READ
 def test_get_all_teams(client, db_session, test_user):
     login_response = client.post(
         "/api/v1/auth/login",
@@ -121,14 +121,56 @@ def test_get_team_by_id(client, db_session, test_user):
     create_response = client.post("/api/v1/teams/", json=payload, headers=headers)
     assert create_response.status_code == 201
     progress_data = create_response.json()
-    teams_id = progress_data["id"]
+    team_id = progress_data["id"]
 
     get_response = client.get("/api/v1/teams/", headers=headers)
 
-    print(f"GET /teams/{teams_id} status: {get_response.status_code}")
-    print(f"GET /teams/{teams_id} body: {get_response.json()}")
+    print(f"GET /teams/{team_id} status: {get_response.status_code}")
+    print(f"GET /teams/{team_id} body: {get_response.json()}")
 
     assert get_response.status_code == 200
     data = get_response.json()[0]
-    assert data["id"] == teams_id
+    assert data["id"] == team_id
     assert data["creator_id"] == test_user.id
+
+# PUT / UPDATE
+def test_update_team_success(client, db_session, test_user):
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_payload = {
+        "name": "Fast Flyers",
+        "creator_id": test_user.id,
+        "updated_at": datetime.now().isoformat() 
+    }
+    create_response = client.post(
+        f"/api/v1/teams/",
+        json=create_payload,
+        headers=headers
+    )
+
+    assert create_response.status_code == 201
+    created_data = create_response.json()
+    team_id = created_data["id"]
+
+    update_payload = {
+        "name": "Speedy Flyers",
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    update_response = client.put(
+        f"/api/v1/teams/{team_id}",
+        json=update_payload,
+        headers=headers
+    )
+
+    print(f"PUT /challenge_progress/{team_id} status: {update_response.status_code}")
+    print(f"PUT /challenge_progress/{team_id} body: {update_response.json()}")
+
+    assert update_response.status_code == 200
+    updated_data = update_response.json()
+    assert updated_data["id"] == team_id
+    assert updated_data["name"] == update_payload["name"]

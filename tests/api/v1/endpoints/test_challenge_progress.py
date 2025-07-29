@@ -72,7 +72,7 @@ def test_create_challenge_progress_success(client, db_session, test_user, test_c
     assert data["challenge_id"] == payload["challenge_id"]
     assert data["distance_covered"] == payload["distance_covered"]
 
-# GET ALL
+# GET / READ
 def test_get_all_challenge_progresses(client, db_session, test_user, test_challenge):
     login_response = client.post(
         "/api/v1/auth/login",
@@ -160,3 +160,49 @@ def test_get_challenge_progress_by_id(client, db_session, test_user, test_challe
     assert data["challenge_id"] == test_challenge.id
     assert data["distance_covered"] == 12.5
     assert data["total_steps"] == 2500
+
+# PUT / UPDATE
+def test_update_challenge_progress_success(client, db_session, test_user, test_challenge):
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_payload = {
+        "user_id": test_user.id,
+        "challenge_id": test_challenge.id,
+        "distance_covered": 10.0,
+        "total_steps": 2000,
+        "updated_at": datetime.now().isoformat(), 
+    }
+    create_response = client.post(
+        f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}",
+        json=create_payload,
+        headers=headers
+    )
+
+    assert create_response.status_code == 201
+    created_data = create_response.json()
+    progress_id = created_data["id"]
+
+    update_payload = {
+        "distance_covered": 42.0,
+        "total_steps": 9000,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    update_response = client.put(
+        f"/api/v1/challenge_progress/{progress_id}",
+        json=update_payload,
+        headers=headers
+    )
+
+    print(f"PUT /challenge_progress/{progress_id} status: {update_response.status_code}")
+    print(f"PUT /challenge_progress/{progress_id} body: {update_response.json()}")
+
+    assert update_response.status_code == 200
+    updated_data = update_response.json()
+    assert updated_data["id"] == progress_id
+    assert updated_data["distance_covered"] == update_payload["distance_covered"]
+    assert updated_data["total_steps"] == update_payload["total_steps"]
