@@ -5,7 +5,7 @@ from app.models.user import User
 from app.core.security import get_password_hash
 
 @pytest.fixture
-def test_creator(db_session):
+def test_user(db_session):
     """Test user with all required fields"""
     user = User(
         name="Alice",
@@ -20,7 +20,7 @@ def test_creator(db_session):
     return user
 
 # POST / CREATE
-def test_create_challenge_success(client, test_creator):
+def test_create_challenge_success(client, test_user):
     # Verify endpoint matches your actual route
     login_response = client.post("/api/v1/auth/login", json={"email": "alice1@example.com", "password": "StrongPassword123"})
 
@@ -37,7 +37,7 @@ def test_create_challenge_success(client, test_creator):
         "distance": 585.0,
         "start_date": datetime.now().isoformat(),
         "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_creator.id,
+        "creator_id": test_user.id,
         "team_id": 1
     }
 
@@ -55,9 +55,9 @@ def test_create_challenge_success(client, test_creator):
     assert data["name"] == challenge_payload["name"]
 
 # GET / READ
-def test_get_all_challenges(client, db_session, test_creator):
+def test_get_all_challenges(client, db_session, test_user):
     login_response = client.post( "/api/v1/auth/login",
-        json={"email": test_creator.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123"})
     
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
@@ -72,7 +72,7 @@ def test_get_all_challenges(client, db_session, test_creator):
         "distance": 300.0,
         "start_date": datetime.now().isoformat(),
         "end_date": (datetime.now() + timedelta(days=15)).isoformat(),
-        "creator_id": test_creator.id,
+        "creator_id": test_user.id,
         "team_id": team_id
     }
     challenge2 = {
@@ -82,7 +82,7 @@ def test_get_all_challenges(client, db_session, test_creator):
         "distance": 42195.0,
         "start_date": datetime.now().isoformat(),
         "end_date": (datetime.now() + timedelta(days=60)).isoformat(),
-        "creator_id": test_creator.id,
+        "creator_id": test_user.id,
         "team_id": team_id
     }
 
@@ -101,9 +101,9 @@ def test_get_all_challenges(client, db_session, test_creator):
     assert any(ch["name"] == "Marathon Challenge" for ch in data)
     
 # GET BY ID
-def test_get_challenge_by_id(client, db_session, test_creator):
+def test_get_challenge_by_id(client, db_session, test_user):
     login_response = client.post("/api/v1/auth/login",
-        json={"email": test_creator.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123"})
     
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
@@ -116,7 +116,7 @@ def test_get_challenge_by_id(client, db_session, test_creator):
         "distance": 45.0,
         "start_date": datetime.now().isoformat(),
         "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_creator.id,
+        "creator_id": test_user.id,
         "team_id": 1
     }
     create_response = client.post("/api/v1/challenges/", json=payload, headers=headers)
@@ -136,9 +136,9 @@ def test_get_challenge_by_id(client, db_session, test_creator):
     assert retrieved["target_location"] == payload["target_location"]
 
 # PUT / UPDATE
-def test_update_challenge_success(client, test_creator):
+def test_update_challenge_success(client, test_user):
     login_response = client.post( "/api/v1/auth/login",
-        json={"email": test_creator.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123"})
 
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
@@ -151,7 +151,7 @@ def test_update_challenge_success(client, test_creator):
         "distance": 50.0,
         "start_date": datetime.now().isoformat(),
         "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_creator.id,
+        "creator_id": test_user.id,
         "team_id": 1
     }
     create_response = client.post(
@@ -184,8 +184,8 @@ def test_update_challenge_success(client, test_creator):
     assert updated_data["distance"] == update_payload["distance"]
 
 # DELETE
-def test_delete_challenge_success(client, test_creator):
-    login_response = client.post("/api/v1/auth/login", json={"email": test_creator.email, "password": "StrongPassword123"})
+def test_delete_challenge_success(client, test_user):
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
 
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
@@ -198,7 +198,7 @@ def test_delete_challenge_success(client, test_creator):
         "distance": 50.0,
         "start_date": datetime.now().isoformat(),
         "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_creator.id,
+        "creator_id": test_user.id,
         "team_id": 1
     }
 

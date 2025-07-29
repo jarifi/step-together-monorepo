@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schema.step_log import StepLogCreate, StepLogResponse
+from app.schema.step_log import StepLogCreate, StepLogResponse, StepLogUpdate
 from app.crud import step_log as step_log_crud
 from app.core.security import get_current_user
 from app.models.user import User
@@ -39,7 +39,7 @@ def read_step_log(
 @router.put("/{step_log_id}", response_model=StepLogResponse)
 def update_step_log(
     step_log_id: int,
-    step_log_data: StepLogCreate,
+    step_log_data: StepLogUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
