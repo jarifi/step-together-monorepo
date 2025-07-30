@@ -30,8 +30,6 @@ Content-Type: application/json
 
 
 
-
-
 ### 3. Get All Teams Using Access Token
 GET {{baseUrl}}/teams/
 Authorization: Bearer {{login.response.body.access_token}}
@@ -53,6 +51,23 @@ Authorization: Bearer {{login.response.body.access_token}}
 ### 5. Get All Challanges Using Access Token
 GET {{baseUrl}}/challenges/
 Authorization: Bearer {{login.response.body.access_token}}
+
+### 5.1 Create a New Challenge (POST /api/v1/challenges/) 
+POST {{baseUrl}}/challenges/
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+    "name": "Another Nice Challenge",
+    "start_location": "Liverpool", 
+    "target_location": "London", 
+    "distance": 300.0, 
+    "start_date": "2025-05-01T00:00:00", 
+    "end_date": "2025-06-01T00:00:00", 
+    "team_id": 2,
+    "creator_id": 1
+  
+}
 
 ### 5.1 Get All Challanges Using Access Token
 GET {{baseUrl}}/challenges/1
