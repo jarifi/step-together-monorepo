@@ -1,3 +1,4 @@
+#file: app/crud/step_log.py
 from sqlalchemy.orm import Session
 from app.models.step_log import StepLog
 from app.schema.step_log import StepLogCreate, StepLogResponse, StepLogUpdate # Corrected import: No StepLogSchema, use StepLogCreate for input
@@ -32,3 +33,5 @@ def delete_step_log(db: Session, step_log_id: int):
     db.delete(step_log_obj)
     db.commit()
     return True
+def get_step_logs_by_user_id(db: Session, user_id: int):
+    return db.query(StepLog).filter(StepLog.user_id == user_id).all()

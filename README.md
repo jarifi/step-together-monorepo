@@ -45,3 +45,7 @@
 ## STARt PROJECT ON ANOTHER PORT
 
 - uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
+
+### Send Request usin keyboard
+
+Klick on Request Line Ctrl + Alt + R

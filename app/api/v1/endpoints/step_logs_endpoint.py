@@ -1,5 +1,6 @@
+# file: app/api/v1/endpoints/step_logs_endpoint.py
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -35,6 +36,20 @@ def read_step_log(
     if not step_log:
         raise HTTPException(status_code=404, detail="Step Log not found")
     return step_log
+
+@router.get("/user/{user_id}", response_model=List[StepLogResponse])
+def read_step_logs_by_user_id(
+    user_id: int = Path(..., title="The ID of the user to get step logs for"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    step_logs = step_log_crud.get_step_logs_by_user_id(db, user_id)
+    if not step_logs:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No step logs found for user with id {user_id}"
+        )
+    return step_logs
 
 @router.put("/{step_log_id}", response_model=StepLogResponse)
 def update_step_log(

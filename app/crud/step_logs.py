@@ -32,3 +32,10 @@ def delete_step_log(db: Session, step_log_id: int):
     db.delete(step_log_obj)
     db.commit()
     return True
+def get_step_logs_by_user_id(db: Session, user_id: int):
+    return db.query(StepLog).filter(StepLog.user_id == user_id).all()
+
+# Add this function to your existing CRUD operations
+def get_step_logs_by_user_id(db: Session, user_id: int):
+    """Get all step logs for a specific user"""
+    return db.query(StepLog).filter(StepLog.user_id == user_id).all()
