@@ -3,7 +3,8 @@ from typing import Optional
 
 class Token(BaseModel):
     access_token: str
-    token_type: str
+    token_type: str = "bearer"
+    user_id: int
 
 class TokenData(BaseModel):
     email: Optional[str] = None

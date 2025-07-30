@@ -26,14 +26,15 @@ router = APIRouter()
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, user.email)
-    
-    # Use verify_password from app.core.security
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
-    
-    # Use create_access_token from app.core.security, and its ACCESS_TOKEN_EXPIRE_MINUTES
+
     access_token = create_access_token(
         data={"sub": user.email, "user_id": db_user.id},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": db_user.id,     # 👈 added
+    }
