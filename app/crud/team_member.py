@@ -12,6 +12,9 @@ def create_team_member(db: Session, member_data: TeamMemberCreate) -> TeamMember
 def get_team_member(db: Session, member_id: int) -> TeamMember | None:
     return db.query(TeamMember).filter(TeamMember.id == member_id).first()
 
+def get_team_members_by_team_id(db: Session, team_id: int):
+    return db.query(TeamMember).filter(TeamMember.team_id == team_id).all()
+
 def get_all_team_members(db: Session) -> list[TeamMember]:
     return db.query(TeamMember).all()
 

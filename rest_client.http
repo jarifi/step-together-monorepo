@@ -28,7 +28,7 @@ GET {{baseUrl}}/team_members/1
 Authorization: Bearer {{login.response.body.access_token}}
 
 ### 4.2 Get All Team Members Using Access Token
-GET {{baseUrl}}/team-members/team/1
+GET {{baseUrl}}/team_members/team/1
 Authorization: Bearer {{login.response.body.access_token}}
 
 

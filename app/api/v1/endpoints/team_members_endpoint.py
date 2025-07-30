@@ -29,6 +29,14 @@ def read_all_team_members(
 ):
     return team_member_crud.get_all_team_members(db)
 
+@router.get("/team/{team_id}", response_model=List[TeamMemberResponse])
+def read_team_members_by_team_id(
+    team_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    return team_member_crud.get_team_members_by_team_id(db, team_id)
+
 
 @router.get("/{member_id}", response_model=TeamMemberResponse)
 def read_team_member(
