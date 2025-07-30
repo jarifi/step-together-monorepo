@@ -14,6 +14,24 @@ Content-Type: application/json
 GET {{baseUrl}}/users/
 Authorization: Bearer {{login.response.body.access_token}}
 
+### 2.1. Create a New User (POST /api/v1/users/)
+# This endpoint does not require authentication.
+POST {{baseUrl}}/users/
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+    "email": "britney@example.com",
+    "password": "StrongPassword123",
+    "password_confirm": "StrongPassword123",
+    "name": "Britney Spears",
+    "step_length": 0.75
+}
+
+
+
+
+
 ### 3. Get All Teams Using Access Token
 GET {{baseUrl}}/teams/
 Authorization: Bearer {{login.response.body.access_token}}
