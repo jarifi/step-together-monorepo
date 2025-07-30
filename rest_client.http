@@ -33,3 +33,6 @@ Authorization: Bearer {{login.response.body.access_token}}
 ### 7. Get All Step_logs Using Access Token
 GET {{baseUrl}}/step_logs/
 Authorization: Bearer {{login.response.body.access_token}}
+### 8. Get All Step_logs Using Access Token
+GET {{baseUrl}}/step_logs/user/1
+Authorization: Bearer {{login.response.body.access_token}}
