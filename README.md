@@ -41,3 +41,7 @@
   - `http://127.0.0.1:8000/challenges`
   - `http://127.0.0.1:8000/challenge_progresses`
   - `http://127.0.0.1:8000/step_length`
+
+**\* STARt PROJECT ON ANOTHER PORT**
+
+- uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
