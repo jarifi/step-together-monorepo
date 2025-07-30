@@ -22,8 +22,22 @@ Authorization: Bearer {{login.response.body.access_token}}
 GET {{baseUrl}}/team_members
 Authorization: Bearer {{login.response.body.access_token}}
 
+
+### 4.1 Get All Team Members Using Access Token
+GET {{baseUrl}}/team_members/1
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 4.2 Get All Team Members Using Access Token
+GET {{baseUrl}}/team-members/team/1
+Authorization: Bearer {{login.response.body.access_token}}
+
+
 ### 5. Get All Challanges Using Access Token
 GET {{baseUrl}}/challenges/
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 5.1 Get All Challanges Using Access Token
+GET {{baseUrl}}/challenges/1
 Authorization: Bearer {{login.response.body.access_token}}
 
 ### 6. Get All Challange_progresses Using Access Token
