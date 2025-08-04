@@ -14,5 +14,11 @@ class TeamSchema(BaseModel):
     creator_id: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    class Config:
-        from_attributes = True
+        
+    model_config = {
+        "from_attributes": True,  # replaces orm_mode
+        "alias_generator": lambda field: ''.join(
+            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
+        ),
+        "populate_by_name": True
+    } 

@@ -33,6 +33,11 @@ class ChallengeResponse(ChallengeBase):
     creator_id: int
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True  # Enables ORM mode (previously called orm_mode)
+   
+    model_config = {
+        "from_attributes": True,  # replaces orm_mode
+        "alias_generator": lambda field: ''.join(
+            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
+        ),
+        "populate_by_name": True
+    } 

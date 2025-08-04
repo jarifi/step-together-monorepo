@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from typing import Optional
 
+from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from app.models.user import User
 from app.schema.user import UserCreate, UserUpdate
 from app.core.security import verify_password, get_password_hash  # We'll define hash_password below
@@ -19,6 +21,12 @@ def get_user_by_email(db: Session, email: str):
 
 
 def create_user(db: Session, user: UserCreate):
+    existing_user = db.query(User).filter(User.email == user.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this email already exists."
+        )
     hashed_password = get_password_hash(user.password)
     db_user = User(
         email=user.email,
@@ -29,7 +37,15 @@ def create_user(db: Session, user: UserCreate):
         is_verified=False
     )
     db.add(db_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="A user with this email already exists (duplicate during commit)."
+        )
+
     db.refresh(db_user)
     return db_user
 
