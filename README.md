@@ -42,10 +42,21 @@
   - `http://127.0.0.1:8000/challenge_progresses`
   - `http://127.0.0.1:8000/step_length`
 
-## STARt PROJECT ON ANOTHER PORT
+## START PROJECT ON ANOTHER PORT
 
 - uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
 
-### Send Request usin keyboard
+### Send Request using keyboard
 
 Klick on Request Line Ctrl + Alt + R
+
+### UNIT Tests
+
+pytest tests/api/v1/endpoints/test_auth_multiple_users.py
+pytest tests/api/v1/endpoints/test_auth.py
+pytest tests/api/v1/endpoints/test_challenge_progress.py
+pytest tests/api/v1/endpoints/test_challenges.py
+pytest tests/api/v1/endpoints/test_step_logs.py
+pytest tests/api/v1/endpoints/test_team_members.py
+pytest tests/api/v1/endpoints/test_teams.py
+pytest tests/api/v1/endpoints/test_users.py
