@@ -61,6 +61,14 @@ class UserResponse(UserBase):
     created_at: datetime = Field(json_schema_extra={"example": "2023-01-01T00:00:00"})
     updated_at: datetime = Field(json_schema_extra={"example": "2023-01-01T00:00:00"})
 
+    model_config = {
+        "from_attributes": True,  # replaces orm_mode
+        "alias_generator": lambda field: ''.join(
+            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
+        ),
+        "populate_by_name": True
+    } 
+
 class UserLogin(BaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
     password: str = Field(
