@@ -104,27 +104,3 @@ class PasswordResetConfirm(CamelCaseBaseModel):
         if self.new_password != self.password_confirm:
             raise ValueError('Passwords do not match')
         return self
-
-class UserDB(UserBase):
-    id: int
-    hashed_password: str = Field(json_schema_extra={"example": "$2b$12$..."})
-    is_active: bool
-    is_verified: bool
-    verification_token: Optional[str] = Field(
-        None,
-        json_schema_extra={"example": "verification-token-123"}
-    )
-    password_reset_token: Optional[str] = Field(
-        None,
-        json_schema_extra={"example": "reset-token-456"}
-    )
-    failed_login_attempts: int = Field(
-        0,
-        json_schema_extra={"example": 0}
-    )
-    locked_until: Optional[datetime] = Field(
-        None,
-        json_schema_extra={"example": None}
-    )
-    created_at: datetime
-    updated_at: datetime
