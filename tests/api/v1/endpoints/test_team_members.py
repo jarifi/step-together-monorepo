@@ -39,9 +39,9 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
     token = login_response.json()["access_token"]
 
     payload = {
-        "user_id": test_user.id,
-        "team_id": test_team.id,
-        "joining_date": datetime.now().isoformat()
+        "userId": test_user.id,
+        "teamId": test_team.id,
+        "joiningDate": datetime.now().isoformat()
     }
 
     response = client.post(
@@ -56,8 +56,8 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
     
     assert response.status_code == 201
     data = response.json()
-    assert data["user_id"] == payload["user_id"]
-    assert data["team_id"] == payload["team_id"]
+    assert data["userId"] == payload["userId"]
+    assert data["teamId"] == payload["teamId"]
 
 # GET ALL
 def test_get_all_team_members_success(client, db_session, test_user, test_team):
@@ -69,14 +69,14 @@ def test_get_all_team_members_success(client, db_session, test_user, test_team):
     token = login_response.json()["access_token"]
 
     payload1 = {
-        "user_id": test_user.id,
-        "team_id": test_team.id,
-        "joining_date": datetime.now().isoformat()
+        "userId": test_user.id,
+        "teamId": test_team.id,
+        "joiningDate": datetime.now().isoformat()
     }
     payload2 = {
-        "user_id": test_user.id,
-        "team_id": test_team.id,
-        "joining_date": datetime.now().isoformat()
+        "userId": test_user.id,
+        "teamId": test_team.id,
+        "joiningDate": datetime.now().isoformat()
     }
 
     response1 = client.post(
@@ -105,7 +105,7 @@ def test_get_all_team_members_success(client, db_session, test_user, test_team):
     data = get_response.json()
     assert isinstance(data,list)
     assert any(
-        member["user_id"] == test_user.id and member["team_id"] == test_team.id
+        member["userId"] == test_user.id and member["teamId"] == test_team.id
         for member in data
     )
 
@@ -122,9 +122,9 @@ def test_get_team_member_by_id_success(client, db_session, test_user, test_team)
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
-        "user_id": test_user.id,
-        "team_id": test_team.id,
-        "joining_date": datetime.now().isoformat()
+        "userId": test_user.id,
+        "teamId": test_team.id,
+        "joiningDate": datetime.now().isoformat()
     }
 
     create_response = client.post("/api/v1/team_members/", json=payload, headers=headers)
@@ -140,8 +140,8 @@ def test_get_team_member_by_id_success(client, db_session, test_user, test_team)
     assert get_response.status_code == 200
     data = get_response.json()[0]
     assert data["id"] == team_member_id
-    assert data["user_id"] == test_user.id
-    assert data["team_id"] == test_team.id
+    assert data["userId"] == test_user.id
+    assert data["teamId"] == test_team.id
 
 # DELETE
 def test_delete_team_member_success(client, db_session, test_user, test_team):
@@ -152,9 +152,9 @@ def test_delete_team_member_success(client, db_session, test_user, test_team):
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
-        "user_id": test_user.id,
-        "team_id": test_team.id,
-        "joining_date": datetime.now().isoformat()
+        "userId": test_user.id,
+        "teamId": test_team.id,
+        "joiningDate": datetime.now().isoformat()
     }
 
     create_response = client.post(

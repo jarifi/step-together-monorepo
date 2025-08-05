@@ -8,8 +8,8 @@ def test_create_user_success(client, db_session):
         "name": "Alice",
         "email": "alice2@example.com",
         "password": "StrongPassword123",
-        "password_confirm": "StrongPassword123",
-        "step_length": 0.75,
+        "passwordConfirm": "StrongPassword123",
+        "stepLength": 0.75,
     }
 
     response = client.post(
@@ -26,8 +26,8 @@ def test_create_user_success(client, db_session):
     assert "id" in data
     assert data["name"] == payload["name"]
     assert data["email"] == payload["email"]
-    assert data["is_active"] is True
-    assert data["is_verified"] is False
+    assert data["isActive"] is True
+    assert data["isVerified"] is False
 
 # GET / READ
 def test_get_all_users_success(client, db_session):
@@ -36,8 +36,8 @@ def test_get_all_users_success(client, db_session):
         "name": "Alice",
         "email": "alice2@example.com",
         "password": "StrongPassword123",
-        "password_confirm": "StrongPassword123",
-        "step_length": 0.75,
+        "passwordConfirm": "StrongPassword123",
+        "stepLength": 0.75,
     }
 
     create_response = client.post("/api/v1/users/", json=payload)
@@ -69,8 +69,8 @@ def test_get_user_by_id_success(client, db_session):
         "name": "Alice",
         "email": "alice2@example.com",
         "password": "StrongPassword123",
-        "password_confirm": "StrongPassword123",
-        "step_length": 0.75,
+        "passwordConfirm": "StrongPassword123",
+        "stepLength": 0.75,
     }
 
     create_response = client.post("/api/v1/users/", json=payload)
@@ -101,8 +101,8 @@ def test_update_user_success(client, db_session):
         "name": "Alice",
         "email": "alice2@example.com",
         "password": "StrongPassword123",
-        "password_confirm": "StrongPassword123",
-        "step_length": 0.75,
+        "passwordConfirm": "StrongPassword123",
+        "stepLength": 0.75,
     }
 
     create_response = client.post(
@@ -147,8 +147,8 @@ def test_delete_user_success(client, db_session):
         "name": "Alice",
         "email": "alice2@example.com",
         "password": "StrongPassword123",
-        "password_confirm": "StrongPassword123",
-        "step_length": 0.75,
+        "passwordConfirm": "StrongPassword123",
+        "stepLength": 0.75,
     }
 
     create_response = client.post(

@@ -2,12 +2,13 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from app.models.base import CamelCaseBaseModel
 
-class ChallengeProgressUpdate(BaseModel):
+class ChallengeProgressUpdate(CamelCaseBaseModel):
     distance_covered: float  # was gelaufene_strecke
     total_steps: int         # was insgesamt_schritte
 
-class ChallengeProgressResponse(BaseModel):
+class ChallengeProgressResponse(CamelCaseBaseModel):
     id: int
     user_id: int
     challenge_id: int
@@ -15,10 +16,3 @@ class ChallengeProgressResponse(BaseModel):
     total_steps: int         # was insgesamt_schritte
     updated_at: datetime
 
-    model_config = {
-        "from_attributes": True,  # replaces orm_mode
-        "alias_generator": lambda field: ''.join(
-            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
-        ),
-        "populate_by_name": True
-    } 

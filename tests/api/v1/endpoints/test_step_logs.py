@@ -49,11 +49,11 @@ def test_create_step_log_success(client, db_session, test_user, test_challenge):
     token = login_response.json()["access_token"]
 
     payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "team_id": test_challenge.team_id,
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "teamId": test_challenge.team_id,
         "date": datetime.now().isoformat(),
-        "number_of_steps": 7500
+        "numberOfSteps": 7500
     }
 
     response = client.post(
@@ -68,9 +68,9 @@ def test_create_step_log_success(client, db_session, test_user, test_challenge):
     
     assert response.status_code == 201
     data = response.json()
-    assert data["user_id"] == test_user.id
-    assert data["challenge_id"] == test_challenge.id
-    assert data["number_of_steps"] == payload["number_of_steps"]
+    assert data["userId"] == test_user.id
+    assert data["challengeId"] == test_challenge.id
+    assert data["numberOfSteps"] == payload["numberOfSteps"]
 
 # GET / READ
 def test_get_all_step_logs_success(client, db_session, test_user, test_challenge):
@@ -82,18 +82,18 @@ def test_get_all_step_logs_success(client, db_session, test_user, test_challenge
     token = login_response.json()["access_token"]
 
     payload1 = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "team_id": test_challenge.team_id,
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "teamId": test_challenge.team_id,
         "date": datetime.now().isoformat(),
-        "number_of_steps": 7500
+        "numberOfSteps": 7500
     }
     payload2 = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "team_id": test_challenge.team_id,
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "teamId": test_challenge.team_id,
         "date": datetime.now().isoformat(),
-        "number_of_steps": 9000
+        "numberOfSteps": 9000
     }
 
     response1 = client.post(
@@ -121,9 +121,9 @@ def test_get_all_step_logs_success(client, db_session, test_user, test_challenge
     assert get_response.status_code == 200
     data = get_response.json()
     assert isinstance(data, list)
-    assert any(sl["number_of_steps"] == 7500 for sl in data)
-    assert any(sl["number_of_steps"] == 9000 for sl in data)
-    assert all(sl["user_id"] == test_user.id for sl in data)
+    assert any(sl["numberOfSteps"] == 7500 for sl in data)
+    assert any(sl["numberOfSteps"] == 9000 for sl in data)
+    assert all(sl["userId"] == test_user.id for sl in data)
 
 # GET BY ID
 def test_get_step_log_by_id_success(client, db_session, test_user, test_challenge):
@@ -136,11 +136,11 @@ def test_get_step_log_by_id_success(client, db_session, test_user, test_challeng
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "team_id": test_challenge.team_id,
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "teamId": test_challenge.team_id,
         "date": datetime.now().isoformat(),
-        "number_of_steps": 7500
+        "numberOfSteps": 7500
     }
 
     create_response = client.post(f"/api/v1/step_logs/", json=payload, headers=headers)
@@ -156,8 +156,8 @@ def test_get_step_log_by_id_success(client, db_session, test_user, test_challeng
     assert get_response.status_code == 200
     data = get_response.json()
     assert data["id"] == step_log_id
-    assert data["user_id"] == test_user.id
-    assert data["challenge_id"] == test_challenge.id
+    assert data["userId"] == test_user.id
+    assert data["challengeId"] == test_challenge.id
 
 # PUT / UPDATE
 def test_update_step_log_success(client, db_session, test_user, test_challenge):
@@ -168,11 +168,11 @@ def test_update_step_log_success(client, db_session, test_user, test_challenge):
     headers = {"Authorization": f"Bearer {token}"}
 
     create_payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "team_id": test_challenge.team_id,
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "teamId": test_challenge.team_id,
         "date": datetime.now().isoformat(),
-        "number_of_steps": 7500
+        "numberOfSteps": 7500
     }
     create_response = client.post(
         f"/api/v1/step_logs/",
@@ -185,7 +185,7 @@ def test_update_step_log_success(client, db_session, test_user, test_challenge):
     step_log_id = created_data["id"]
 
     update_payload = {
-        "number_of_steps": 9000
+        "numberOfSteps": 9000
     }
 
     update_response = client.put(
@@ -200,7 +200,7 @@ def test_update_step_log_success(client, db_session, test_user, test_challenge):
     assert update_response.status_code == 200
     updated_data = update_response.json()
     assert updated_data["id"] == step_log_id
-    assert updated_data["number_of_steps"] == update_payload["number_of_steps"]
+    assert updated_data["numberOfSteps"] == update_payload["numberOfSteps"]
 
 # DELETE
 def test_delete_step_log_success(client, db_session, test_user, test_challenge):
@@ -211,11 +211,11 @@ def test_delete_step_log_success(client, db_session, test_user, test_challenge):
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "team_id": test_challenge.team_id,
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "teamId": test_challenge.team_id,
         "date": datetime.now().isoformat(),
-        "number_of_steps": 7500
+        "numberOfSteps": 7500
     }
 
     create_response = client.post(

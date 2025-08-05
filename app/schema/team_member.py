@@ -2,12 +2,13 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from app.models.base import CamelCaseBaseModel
 
-class TeamMemberCreate(BaseModel):
+class TeamMemberCreate(CamelCaseBaseModel):
     user_id: int
     team_id: int
 
-class TeamMemberResponse(BaseModel):
+class TeamMemberResponse(CamelCaseBaseModel):
     id: int
     user_id: int
     team_id: int

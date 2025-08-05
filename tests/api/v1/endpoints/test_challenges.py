@@ -32,13 +32,13 @@ def test_create_challenge_success(client, test_user):
 
     challenge_payload = {
         "name": "10K Run Challenge",
-        "start_location": "Berlin",
-        "target_location": "Munich",
+        "startLocation": "Berlin",
+        "targetLocation": "Munich",
         "distance": 585.0,
-        "start_date": datetime.now().isoformat(),
-        "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_user.id,
-        "team_id": 1
+        "startDate": datetime.now().isoformat(),
+        "endDate": (datetime.now() + timedelta(days=30)).isoformat(),
+        "creatorId": test_user.id,
+        "teamId": 1
     }
 
     response = client.post(
@@ -63,27 +63,27 @@ def test_get_all_challenges_success(client, db_session, test_user):
     token = login_response.json()["access_token"]
 
     headers = {"Authorization": f"Bearer {token}"}
-    team_id = 1
+    teamId = 1
 
     challenge1 = {
         "name": "5K Walk Challenge",
-        "start_location": "Hamburg",
-        "target_location": "Frankfurt",
+        "startLocation": "Hamburg",
+        "targetLocation": "Frankfurt",
         "distance": 300.0,
-        "start_date": datetime.now().isoformat(),
-        "end_date": (datetime.now() + timedelta(days=15)).isoformat(),
-        "creator_id": test_user.id,
-        "team_id": team_id
+        "startDate": datetime.now().isoformat(),
+        "endDate": (datetime.now() + timedelta(days=15)).isoformat(),
+        "creatorId": test_user.id,
+        "teamId": teamId
     }
     challenge2 = {
         "name": "Marathon Challenge",
-        "start_location": "Paris",
-        "target_location": "Lyon",
+        "startLocation": "Paris",
+        "targetLocation": "Lyon",
         "distance": 42195.0,
-        "start_date": datetime.now().isoformat(),
-        "end_date": (datetime.now() + timedelta(days=60)).isoformat(),
-        "creator_id": test_user.id,
-        "team_id": team_id
+        "startDate": datetime.now().isoformat(),
+        "endDate": (datetime.now() + timedelta(days=60)).isoformat(),
+        "creatorId": test_user.id,
+        "teamId": teamId
     }
 
     client.post("/api/v1/challenges/", json=challenge1, headers=headers)
@@ -111,13 +111,13 @@ def test_get_challenge_by_id_success(client, db_session, test_user):
 
     payload = {
         "name": "City Sprint Challenge",
-        "start_location": "Cologne",
-        "target_location": "Düsseldorf",
+        "startLocation": "Cologne",
+        "targetLocation": "Düsseldorf",
         "distance": 45.0,
-        "start_date": datetime.now().isoformat(),
-        "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_user.id,
-        "team_id": 1
+        "startDate": datetime.now().isoformat(),
+        "endDate": (datetime.now() + timedelta(days=30)).isoformat(),
+        "creatorId": test_user.id,
+        "teamId": 1
     }
     create_response = client.post("/api/v1/challenges/", json=payload, headers=headers)
     assert create_response.status_code == 201
@@ -132,8 +132,8 @@ def test_get_challenge_by_id_success(client, db_session, test_user):
     retrieved = get_response.json()
     assert retrieved["id"] == challenge_id
     assert retrieved["name"] == payload["name"]
-    assert retrieved["start_location"] == payload["start_location"]
-    assert retrieved["target_location"] == payload["target_location"]
+    assert retrieved["startLocation"] == payload["startLocation"]
+    assert retrieved["targetLocation"] == payload["targetLocation"]
 
 # PUT / UPDATE
 def test_update_challenge_success(client, test_user):
@@ -146,13 +146,13 @@ def test_update_challenge_success(client, test_user):
 
     create_payload = {
         "name": "City Challenge",
-        "start_location": "Cologne",
-        "target_location": "Düsseldorf",
+        "startLocation": "Cologne",
+        "targetLocation": "Düsseldorf",
         "distance": 50.0,
-        "start_date": datetime.now().isoformat(),
-        "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_user.id,
-        "team_id": 1
+        "startDate": datetime.now().isoformat(),
+        "endDate": (datetime.now() + timedelta(days=30)).isoformat(),
+        "creatorId": test_user.id,
+        "teamId": 1
     }
     create_response = client.post(
         f"/api/v1/challenges/",
@@ -193,13 +193,13 @@ def test_delete_challenge_success(client, test_user):
 
     payload = {
         "name": "City Challenge",
-        "start_location": "Cologne",
-        "target_location": "Düsseldorf",
+        "startLocation": "Cologne",
+        "targetLocation": "Düsseldorf",
         "distance": 50.0,
-        "start_date": datetime.now().isoformat(),
-        "end_date": (datetime.now() + timedelta(days=30)).isoformat(),
-        "creator_id": test_user.id,
-        "team_id": 1
+        "startDate": datetime.now().isoformat(),
+        "endDate": (datetime.now() + timedelta(days=30)).isoformat(),
+        "creatorId": test_user.id,
+        "teamId": 1
     }
 
     create_response = client.post(

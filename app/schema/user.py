@@ -4,6 +4,7 @@ from pydantic.functional_validators import AfterValidator
 from datetime import datetime
 from typing import Optional, Annotated
 import re
+from app.models.base import CamelCaseBaseModel
 
 # Password complexity check
 def validate_password_complexity(password: str) -> str:
@@ -25,7 +26,7 @@ PasswordString = Annotated[
     AfterValidator(validate_password_complexity)
 ]
 
-class UserBase(BaseModel):
+class UserBase(CamelCaseBaseModel):
     name: str = Field(
         ..., 
         min_length=2, 
@@ -69,7 +70,7 @@ class UserResponse(UserBase):
         "populate_by_name": True
     } 
 
-class UserLogin(BaseModel):
+class UserLogin(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
     password: str = Field(
         ..., 
@@ -77,7 +78,7 @@ class UserLogin(BaseModel):
         json_schema_extra={"example": "Str0ngPass!"}
     )
 
-class UserUpdate(BaseModel):
+class UserUpdate(CamelCaseBaseModel):
     name: Optional[str] = Field(
         None, 
         min_length=2, 
@@ -100,10 +101,10 @@ class UserUpdate(BaseModel):
 class CurrentUser(UserResponse):
     pass
 
-class PasswordResetRequest(BaseModel):
+class PasswordResetRequest(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
 
-class PasswordResetConfirm(BaseModel):
+class PasswordResetConfirm(CamelCaseBaseModel):
     token: str = Field(json_schema_extra={"example": "reset-token-123"})
     new_password: PasswordString
     password_confirm: str = Field(json_schema_extra={"example": "NewStr0ngPass!"})

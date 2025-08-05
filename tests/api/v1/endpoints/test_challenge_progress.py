@@ -49,11 +49,11 @@ def test_create_challenge_progress_success(client, db_session, test_user, test_c
     token = login_response.json()["access_token"]
 
     payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "distance_covered": 12.5,
-        "total_steps": 2500,
-        "updated_at": datetime.now().isoformat(),
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "distanceCovered": 12.5,
+        "totalSteps": 2500,
+        "updatedAt": datetime.now().isoformat(),
     }
 
     response = client.post(
@@ -68,9 +68,9 @@ def test_create_challenge_progress_success(client, db_session, test_user, test_c
     
     assert response.status_code == 201
     data = response.json()
-    assert data["user_id"] == payload["user_id"]
-    assert data["challenge_id"] == payload["challenge_id"]
-    assert data["distance_covered"] == payload["distance_covered"]
+    assert data["userId"] == payload["userId"]
+    assert data["challengeId"] == payload["challengeId"]
+    assert data["distanceCovered"] == payload["distanceCovered"]
 
 # GET / READ
 def test_get_all_challenge_progress_success(client, db_session, test_user, test_challenge):
@@ -82,18 +82,18 @@ def test_get_all_challenge_progress_success(client, db_session, test_user, test_
     token = login_response.json()["access_token"]
 
     payload1 = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "distance_covered": 12.5,
-        "total_steps": 2500,
-        "updated_at": datetime.now().isoformat(),
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "distanceCovered": 12.5,
+        "totalSteps": 2500,
+        "updatedAt": datetime.now().isoformat(),
     }
     payload2 = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "distance_covered": 25.0,
-        "total_steps": 5000,
-        "updated_at": datetime.now().isoformat(),
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "distanceCovered": 25.0,
+        "totalSteps": 5000,
+        "updatedAt": datetime.now().isoformat(),
     }
 
     response1 = client.post(
@@ -121,9 +121,9 @@ def test_get_all_challenge_progress_success(client, db_session, test_user, test_
     assert get_response.status_code == 200
     data = get_response.json()
     assert isinstance(data, list)
-    assert any(cp["distance_covered"] == 12.5 for cp in data)
-    assert any(cp["distance_covered"] == 25.0 for cp in data)
-    assert any(cp["user_id"] == test_user.id for cp in data)
+    assert any(cp["distanceCovered"] == 12.5 for cp in data)
+    assert any(cp["distanceCovered"] == 25.0 for cp in data)
+    assert any(cp["userId"] == test_user.id for cp in data)
 
 # GET BY ID
 def test_get_challenge_progress_by_id_success(client, db_session, test_user, test_challenge):
@@ -136,11 +136,11 @@ def test_get_challenge_progress_by_id_success(client, db_session, test_user, tes
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "distance_covered": 12.5,
-        "total_steps": 2500,
-        "updated_at": datetime.now().isoformat(),
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "distanceCovered": 12.5,
+        "totalSteps": 2500,
+        "updatedAt": datetime.now().isoformat(),
     }
 
     create_response = client.post(f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}", json=payload, headers=headers)
@@ -156,10 +156,10 @@ def test_get_challenge_progress_by_id_success(client, db_session, test_user, tes
     assert get_response.status_code == 200
     data = get_response.json()
     assert data["id"] == challenge_progress_id
-    assert data["user_id"] == test_user.id
-    assert data["challenge_id"] == test_challenge.id
-    assert data["distance_covered"] == 12.5
-    assert data["total_steps"] == 2500
+    assert data["userId"] == test_user.id
+    assert data["challengeId"] == test_challenge.id
+    assert data["distanceCovered"] == 12.5
+    assert data["totalSteps"] == 2500
 
 # PUT / UPDATE
 def test_update_challenge_progress_success(client, db_session, test_user, test_challenge):
@@ -170,11 +170,11 @@ def test_update_challenge_progress_success(client, db_session, test_user, test_c
     headers = {"Authorization": f"Bearer {token}"}
 
     create_payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "distance_covered": 10.0,
-        "total_steps": 2000,
-        "updated_at": datetime.now().isoformat(), 
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "distanceCovered": 10.0,
+        "totalSteps": 2000,
+        "updatedAt": datetime.now().isoformat(), 
     }
     create_response = client.post(
         f"/api/v1/challenge_progress/?challenge_id={test_challenge.id}",
@@ -187,9 +187,9 @@ def test_update_challenge_progress_success(client, db_session, test_user, test_c
     progress_id = created_data["id"]
 
     update_payload = {
-        "distance_covered": 42.0,
-        "total_steps": 9000,
-        "updated_at": datetime.now().isoformat(),
+        "distanceCovered": 42.0,
+        "totalSteps": 9000,
+        "updatedAt": datetime.now().isoformat(),
     }
 
     update_response = client.put(
@@ -204,8 +204,8 @@ def test_update_challenge_progress_success(client, db_session, test_user, test_c
     assert update_response.status_code == 200
     updated_data = update_response.json()
     assert updated_data["id"] == progress_id
-    assert updated_data["distance_covered"] == update_payload["distance_covered"]
-    assert updated_data["total_steps"] == update_payload["total_steps"]
+    assert updated_data["distanceCovered"] == update_payload["distanceCovered"]
+    assert updated_data["totalSteps"] == update_payload["totalSteps"]
 
 # DELETE
 def test_delete_challenge_progress_success(client, db_session, test_user, test_challenge):
@@ -216,11 +216,11 @@ def test_delete_challenge_progress_success(client, db_session, test_user, test_c
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
-        "user_id": test_user.id,
-        "challenge_id": test_challenge.id,
-        "distance_covered": 20.0,
-        "total_steps": 4000,
-        "updated_at": datetime.now().isoformat(),
+        "userId": test_user.id,
+        "challengeId": test_challenge.id,
+        "distanceCovered": 20.0,
+        "totalSteps": 4000,
+        "updatedAt": datetime.now().isoformat(),
     }
 
     create_response = client.post(

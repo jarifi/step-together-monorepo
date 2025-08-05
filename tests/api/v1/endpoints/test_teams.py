@@ -30,8 +30,8 @@ def test_create_team_success(client, db_session, test_user):
 
     payload = {
         "name": "Amazing Runners",
-        "creator_id": test_user.id,
-        "updated_at": datetime.now().isoformat()
+        "creatorId": test_user.id,
+        "updatedAt": datetime.now().isoformat()
     }
 
     response = client.post(
@@ -48,7 +48,7 @@ def test_create_team_success(client, db_session, test_user):
     data = response.json()
     assert "id" in data
     assert data["name"] == payload["name"]
-    assert data["creator_id"] == payload["creator_id"]
+    assert data["creatorId"] == payload["creatorId"]
 
 # GET / READ
 def test_get_all_teams_success(client, db_session, test_user):
@@ -61,13 +61,13 @@ def test_get_all_teams_success(client, db_session, test_user):
 
     payload1 = {
         "name": "Fast Flyers",
-        "creator_id": test_user.id,
-        "updated_at": datetime.now().isoformat()
+        "creatorId": test_user.id,
+        "updatedAt": datetime.now().isoformat()
     }
     payload2 = {
         "name": "Trail Blazers",
-        "creator_id": test_user.id,
-        "updated_at": datetime.now().isoformat()
+        "creatorId": test_user.id,
+        "updatedAt": datetime.now().isoformat()
     }
 
     response1 = client.post(
@@ -98,7 +98,7 @@ def test_get_all_teams_success(client, db_session, test_user):
 
     assert any (team["name"] == "Fast Flyers" for team in data)
     assert any (team["name"] == "Trail Blazers" for team in data)
-    assert any (team["creator_id"] == test_user.id for team in data)
+    assert any (team["creatorId"] == test_user.id for team in data)
 
 # GET BY ID
 def test_get_team_by_id_success(client, db_session, test_user):
@@ -114,8 +114,8 @@ def test_get_team_by_id_success(client, db_session, test_user):
 
     payload = {
         "name": "Fast Flyers",
-        "creator_id": test_user.id,
-        "updated_at": datetime.now().isoformat()
+        "creatorId": test_user.id,
+        "updatedAt": datetime.now().isoformat()
     }
 
     create_response = client.post("/api/v1/teams/", json=payload, headers=headers)
@@ -131,7 +131,7 @@ def test_get_team_by_id_success(client, db_session, test_user):
     assert get_response.status_code == 200
     data = get_response.json()[0]
     assert data["id"] == team_id
-    assert data["creator_id"] == test_user.id
+    assert data["creatorId"] == test_user.id
 
 # PUT / UPDATE
 def test_update_team_success(client, db_session, test_user):
@@ -143,8 +143,8 @@ def test_update_team_success(client, db_session, test_user):
 
     create_payload = {
         "name": "Fast Flyers",
-        "creator_id": test_user.id,
-        "updated_at": datetime.now().isoformat() 
+        "creatorId": test_user.id,
+        "updatedAt": datetime.now().isoformat() 
     }
     create_response = client.post(
         f"/api/v1/teams/",
@@ -158,7 +158,7 @@ def test_update_team_success(client, db_session, test_user):
 
     update_payload = {
         "name": "Speedy Flyers",
-        "updated_at": datetime.now().isoformat(),
+        "updatedAt": datetime.now().isoformat(),
     }
 
     update_response = client.put(
@@ -185,8 +185,8 @@ def test_delete_team_success(client, db_session, test_user):
 
     payload = {
         "name": "Fast Flyers",
-        "creator_id": test_user.id,
-        "updated_at": datetime.now().isoformat() 
+        "creatorId": test_user.id,
+        "updatedAt": datetime.now().isoformat() 
     }
 
     create_response = client.post(

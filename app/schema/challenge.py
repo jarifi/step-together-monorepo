@@ -2,8 +2,9 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+from app.models.base import CamelCaseBaseModel
 
-class ChallengeBase(BaseModel):
+class ChallengeBase(CamelCaseBaseModel):
     """Base schema with common fields"""
     name: str = Field(..., max_length=255, example="Berlin Marathon")
     start_location: str = Field(..., max_length=255, example="Brandenburg Gate")
@@ -17,7 +18,7 @@ class ChallengeCreate(ChallengeBase):
     """Schema for challenge creation (POST requests)"""
     creator_id: int = Field(..., example=1)  # Creator user ID
 
-class ChallengeUpdate(BaseModel):
+class ChallengeUpdate(CamelCaseBaseModel):
     """Schema for challenge updates (PATCH/PUT requests)"""
     name: Optional[str] = Field(None, max_length=255, example="Updated Challenge Name")
     start_location: Optional[str] = Field(None, max_length=255)
@@ -33,11 +34,3 @@ class ChallengeResponse(ChallengeBase):
     creator_id: int
     created_at: datetime
     updated_at: datetime
-   
-    model_config = {
-        "from_attributes": True,  # replaces orm_mode
-        "alias_generator": lambda field: ''.join(
-            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
-        ),
-        "populate_by_name": True
-    } 

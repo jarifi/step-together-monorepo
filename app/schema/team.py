@@ -2,13 +2,15 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-class TeamCreate(BaseModel):
+from app.models.base import CamelCaseBaseModel
+
+class TeamCreate(CamelCaseBaseModel):
     name: str
 
-class TeamUpdate(BaseModel):
+class TeamUpdate(CamelCaseBaseModel):
     name: Optional[str] = None
 
-class TeamSchema(BaseModel):
+class TeamSchema(CamelCaseBaseModel):
     id: int | None = None
     name: str
     creator_id: int | None = None
