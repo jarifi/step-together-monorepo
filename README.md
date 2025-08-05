@@ -3,7 +3,11 @@
 - Öffne das Terminal und führe die unten aufgeführten Befehle in der angegebenen Reihenfolge aus.
 
   ```
-  python -m venv venv ODER py -m venv venv
+  python -m venv venv 
+    
+    ODER 
+  
+  py -m venv venv
   ```
 
   (Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)

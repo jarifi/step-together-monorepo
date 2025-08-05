@@ -1,3 +1,6 @@
+#file: app/models/base.py
+#created: 2025-08-06
+#description: Base model for Pydantic with camelCase alias generation to match OpenAPI specifications.
 from pydantic import BaseModel, ConfigDict
 
 def to_camel(string: str) -> str:
