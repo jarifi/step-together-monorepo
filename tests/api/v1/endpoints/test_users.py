@@ -26,8 +26,7 @@ def test_create_user_success(client, db_session):
     assert "id" in data
     assert data["name"] == payload["name"]
     assert data["email"] == payload["email"]
-    assert data["isActive"] is True
-    assert data["isVerified"] is False
+    assert data["stepLength"] == payload["stepLength"]
 
 # GET / READ
 def test_get_all_users_success(client, db_session):

@@ -55,20 +55,11 @@ class UserCreate(UserBase):
             raise ValueError('Passwords do not match')
         return self
 
-class UserResponse(UserBase):
-    id: int = Field(json_schema_extra={"example": 1})
-    is_active: bool = Field(json_schema_extra={"example": True})
-    is_verified: bool = Field(json_schema_extra={"example": False})
-    created_at: datetime = Field(json_schema_extra={"example": "2023-01-01T00:00:00"})
-    updated_at: datetime = Field(json_schema_extra={"example": "2023-01-01T00:00:00"})
-
-    model_config = {
-        "from_attributes": True,  # replaces orm_mode
-        "alias_generator": lambda field: ''.join(
-            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
-        ),
-        "populate_by_name": True
-    } 
+class UserResponse(CamelCaseBaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    step_length: Optional[float] = None
 
 class UserLogin(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
@@ -95,7 +86,6 @@ class UserUpdate(CamelCaseBaseModel):
         le=200,
         json_schema_extra={"example": 80.0}
     )]] = None
-    password: Optional[PasswordString] = None
     model_config = ConfigDict(from_attributes=True)
 
 class CurrentUser(UserResponse):
