@@ -4,7 +4,6 @@ from typing import Optional
 from app.models.base import CamelCaseBaseModel
 
 class StepLogCreate(CamelCaseBaseModel):
-    user_id: int
     challenge_id: int
     team_id: int
     date: datetime
@@ -17,16 +16,6 @@ class StepLogResponse(CamelCaseBaseModel):
     team_id: int
     date: datetime
     number_of_steps: int
-
-    
-    model_config = {
-        "from_attributes": True,  # replaces orm_mode
-        "alias_generator": lambda field: ''.join(
-            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
-        ),
-        "populate_by_name": True
-    } 
-
 
 class StepLogUpdate(CamelCaseBaseModel):
     user_id: Optional[int] = None

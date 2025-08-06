@@ -11,13 +11,18 @@ from app.models.user import User
 
 router = APIRouter(tags=["step_logs"])
 
-@router.post("/", response_model=StepLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=StepLogResponse, dependencies=[Depends(get_current_user)])
 def create_step_log(
     step_log: StepLogCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return step_log_crud.create_step_log(db, step_log)
+    print("Step log POST")
+    return step_log_crud.create_step_log(
+        db=db,
+        step_log_data=step_log,
+        user_id=current_user.id
+    )
 
 @router.get("/", response_model=List[StepLogResponse])
 def read_all_step_logs(

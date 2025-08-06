@@ -132,7 +132,6 @@ async def get_current_user(
     """
     token_data = decode_access_token(token)
     # --- ADDED DEBUG PRINT HERE ---
-    print(f"DEBUG: Attempting to find user with ID from token: {token_data.user_id}")
     # --- END DEBUG PRINT ---
 
     user = db.query(User).filter(User.id == token_data.user_id).first()

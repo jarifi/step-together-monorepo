@@ -9,8 +9,14 @@ def get_all_step_logs(db: Session):
 def get_step_log(db: Session, step_log_id: int):
     return db.query(StepLog).filter(StepLog.id == step_log_id).first()
 
-def create_step_log(db: Session, step_log_data: StepLogCreate): # Changed type hint from StepLogSchema to StepLogCreate
-    db_step_log = StepLog(**step_log_data.model_dump())
+def create_step_log(db: Session, step_log_data: StepLogCreate, user_id: int): # Changed type hint from StepLogSchema to StepLogCreate
+    db_step_log = StepLog(
+        user_id=user_id,
+        challenge_id=step_log_data.challenge_id,
+        team_id=step_log_data.team_id,
+        date=step_log_data.date,
+        number_of_steps=step_log_data.number_of_steps,
+    )
     db.add(db_step_log)
     db.commit()
     db.refresh(db_step_log)
