@@ -108,3 +108,19 @@ Authorization: Bearer {{login.response.body.access_token}}
 ### 8. Get All Step_logs Using Access Token
 GET {{baseUrl}}/step_logs/user/1
 Authorization: Bearer {{login.response.body.access_token}}
+
+
+//ToDo ### 9. Create a New Step_log (POST /api/v1/step_logs/)
+# This endpoint requires authentication using the obtained access token.
+# This endpoint allows you to create a new step log for a specific challenge and team.
+# The request body should include the challenge ID, team ID, date, and number of steps
+POST {{baseUrl}}/step_logs/
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "challenge_id": 10,
+  "team_id": 3,
+  "date": "2025-08-06T08:00:00",
+  "number_of_steps": 12000
+}
