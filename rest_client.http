@@ -72,6 +72,16 @@ Authorization: Bearer {{login.response.body.access_token}}
 GET {{baseUrl}}/team_members/team/1
 Authorization: Bearer {{login.response.body.access_token}}
 
+### 4.3 Create a New Team Member (POST /api/v1/teams/)
+# This endpoint requires authentication using the obtained access token. 
+POST {{baseUrl}}/team_members/
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+    "team_id": 2
+}
+
 
 ### 5. Get All Challanges Using Access Token
 GET {{baseUrl}}/challenges/

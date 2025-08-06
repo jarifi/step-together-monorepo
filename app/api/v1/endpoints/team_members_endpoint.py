@@ -19,7 +19,11 @@ def create_team_member(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return team_member_crud.create_team_member(db, member)
+    return team_member_crud.create_team_member(
+        db=db,
+        team_id=member.team_id,
+        user_id=current_user.id
+    )
 
 
 @router.get("/", response_model=List[TeamMemberResponse])
