@@ -13,6 +13,7 @@ class ChallengeBase(CamelCaseBaseModel):
     start_date: datetime = Field(..., example="2023-10-01T09:00:00")
     end_date: datetime = Field(..., example="2023-10-01T15:00:00")
     team_id: int = Field(..., example=1)
+    state: Optional[str] = Field("incoming", example="incoming", description="Possible values: incoming, open, closed")
 
 class ChallengeCreate(ChallengeBase):
     """Schema for challenge creation (POST requests)"""
@@ -27,6 +28,7 @@ class ChallengeUpdate(CamelCaseBaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     team_id: Optional[int] = None
+    state: Optional[str] = Field(None, example="open", description="Possible values: incoming, open, closed")
 
 class ChallengeResponse(ChallengeBase):
     """Schema for returning challenge data (GET responses)"""

@@ -33,16 +33,17 @@ CREATE TABLE IF NOT EXISTS `challenges` (
   `team_id` int(11) NOT NULL,
   `created_at` datetime(3) NOT NULL DEFAULT current_timestamp(3),
   `updated_at` datetime(3) NOT NULL,
+  `state` varchar(50) NOT NULL DEFAULT 'incoming',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.challenges: ~4 rows (ungefähr)
 DELETE FROM `challenges`;
-INSERT INTO `challenges` (`id`, `name`, `start_location`, `target_location`, `distance`, `start_date`, `end_date`, `creator_id`, `team_id`, `created_at`, `updated_at`) VALUES
-	(1, 'Graz-Wien Challenge', 'Graz', 'Wien', 200, '2025-07-31 00:00:00.000', '2025-08-30 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290'),
-	(2, 'Graz-Linz Challenge', 'Graz', 'Linz', 180, '2025-05-01 00:00:00.000', '2025-05-31 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290'),
-	(3, 'Graz-Salzburg Challenge', 'Graz', 'Salzburg', 270, '2025-04-01 00:00:00.000', '2025-04-30 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290'),
-	(4, 'Graz-Innsbruck Challenge', 'Graz', 'Innsbruck', 400, '2025-03-01 00:00:00.000', '2025-03-31 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290');
+INSERT INTO `challenges` (`id`, `name`, `start_location`, `target_location`, `distance`, `start_date`, `end_date`, `creator_id`, `team_id`, `created_at`, `updated_at`, `state`) VALUES
+	(1, 'Graz-Wien Challenge', 'Graz', 'Wien', 200, '2025-07-31 00:00:00.000', '2025-08-30 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290', 'open'),
+	(2, 'Graz-Linz Challenge', 'Graz', 'Linz', 180, '2025-05-01 00:00:00.000', '2025-05-31 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290', 'closed'),
+	(3, 'Graz-Salzburg Challenge', 'Graz', 'Salzburg', 270, '2025-04-01 00:00:00.000', '2025-04-30 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290', 'closed'),
+	(4, 'Graz-Innsbruck Challenge', 'Graz', 'Innsbruck', 400, '2025-03-01 00:00:00.000', '2025-03-31 23:59:59.999', 1, 1, '2025-07-31 09:36:43.290', '2025-07-31 09:36:43.290', 'closed');
 
 -- Exportiere Struktur von Tabelle step_together_api.challenge_progress
 DROP TABLE IF EXISTS `challenge_progress`;
@@ -97,7 +98,7 @@ CREATE TABLE IF NOT EXISTS `teams` (
   `created_at` datetime(3) NOT NULL DEFAULT current_timestamp(3),
   `updated_at` datetime(3) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.teams: ~20 rows (ungefähr)
 DELETE FROM `teams`;
@@ -255,7 +256,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at` datetime(3) NOT NULL DEFAULT current_timestamp(3) ON UPDATE current_timestamp(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_key` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=146 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=147 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.users: ~100 rows (ungefähr)
 DELETE FROM `users`;

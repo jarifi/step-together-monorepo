@@ -8,6 +8,12 @@ def get_all_challenges(db: Session):
 def get_challenge(db: Session, challenge_id: int):
     return db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id).first()
 
+def get_active_challenge(db: Session, team_id: int) -> ChallengeModel | None:
+    return db.query(ChallengeModel).filter(
+        ChallengeModel.team_id == team_id,
+        ChallengeModel.state == "open"
+    ).first()
+
 def create_challenge(db: Session, challenge_data: ChallengeCreate):
     db_challenge = ChallengeModel(**challenge_data.model_dump())
     db.add(db_challenge)

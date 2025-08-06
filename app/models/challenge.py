@@ -18,3 +18,4 @@ class Challenge(Base):
     team_id = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    state = Column(String(50), default="incoming")  # Possible values: incoming, open, closed

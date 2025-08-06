@@ -2,11 +2,19 @@ from sqlalchemy.orm import Session
 from app.models.team import Team
 from app.schema.team import TeamCreate, TeamUpdate
 
+from app.models.team_member import TeamMember
+
 def get_team(db: Session, team_id: int) -> Team | None:
     return db.query(Team).filter(Team.id == team_id).first()
 
 def get_all_teams(db: Session) -> list[Team]:
     return db.query(Team).all()
+
+def get_team_by_user_id(db: Session, user_id: int) -> Team | None:
+    team_member = db.query(TeamMember).filter(TeamMember.user_id == user_id).first()
+    if team_member:
+        return db.query(Team).filter(Team.id == team_member.team_id).first()
+    return None
 
 def create_team(db: Session, team_create: TeamCreate, creator_id: int) -> Team:
     db_team = Team(
