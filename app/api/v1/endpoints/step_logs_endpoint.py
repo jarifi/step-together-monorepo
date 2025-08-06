@@ -17,7 +17,6 @@ def create_step_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    print("Step log POST")
     return step_log_crud.create_step_log(
         db=db,
         step_log_data=step_log,
@@ -56,6 +55,7 @@ def read_step_logs_by_user_id(
         )
     return step_logs
 
+# Admin Update
 @router.put("/{step_log_id}", response_model=StepLogResponse)
 def update_step_log(
     step_log_id: int,
@@ -67,6 +67,24 @@ def update_step_log(
     if not step_log:
         raise HTTPException(status_code=404, detail="Step Log not found")
     updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data)
+    return updated_step_log
+
+# User Update
+@router.put("/", response_model=StepLogResponse, dependencies=[Depends(get_current_user)])
+def update_own_step_log(
+    step_log_id: int,
+    step_log_data: StepLogUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    step_log = step_log_crud.get_step_log(db, step_log_id)
+    if not step_log:
+        raise HTTPException(status_code=404, detail="Step Log not found")
+    
+    if step_log.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this step log")
+
+    updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data, user_id=current_user.id)
     return updated_step_log
 
 @router.delete("/{step_log_id}", status_code=status.HTTP_204_NO_CONTENT)

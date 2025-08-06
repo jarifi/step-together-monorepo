@@ -120,3 +120,21 @@ Authorization: Bearer {{login.response.body.access_token}}
   "date": "2025-08-06T08:00:00",
   "number_of_steps": 12000
 }
+
+### 10. Admin Update a Step_log
+PUT {{baseUrl}}/step_logs/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "number_of_steps": 15000
+}
+
+### 11. User Update a Step_log
+PUT {{baseUrl}}/step_logs?step_log_id=1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "number_of_steps": 20000
+}
