@@ -25,7 +25,11 @@ router = APIRouter()
 
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
+    
+    # Check if the user exists and verify the password
     db_user = get_user_by_email(db, user.email)
+    #ToDo: Slect all Callenges for the user and return only challenge with open status
+    
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
 
