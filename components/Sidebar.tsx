@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text,StyleSheet, Animated, Dimensions, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Pressable } from 'react-native';
 import { Link } from 'expo-router';
 import { useUser } from '../context/UserContext';
 import { removeToken } from '../lib/auth';
@@ -50,7 +50,7 @@ export default function Sidebar() {
   return (
     <>
       <View style={styles.headerContainer}>
-        <Pressable  onPress={toggleSidebar} style={styles.burgerBtn}>
+        <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
           <Text style={{ color: 'white', fontSize: 24 }}>☰</Text>
         </Pressable >
       </View>
@@ -62,7 +62,13 @@ export default function Sidebar() {
 
       <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
         {user ? (
-          <View style={styles.profileContainer}>
+          <Pressable
+             style={styles.profileContainer}
+            onPress={() => {
+              closeSidebar();
+              router.push('/profile/update');
+            }}
+            >
             <View style={styles.profileCircle}>
               <Text style={styles.profileInitials}>{initials}</Text>
             </View>
@@ -70,28 +76,28 @@ export default function Sidebar() {
               <Text style={styles.profileName}>{user.name}</Text>
               <Text style={styles.profileEmail}>{user.email}</Text>
             </View>
-          </View>
-        ) : (
-          <Text style={{ color: '#064e3b', marginBottom: 20 }}>Kein User geladen</Text>
+          </Pressable>
+      ) : (
+      <Text style={{ color: '#064e3b', marginBottom: 20 }}>Kein User geladen</Text>
         )}
 
-        <View style={styles.linkContainer}>
-          <NavLink href="/home" label="Home" onNavigate={closeSidebar} />
-          <NavLink href="/progress" label="Mein Fortschritt" onNavigate={closeSidebar} />
-          <NavLink href="/steps" label="Meine Schritte" onNavigate={closeSidebar} />
-          <NavLink href="/team" label="Mein Team" onNavigate={closeSidebar} />
-          <View style={styles.separator} />
-          <NavLink href="/teams" label="Alle Teams" onNavigate={closeSidebar} />
-          <NavLink href="/challenges" label="Alle Challenges" onNavigate={closeSidebar} />
-          <NavLink href="/users" label="Alle Benutzer" onNavigate={closeSidebar} />
-          <View style={styles.separator} />
-          <NavLink href="/settings" label="Einstellungen" onNavigate={closeSidebar} />
-          <Pressable  style={styles.navLink} onPress={handleLogout}>
-            <Text style={[styles.navLinkText, { color: '#f87171' }]}>Logout</Text>
-          </Pressable >
-          <NavLink href="/admin" label="Admin-Bereich" onNavigate={closeSidebar} />
-        </View>
-      </Animated.View>
+      <View style={styles.linkContainer}>
+        <NavLink href="/home" label="Home" onNavigate={closeSidebar} />
+        <NavLink href="/progress" label="Mein Fortschritt" onNavigate={closeSidebar} />
+        <NavLink href="/steps" label="Meine Schritte" onNavigate={closeSidebar} />
+        <NavLink href="/team" label="Mein Team" onNavigate={closeSidebar} />
+        <View style={styles.separator} />
+        <NavLink href="/teams" label="Alle Teams" onNavigate={closeSidebar} />
+        <NavLink href="/challenges" label="Alle Challenges" onNavigate={closeSidebar} />
+        <NavLink href="/users" label="Alle Benutzer" onNavigate={closeSidebar} />
+        <View style={styles.separator} />
+        <NavLink href="/settings" label="Einstellungen" onNavigate={closeSidebar} />
+        <Pressable style={styles.navLink} onPress={handleLogout}>
+          <Text style={[styles.navLinkText, { color: '#f87171' }]}>Logout</Text>
+        </Pressable >
+        <NavLink href="/admin" label="Admin-Bereich" onNavigate={closeSidebar} />
+      </View>
+    </Animated.View >
     </>
   );
 }
@@ -106,7 +112,7 @@ interface NavLinkProps {
 function NavLink({ href, label, style, onNavigate }: NavLinkProps) {
   return (
     <Link href={href} asChild>
-      <Pressable  style={styles.navLink} onPress={onNavigate}>
+      <Pressable style={styles.navLink} onPress={onNavigate}>
         <Text style={[styles.navLinkText, style]}>{label}</Text>
       </Pressable >
     </Link>

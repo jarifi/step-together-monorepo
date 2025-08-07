@@ -1,9 +1,14 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { useUser } from '../context/UserContext';
 
-export default function WelcomeCard({ name }: { name: string }) {
+export default function WelcomeCard() {
+  const { user } = useUser();
+
+  if (!user) return null;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Willkommen zurück, {name}!</Text>
+      <Text style={styles.heading}>Willkommen zurück, {user.name}!</Text>
    
     </View>
   );
