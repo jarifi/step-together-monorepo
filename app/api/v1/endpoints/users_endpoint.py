@@ -8,7 +8,10 @@ from app.core.security import get_current_user
 from app.crud import user as user_crud  # Renamed for clarity
 from app.schema.user import UserCreate, UserResponse, CurrentUser, UserUpdate
 from app.models.user import User
-
+from app.crud.team import get_team_by_user_id
+from app.crud.challenge import get_active_challenge
+from app.crud.user import get_user
+from app.schema.HomeInitResponse import HomeInitResponse
 # Define the APIRouter for user-related endpoints
 router = APIRouter(tags=["users"])
 
@@ -91,3 +94,15 @@ def delete_existing_user(
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
     return {"deleted": True}
+
+@router.get("/home/init", response_model=HomeInitResponse)
+def init_dashboard_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user = get_user(db, current_user.id)
+    team = get_team_by_user_id(db, user.id)
+    challenge = get_active_challenge(db, team.id) if team else None
+
+    return {
+        "user": user,
+        "team": team,
+        "challenge": challenge,
+    }

@@ -36,3 +36,15 @@ class ChallengeResponse(ChallengeBase):
     creator_id: int
     created_at: datetime
     updated_at: datetime
+
+
+class ChallengeHomeResponse(CamelCaseBaseModel):
+    """Base schema with common fields"""
+    name: str = Field(..., max_length=255, example="Berlin Marathon")
+    start_location: str = Field(..., max_length=255, example="Brandenburg Gate")
+    target_location: str = Field(..., max_length=255, example="Alexanderplatz")
+    distance: float = Field(..., gt=0, example=42.195)
+    start_date: datetime = Field(..., example="2023-10-01T09:00:00")
+    end_date: datetime = Field(..., example="2023-10-01T15:00:00")
+    team_id: int = Field(..., example=1)
+    state: Optional[str] = Field("incoming", example="incoming", description="Possible values: incoming, open, closed")

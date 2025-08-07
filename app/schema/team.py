@@ -7,6 +7,10 @@ from app.models.base import CamelCaseBaseModel
 class TeamCreate(CamelCaseBaseModel):
     name: str
 
+class TeamResponse(CamelCaseBaseModel):
+    id: int
+    name: str
+
 class TeamUpdate(CamelCaseBaseModel):
     name: Optional[str] = None
 

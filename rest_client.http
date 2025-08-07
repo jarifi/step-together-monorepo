@@ -44,6 +44,9 @@ Content-Type: application/json
     "stepLength": 0.95
 }
 
+### 2.4 Get All Users Using Access Token
+GET {{baseUrl}}/users/home/init
+Authorization: Bearer {{login.response.body.access_token}}
 
 ### 3. Get All Teams Using Access Token
 GET {{baseUrl}}/teams/
