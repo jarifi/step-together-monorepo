@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { updateUser } from "../../services/userService";
+import { useUser } from "../../context/UserContext";
 
 export default function UpdateUserScreen() {
     const router = useRouter();
@@ -10,6 +11,7 @@ export default function UpdateUserScreen() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
+    const { setUser } = useUser();
 
     useEffect(() => {
         if (params) {
@@ -21,7 +23,10 @@ export default function UpdateUserScreen() {
     const handleUpdate = async () => {
         setLoading(true);
         try {
-            await updateUser(Number(params.id), { name, email });
+            const updatedUser = await updateUser(Number(params.id), { name, email });
+
+            setUser(updatedUser);
+
             Alert.alert('Success', 'Benutzer erfolgreich aktualisiert!');
             router.back();
         } catch (error) {
