@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://127.0.0.1:3000/api/v1';
+import Constants from 'expo-constants';
+const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
+
 
 export const getUsers = async () => {
   try {
