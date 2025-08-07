@@ -18,8 +18,10 @@ class StepLogResponse(CamelCaseBaseModel):
     number_of_steps: int
 
 class StepLogUpdate(CamelCaseBaseModel):
-    user_id: Optional[int] = None
     challenge_id: Optional[int] = None
     team_id: Optional[int] = None
     date: Optional[datetime] = None
     number_of_steps: Optional[int] = None
+
+    class Config:
+        extra = "forbid"
