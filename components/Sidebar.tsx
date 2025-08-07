@@ -83,6 +83,7 @@ export default function Sidebar() {
           <View style={styles.separator} />
           <NavLink href="/teams" label="Alle Teams" onNavigate={closeSidebar} />
           <NavLink href="/challenges" label="Alle Challenges" onNavigate={closeSidebar} />
+          <NavLink href="/users" label="Alle Benutzer" onNavigate={closeSidebar} />
           <View style={styles.separator} />
           <NavLink href="/settings" label="Einstellungen" onNavigate={closeSidebar} />
           <Pressable  style={styles.navLink} onPress={handleLogout}>

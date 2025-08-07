@@ -29,3 +29,29 @@ export const getUsers = async () => {
     return [];
   }
 };
+
+export const updateUser = async (id, data) => {
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+
+    const res = await fetch(`${BASE_URL}/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    const updatedUser = await res.json();
+
+    if (!res.ok) {
+      throw new Error(updatedUser.message || 'Failed to update user');
+    }
+
+    return updatedUser;
+  } catch (err) {
+    console.error('Error updating user:', err);
+    throw err;
+  }
+};
