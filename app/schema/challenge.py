@@ -40,6 +40,7 @@ class ChallengeResponse(ChallengeBase):
 
 class ChallengeHomeResponse(CamelCaseBaseModel):
     """Base schema with common fields"""
+    id: int
     name: str = Field(..., max_length=255, example="Berlin Marathon")
     start_location: str = Field(..., max_length=255, example="Brandenburg Gate")
     target_location: str = Field(..., max_length=255, example="Alexanderplatz")
