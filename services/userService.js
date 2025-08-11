@@ -57,3 +57,29 @@ export const updateUser = async (id, data) => {
     throw err;
   }
 };
+
+export async function createUser(userData) {
+  const token = await AsyncStorage.getItem('userToken');
+
+  const res = await fetch(`${BASE_URL}/users/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+
+  if (!res.ok) {
+    let errorMessage = `Failed to create user: ${res.status}`;
+    try {
+      const errorBody = await res.json();
+      errorMessage = JSON.stringify(errorBody);
+    } catch (e) {
+      // ignore JSON parse errors
+    }
+    throw new Error(errorMessage);
+  }
+
+  return res.json();
+}

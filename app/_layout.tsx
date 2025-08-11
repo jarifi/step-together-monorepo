@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack, usePathname, router } from 'expo-router';
 import { isLoggedIn } from '../lib/auth';
+import Toast from 'react-native-toast-message';
 import Sidebar from "../components/Sidebar";
 
 import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
@@ -42,6 +43,7 @@ export default function RootLayout() {
           <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style="auto" />
+        <Toast />
       </ThemeProvider>
     </UserProvider>
   );

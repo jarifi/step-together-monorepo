@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View, Pressable, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import UserCard from '../../components/UserCard';
 import { getUsers } from '../../services/userService';
+import CreateUserCard from '../../components/CreateUserCard';
 
 export default function UsersScreen() {
   const [users, setUsers] = useState([]);
@@ -34,6 +35,8 @@ export default function UsersScreen() {
 
   return (
     <View style={styles.container}>
+   <CreateUserCard onPress={() => router.push('/users/create')} />
+
       <FlatList
         data={users}
         keyExtractor={(item) => item.id.toString()}
