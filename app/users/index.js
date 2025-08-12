@@ -50,6 +50,7 @@ export default function UsersScreen() {
                   id: item.id,
                   name: item.name,
                   email: item.email,
+                  stepLength: item.stepLength,
                 },
               })
             }

@@ -1,36 +1,105 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { updateUser } from "../../services/userService";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import Toast, { ErrorToast } from "react-native-toast-message";
 import { useUser } from "../../context/UserContext";
+import { validateEmail, validateName, validateStepLength } from "../../lib/userValidation";
+import { updateUser } from "../../services/userService";
 
 export default function UpdateUserScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [stepLength, setStepLength] = useState('');
     const [loading, setLoading] = useState(false);
     const { setUser } = useUser();
+
+    // Toast animations
+    const visibilityTime = 2000;
+    const animationTime = 400;
+    const totalToastTime = visibilityTime + animationTime;
 
     useEffect(() => {
         if (params) {
             setName(params.name || '');
             setEmail(params.email || '');
+            setStepLength(params.stepLength || '');
         }
     }, []);
 
     const handleUpdate = async () => {
+        const emailErrors = validateEmail(email);
+        const nameErrors = validateName(name);
+        const stepLengthErrors = validateStepLength(stepLength);
+
+        if (emailErrors.length > 0) {
+            emailErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (nameErrors.length > 0) {
+            nameErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (stepLengthErrors.length > 0) {
+            stepLengthErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (!email || !name || !stepLength) {
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Alle Felder sind Pflichtfelder!',
+            });
+            return;
+        }
+
         setLoading(true);
         try {
-            const updatedUser = await updateUser(Number(params.id), { name, email });
-
+            const updatedUser = await updateUser(Number(params.id), { name, email, stepLength });
             setUser(updatedUser);
-
-            Alert.alert('Success', 'Benutzer erfolgreich aktualisiert!');
+            Toast.show({
+                type: 'success',
+                text1: 'Success',
+                text2: 'Benutzer erfolgreich aktualisiert!'
+            });
             router.back();
         } catch (error) {
-            Alert.alert('Error', 'Benutzer konnte nicht aktualisiert werden');
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: ErrorToast.message || 'Benutzer konnte nicht aktualisiert werden'
+            })
             console.error(error);
         } finally {
             setLoading(false);
@@ -50,6 +119,13 @@ export default function UpdateUserScreen() {
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Email"
+                style={styles.input}
+                editable={!loading}
+            />
+            <TextInput
+                value={stepLength}
+                onChangeText={setStepLength}
+                placeholder="Step Length"
                 style={styles.input}
                 editable={!loading}
             />

@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Toast from 'react-native-toast-message';
-import { validateEmail, validatePassword } from "../../lib/userValidation";
+import { validateEmail, validatePassword, validateName } from "../../lib/userValidation";
 import { createUser } from "../../services/userService";
 
 export default function CreateUserScreen() {
@@ -21,7 +21,7 @@ export default function CreateUserScreen() {
 
     const handleCreate = async () => {
         const emailErrors = validateEmail(email);
-        
+
         if (emailErrors.length > 0) {
             emailErrors.forEach((error, index) => {
                 setTimeout(() => {
@@ -40,7 +40,7 @@ export default function CreateUserScreen() {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: 'All fields are required',
+                text2: 'Alle Felder sind Pflichtfelder!',
             });
             return;
         }
@@ -49,7 +49,7 @@ export default function CreateUserScreen() {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: 'Passwords do not match',
+                text2: 'Passwörter stimmen nicht überein!',
             });
             return;
         }
@@ -75,14 +75,14 @@ export default function CreateUserScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Success',
-                text2: 'User created succesfully',
+                text2: 'Benutzer erfolgreich erstellt!',
             });
             router.replace('/users');
         } catch (error) {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: ErrorToast.message || 'Could not create user',
+                text2: ErrorToast.message || 'Benutzer konnte nicht erstellt werden!',
             });
             console.error(error);
         } finally {
