@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Toast from 'react-native-toast-message';
-import { validateEmail, validatePassword, validateName } from "../../lib/userValidation";
+import { validateEmail, validateName, validatePassword, validateStepLength } from "../../lib/userValidation";
 import { createUser } from "../../services/userService";
 
 export default function CreateUserScreen() {
@@ -21,9 +21,39 @@ export default function CreateUserScreen() {
 
     const handleCreate = async () => {
         const emailErrors = validateEmail(email);
+        const nameErrors = validateName(name);
+        const stepLengthErrors = validateStepLength(stepLength);
 
         if (emailErrors.length > 0) {
             emailErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (nameErrors.length > 0) {
+            nameErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (stepLengthErrors.length > 0) {
+            stepLengthErrors.forEach((error, index) => {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
@@ -93,11 +123,25 @@ export default function CreateUserScreen() {
     return (
         <View style={styles.container}>
             <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Name"
+                style={styles.input}
+                editable={!loading}
+            />
+            <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="E-Mail"
                 style={styles.input}
                 keyboardType="email-address"
+                editable={!loading}
+            />
+            <TextInput
+                value={stepLength}
+                onChangeText={setStepLength}
+                placeholder="Schrittlänge"
+                style={styles.input}
                 editable={!loading}
             />
             <TextInput
@@ -114,20 +158,6 @@ export default function CreateUserScreen() {
                 placeholder="Passwort bestätigen"
                 style={styles.input}
                 secureTextEntry
-                editable={!loading}
-            />
-            <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Name"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={stepLength}
-                onChangeText={setStepLength}
-                placeholder="Schrittlänge"
-                style={styles.input}
                 editable={!loading}
             />
             <Pressable
