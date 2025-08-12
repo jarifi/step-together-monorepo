@@ -31,7 +31,7 @@ class UserBase(CamelCaseBaseModel):
         ..., 
         min_length=2, 
         max_length=50, 
-        pattern="^[a-zA-Z ]+$",
+        pattern=r"^[a-zA-ZäöüÄÖÜß '\-]+$",
         json_schema_extra={"example": "John Doe"}
     )
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
@@ -74,7 +74,7 @@ class UserUpdate(CamelCaseBaseModel):
         None, 
         min_length=2, 
         max_length=50, 
-        pattern="^[a-zA-Z ]+$",
+        pattern=r"^[a-zA-ZäöüÄÖÜß '\-]+$",
         json_schema_extra={"example": "New Name"}
     )
     email: Optional[EmailStr] = Field(
