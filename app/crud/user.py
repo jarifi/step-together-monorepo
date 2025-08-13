@@ -9,7 +9,7 @@ from app.core.security import verify_password, get_password_hash  # We'll define
 
 
 def get_all_users(db: Session):
-    return db.query(User).all()
+    return db.query(User).filter(User.is_deleted == False).all()
 
 
 def get_user(db: Session, user_id: int):
