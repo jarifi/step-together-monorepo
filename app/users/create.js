@@ -112,7 +112,7 @@ export default function CreateUserScreen() {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: ErrorToast.message || 'Benutzer konnte nicht erstellt werden!',
+                text2: error?.message || 'Benutzer konnte nicht erstellt werden!',
             });
             console.error(error);
         } finally {
