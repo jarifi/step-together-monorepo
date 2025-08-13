@@ -1,6 +1,7 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -11,35 +12,126 @@ import {
   View,
 } from 'react-native';
 
+import { getHomeInit } from '../services/dashboardService';
+import { mapHomeInitToDashboard, type HomeInitDto } from './dashboard/dashboardDto';
+
 const Dashboard = () => {
+  const [vm, setVm] = useState<HomeInitDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [stepInput, setStepInput] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
 
-  const currentDate = new Date().toLocaleDateString('de-DE', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  // === Load Home ===
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setErrorMsg(null);
+        const raw = await getHomeInit();
+        const mapped = mapHomeInitToDashboard(raw);
+        setVm(mapped);
+      } catch (e: any) {
+        setErrorMsg(e?.message ?? 'Unbekannter Fehler');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-  // demo data
+  const currentDate = useMemo(
+    () =>
+      new Date().toLocaleDateString('de-DE', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    []
+  );
+
+  // === Demo/placeholder steps bis echte Steps-API kommt ===
   const stepsToday = 227;
-  const kcal = 29;
-  const distance = 0.15;
+
+  // Rechenhilfen (nutzen User.stepLength in m/Schritt falls gesetzt)
+  const stepLengthMeters = vm?.user?.stepLength ?? 0; // erwartetes Format: Meter pro Schritt
+  const distanceKm = useMemo(() => {
+    const km = (stepsToday * stepLengthMeters) / 1000; // m -> km
+    return Math.round(km * 100) / 100;
+  }, [stepsToday, stepLengthMeters]);
+
+  const kcal = useMemo(() => {
+    // grobe Faustformel für Gehen ~0.04 kcal/Schritt (variiert stark)
+    const k = stepsToday * 0.04;
+    return Math.round(k * 100) / 100;
+  }, [stepsToday]);
+
+  // Weekly (noch Demo)
   const weeklySteps = [12, 145, 162, 180, 227, 110, 80];
   const weeklyMax = Math.max(...weeklySteps);
+
+  // Challenge Prozent + Anzeige
+  const timeProgressPct = Math.round((vm?.challenge?.timeProgress ?? 0) * 100);
+  const progressWidth = `${Math.min(Math.max(timeProgressPct, 0), 100)}%`;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
+        <ActivityIndicator size="large" />
+        <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
+      </View>
+    );
+  }
+
+  if (errorMsg || !vm) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4', padding: 24 }}>
+        <Text style={[styles.font, { color: '#B91C1C', fontSize: 16, textAlign: 'center' }]}>
+          Ups, konnte Home-Daten nicht laden.
+        </Text>
+        {errorMsg ? (
+          <Text style={[styles.font, { color: '#6B7280', marginTop: 6, textAlign: 'center' }]}>{String(errorMsg)}</Text>
+        ) : null}
+        <TouchableOpacity
+          onPress={() => {
+            // quick retry
+            setLoading(true);
+            setErrorMsg(null);
+            getHomeInit()
+              .then((raw) => setVm(mapHomeInitToDashboard(raw)))
+              .catch((e) => setErrorMsg(e?.message ?? 'Unbekannter Fehler'))
+              .finally(() => setLoading(false));
+          }}
+          style={{ marginTop: 16, backgroundColor: '#7FA58C', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12 }}
+        >
+          <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>Erneut versuchen</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* DATE + CHALLENGE (blended with background) */}
+        {/* DATE + USER + CHALLENGE */}
         <View style={styles.topSection}>
           <Text style={[styles.date, styles.font]}>{currentDate}</Text>
+
+          {/* Optional: Username */}
+          {vm.user?.name ? (
+            <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 6 }]}>
+              Willkommen, <Text style={{ color: '#2F3E34', fontWeight: '700' }}>{vm.user.name}</Text> 👋
+            </Text>
+          ) : null}
+
           <View style={styles.hr} />
 
           <Text style={[styles.challengeRow, styles.font]}>
             <Text style={styles.challengeLabel}>Challenge: </Text>
-            Graz → Wien <Text style={styles.challengeMeta}>(180 Km)</Text>
+            {vm.challenge.startLocation || '—'} → {vm.challenge.targetLocation || '—'}{' '}
+            <Text style={styles.challengeMeta}>({vm.challenge.distanceKm ?? 0} Km)</Text>
           </Text>
 
           {/* METRICS */}
@@ -51,8 +143,7 @@ const Dashboard = () => {
               <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
             </View>
 
-
-            {/* step ring (lighter original look) */}
+            {/* step ring */}
             <View style={styles.stepCircleWrapper}>
               <View style={styles.stepCircleOuter}>
                 <View style={styles.stepCircleInnerRing} />
@@ -66,11 +157,11 @@ const Dashboard = () => {
             {/* distance */}
             <View style={[styles.metricSide, { alignItems: 'flex-start' }]}>
               <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4, alignSelf: 'center' }} />
-              <Text style={[styles.metricSideValue, styles.font]}>{distance}</Text>
+              <Text style={[styles.metricSideValue, styles.font]}>{distanceKm}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
             </View>
-
           </View>
+
           {/* EDIT BTN */}
           <TouchableOpacity style={styles.editBtn} onPress={() => setModalVisible(true)}>
             <Text style={[styles.editBtnText, styles.font]}>Schritte bearbeiten</Text>
@@ -81,7 +172,7 @@ const Dashboard = () => {
             Diese Woche: <Text style={{ color: '#5F764E' }}>{stepsToday} Schritte</Text>
           </Text>
 
-          {/* WEEKLY BAR CHART (all bars same color) */}
+          {/* WEEKLY BAR CHART */}
           <View style={styles.weekChart}>
             {weeklySteps.map((value, i) => {
               const height = (value / weeklyMax) * 120;
@@ -99,31 +190,32 @@ const Dashboard = () => {
           </View>
         </View>
 
-        {/* CHALLENGE PROGRESS (scrolled view) */}
+        {/* CHALLENGE PROGRESS */}
         <View style={styles.progressCard}>
           <Text style={[styles.progressTitle, styles.font]}>
             <Text style={{ color: '#5F764E', fontWeight: '700' }}>Challenge </Text>Fortschritte
           </Text>
 
-          {/* top scale */}
+          {/* obere Skala (optional statisch) */}
           <View style={styles.topScaleRow}>
-            <Text style={[styles.scaleTick, styles.font]}>0</Text>
-            <Text style={[styles.scaleTick, styles.font]}>120.000</Text>
-            <Text style={[styles.scaleTick, styles.font]}>240.000</Text>
+            <Text style={[styles.scaleTick, styles.font]}>Start</Text>
+            <Text style={[styles.scaleTick, styles.font]}>Zeit</Text>
+            <Text style={[styles.scaleTick, styles.font]}>Ziel</Text>
           </View>
 
-          {/* progress bar */}
+          {/* Fortschritt nach Zeit (timeProgress) */}
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '60%' }]} />
+            <View style={[styles.progressFill]} />
           </View>
 
-          {/* note (bigger + more spacing) */}
           <Text style={[styles.progressNote, styles.font]}>
-            <Text style={{ color: '#5F764E', fontWeight: '800' }}>60%</Text> wurden erreicht! Das sind{' '}
-            <Text style={{ fontWeight: '900' }}>144.000</Text> Schritte!
+            <Text style={{ color: '#5F764E', fontWeight: '800' }}>{timeProgressPct}%</Text> der Challenge-Zeit sind vorbei.
+            {typeof vm.challenge.daysLeft === 'number' ? (
+              <> Noch <Text style={{ fontWeight: '900' }}>{vm.challenge.daysLeft}</Text> Tage übrig.</>
+            ) : null}
           </Text>
 
-          {/* TEAM INFOS */}
+          {/* TEAM INFOS (noch Demo-Daten) */}
           <View style={styles.teamSectionHeader}>
             <Text style={[styles.teamTitle, styles.font]}>Team Infos</Text>
           </View>
@@ -138,7 +230,7 @@ const Dashboard = () => {
             { name: 'Leonardo da Vinci', steps: '30.000', rankColor: '#999999' }, // 2
             { name: 'Gustav Fröhlich', steps: '28.800', rankColor: '#C9716D' }, // 3
             { name: 'Bernadette Unförmlich', steps: '27.600' },
-            { name: 'Alice ooper (Du)', steps: '6.400', isUser: true },
+            { name: `${vm.user.name || 'Du'}`, steps: '6.400', isUser: true },
           ].map((u, idx) => (
             <View
               key={idx}
@@ -185,16 +277,28 @@ const Dashboard = () => {
               <TextInput
                 style={[styles.input, styles.font]}
                 placeholder="Datum auswählen (z.B. 05.08.2025)"
-                placeholderTextColor="#white"
+                placeholderTextColor="#7FA58C"
                 value={selectedDate}
                 onChangeText={setSelectedDate}
               />
 
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}
+                  onPress={() => {
+                    // TODO: addSteps(stepInput, selectedDate)
+                    setModalVisible(false);
+                  }}
+                >
                   <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>Hinzufügen</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}
+                  onPress={() => {
+                    // TODO: removeSteps(stepInput, selectedDate)
+                    setModalVisible(false);
+                  }}
+                >
                   <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>Entfernen</Text>
                 </TouchableOpacity>
               </View>
