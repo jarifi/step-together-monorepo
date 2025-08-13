@@ -1,4 +1,4 @@
-import Feather from '@expo/vector-icons/Feather';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -46,10 +46,11 @@ const Dashboard = () => {
           <View style={styles.metricsRow}>
             {/* kcal */}
             <View style={styles.metricSide}>
-              <Feather name="flame" size={18} color="#E25822" style={{ marginBottom: 4 }} />
+              <Ionicons name="flame" size={24} color="#E25822" style={{ marginBottom: 4 }} />
               <Text style={[styles.metricSideValue, styles.font]}>{kcal}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
             </View>
+
 
             {/* step ring (lighter original look) */}
             <View style={styles.stepCircleWrapper}>
@@ -64,12 +65,12 @@ const Dashboard = () => {
 
             {/* distance */}
             <View style={[styles.metricSide, { alignItems: 'flex-start' }]}>
-              <Feather name="map-pin" size={18} color="#7FA58C" style={{ marginBottom: 4, alignSelf: 'center' }} />
+              <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4, alignSelf: 'center' }} />
               <Text style={[styles.metricSideValue, styles.font]}>{distance}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
             </View>
-          </View>
 
+          </View>
           {/* EDIT BTN */}
           <TouchableOpacity style={styles.editBtn} onPress={() => setModalVisible(true)}>
             <Text style={[styles.editBtnText, styles.font]}>Schritte bearbeiten</Text>
@@ -261,10 +262,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2F3E34',
     lineHeight: 18,
+    marginHorizontal: 18,
   },
   metricSideLabel: {
     fontSize: 12,
     color: '#6B7280',
+    marginHorizontal: 24,
   },
 
   stepCircleWrapper: {
@@ -373,7 +376,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 16,
     marginTop: 8,
-    
+
   },
   progressTitle: {
     textAlign: 'center',
@@ -462,7 +465,7 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   youNote: { color: '#6B7280', fontSize: 18 },
   userName: {
-    fontSize: 17,                  
+    fontSize: 17,
     color: '#111827',
     fontWeight: '600',
   },
