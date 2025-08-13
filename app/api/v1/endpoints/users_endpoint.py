@@ -77,7 +77,7 @@ def update_existing_user(
     return updated_user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_200_OK)
 def delete_existing_user(
     user_id: int,
     current_user: Annotated[User, Depends(get_current_user)],

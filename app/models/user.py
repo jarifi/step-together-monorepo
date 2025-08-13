@@ -13,6 +13,7 @@ class User(Base):
     step_length = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False)
     verification_token = Column(String(100), nullable=True)
     password_reset_token = Column(String(100), nullable=True)
     failed_login_attempts = Column(Integer, default=0)

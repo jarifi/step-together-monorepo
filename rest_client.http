@@ -48,6 +48,10 @@ Content-Type: application/json
 GET {{baseUrl}}/users/home/init
 Authorization: Bearer {{login.response.body.access_token}}
 
+### 2.5 Get All Users Using Access Token
+DELETE {{baseUrl}}/users/1
+Authorization: Bearer {{login.response.body.access_token}}
+
 ### 3. Get All Teams Using Access Token
 GET {{baseUrl}}/teams/
 Authorization: Bearer {{login.response.body.access_token}}
