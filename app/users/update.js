@@ -33,12 +33,22 @@ export default function UpdateUserScreen() {
         const nameErrors = validateName(name);
         const stepLengthErrors = validateStepLength(stepLength);
 
+        if (!email || !name || !stepLength) {
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Alle Felder sind Pflichtfelder!',
+            });
+            return;
+        }
+
         if (emailErrors.length > 0) {
             emailErrors.forEach((error, index) => {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
-                        text1: error,
+                        text1: "Error",
+                        text2: error,
                         position: 'top',
                         visibilityTime: 2000,
                     });
@@ -52,7 +62,8 @@ export default function UpdateUserScreen() {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
-                        text1: error,
+                        text1: "Error",
+                        text2: error,
                         position: 'top',
                         visibilityTime: 2000,
                     });
@@ -66,20 +77,12 @@ export default function UpdateUserScreen() {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
-                        text1: error,
+                        text1: "Error",
+                        text2: error,
                         position: 'top',
                         visibilityTime: 2000,
                     });
                 }, index * 2500);
-            });
-            return;
-        }
-
-        if (!email || !name || !stepLength) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Alle Felder sind Pflichtfelder!',
             });
             return;
         }
@@ -90,7 +93,7 @@ export default function UpdateUserScreen() {
             setUser(updatedUser);
             Toast.show({
                 type: 'success',
-                text1: 'Success',
+                text1: 'Erfolg',
                 text2: 'Benutzer erfolgreich aktualisiert!'
             });
             router.back();
@@ -111,21 +114,21 @@ export default function UpdateUserScreen() {
             <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="Name"
+                placeholder="Vor- und Nachname"
                 style={styles.input}
                 editable={!loading}
             />
             <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Email"
+                placeholder="E-Mail"
                 style={styles.input}
                 editable={!loading}
             />
             <TextInput
                 value={stepLength}
                 onChangeText={setStepLength}
-                placeholder="Step Length"
+                placeholder="Schrittlänge"
                 style={styles.input}
                 editable={!loading}
             />

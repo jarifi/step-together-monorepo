@@ -83,3 +83,17 @@ export async function createUser(userData) {
 
   return res.json();
 }
+
+export const deleteUser = async (id) => {
+  const token = await AsyncStorage.getItem('userToken');
+  const response = await fetch(`${BASE_URL}/users/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete user');
+  }
+  return true;
+};

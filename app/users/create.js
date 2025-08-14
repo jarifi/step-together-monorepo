@@ -24,12 +24,23 @@ export default function CreateUserScreen() {
         const nameErrors = validateName(name);
         const stepLengthErrors = validateStepLength(stepLength);
 
+        if (!email || !password || !passwordConfirm || !name || !stepLength) {
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Alle Felder sind Pflichtfelder!',
+            });
+            return;
+        }
+
+        console.log(email, email.length, emailErrors);
         if (emailErrors.length > 0) {
             emailErrors.forEach((error, index) => {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
-                        text1: error,
+                        text1: "Error",
+                        text2: error,
                         position: 'top',
                         visibilityTime: 2000,
                     });
@@ -43,7 +54,8 @@ export default function CreateUserScreen() {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
-                        text1: error,
+                        text1: "Error",
+                        text2: error,
                         position: 'top',
                         visibilityTime: 2000,
                     });
@@ -57,20 +69,12 @@ export default function CreateUserScreen() {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
-                        text1: error,
+                        text1: "Error",
+                        text2: error,
                         position: 'top',
                         visibilityTime: 2000,
                     });
                 }, index * 2500);
-            });
-            return;
-        }
-
-        if (!email || !password || !passwordConfirm || !name || !stepLength) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Alle Felder sind Pflichtfelder!',
             });
             return;
         }
@@ -90,7 +94,8 @@ export default function CreateUserScreen() {
                 setTimeout(() => {
                     Toast.show({
                         type: 'error',
-                        text1: error,
+                        text1: "Error",
+                        text2: error,
                         position: 'top',
                         visibilityTime,
                     });
@@ -104,7 +109,7 @@ export default function CreateUserScreen() {
             await createUser({ email, password, passwordConfirm, name, stepLength: parseFloat(stepLength) });
             Toast.show({
                 type: 'success',
-                text1: 'Success',
+                text1: 'Erfolg',
                 text2: 'Benutzer erfolgreich erstellt!',
             });
             router.replace('/users');
@@ -125,7 +130,7 @@ export default function CreateUserScreen() {
             <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="Name"
+                placeholder="Vor- und Nachname"
                 style={styles.input}
                 editable={!loading}
             />
