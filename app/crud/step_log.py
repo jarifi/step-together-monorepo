@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.step_log import StepLog
 from app.schema.step_log import StepLogCreate, StepLogResponse, StepLogUpdate # Corrected import: No StepLogSchema, use StepLogCreate for input
 from datetime import datetime, timedelta
-
+from sqlalchemy import func
 def get_all_step_logs(db: Session):
     return db.query(StepLog).all()
 
@@ -55,14 +55,20 @@ def get_steps_for_current_week(db: Session, user_id: int, challenge_id: int):
     today = datetime.now()
     start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
+    
+    print("user_id:", user_id)
+    print("challenge_id:", challenge_id)
+    print("Today:", today)
+    print("Start of week:", start_of_week.date())
+    print("End of week:", end_of_week.date())
 
     return (
-        db.query(StepLog)
-        .filter(
-            StepLog.user_id == user_id,
-            StepLog.challenge_id == challenge_id,
-            StepLog.date >= start_of_week,
-            StepLog.date <= end_of_week
-        )
-        .all()
+    db.query(StepLog)
+    .filter(
+        StepLog.user_id == user_id,
+        StepLog.challenge_id == challenge_id,
+        func.date(StepLog.date) >= start_of_week.date(),
+        func.date(StepLog.date) <= end_of_week.date()
     )
+    .all()
+)

@@ -10,7 +10,7 @@ class UserDashboardResponse(BaseModel):
     user: UserResponse
     team: Optional[TeamResponse]
     challenge: Optional[ChallengeHomeResponse]
-    steps_this_week: Optional[List[StepLogResponse]]  # explicit typing
+    steps_this_week: Optional[List[int]]  # <-- just a list of integers now
 
     class Config:
         orm_mode = True

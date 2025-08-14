@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, DateTime, ForeignKey
 from app.db.base import Base
 
 class StepLog(Base):
-    __tablename__ = "schritt_logs"
+    __tablename__ = "step_logs"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))

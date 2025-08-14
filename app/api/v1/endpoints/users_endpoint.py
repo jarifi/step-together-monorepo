@@ -97,19 +97,25 @@ def delete_existing_user(
     return {"deleted": True}
 
 @router.get("/user/dashboard/init", response_model=UserDashboardResponse)
-def init_dashboard_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def init_dashboard_data(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     user = get_user(db, current_user.id)
     team = get_team_by_user_id(db, user.id)
     challenge = get_active_challenge(db, team.id) if team else None
 
-    steps_this_week = (
-        get_steps_for_current_week(db, user.id, challenge.id) 
+    step_logs = (
+        get_steps_for_current_week(db, user.id, challenge.id)
         if user and challenge else []
     )
 
-    return {
-        "user": user,
-        "team": team,
-        "challenge": challenge,
-        "steps_this_week": steps_this_week
-    }
+    # Extract only numbers
+    steps_this_week = [log.number_of_steps for log in step_logs]
+
+    return UserDashboardResponse(
+        user=user,
+        team=team,
+        challenge=challenge,
+        steps_this_week=steps_this_week
+    )
