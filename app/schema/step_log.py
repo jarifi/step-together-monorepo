@@ -20,6 +20,7 @@ class StepLogResponse(CamelCaseBaseModel):
 
 class StepDashboardResponse(CamelCaseBaseModel):
     date: date
+    day_of_week: str
     number_of_steps: int
 
 class StepLogUpdate(CamelCaseBaseModel):
