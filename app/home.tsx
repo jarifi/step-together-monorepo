@@ -24,6 +24,51 @@ const Dashboard = () => {
   const [stepInput, setStepInput] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
 
+  // shown date above the welcome message
+  const [displayDate, setDisplayDate] = useState(new Date());
+  const currentDate = useMemo(
+    () =>
+      displayDate.toLocaleDateString('de-DE', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [displayDate]
+  );
+
+  // calendar modal
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [calendarPick, setCalendarPick] = useState<Date>(new Date());
+
+  const calendarHeader = useMemo(
+    () => calendarMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
+    [calendarMonth]
+  );
+
+  const calendarGrid = useMemo(() => {
+    const firstOfMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const firstWeekday = ((firstOfMonth.getDay() + 6) % 7) + 1; // 1=Mon..7=Sun
+    const start = new Date(firstOfMonth);
+    start.setDate(firstOfMonth.getDate() - (firstWeekday - 1)); // back to Monday
+
+    const cells: { date: Date; inMonth: boolean }[] = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      cells.push({
+        date: d,
+        inMonth: d.getMonth() === calendarMonth.getMonth(),
+      });
+    }
+    return cells;
+  }, [calendarMonth]);
+
+  const goPrevMonth = () =>
+    setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  const goNextMonth = () =>
+    setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -40,16 +85,6 @@ const Dashboard = () => {
     };
     load();
   }, []);
-
-  const currentDate = useMemo(
-    () =>
-      new Date().toLocaleDateString('de-DE', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }),
-    []
-  );
 
   const [stepsToday, setStepsToday] = useState(227);
 
@@ -114,7 +149,20 @@ const Dashboard = () => {
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* DATE + USER + CHALLENGE */}
         <View style={styles.topSection}>
-          <Text style={[styles.date, styles.font]}>{currentDate}</Text>
+          <View style={styles.dateRow}>
+            <Text style={[styles.date, styles.font]}>{currentDate}</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => {
+                setCalendarPick(displayDate);
+                setCalendarMonth(displayDate);
+                setCalendarOpen(true);
+              }}
+              style={[styles.calIconBtn, { marginLeft: 10 }]}
+            >
+              <Ionicons name="calendar-outline" size={22} color="#2F3E34" />
+            </TouchableOpacity>
+          </View>
 
           {/* Optional: Username */}
           {vm.user?.name ? (
@@ -201,7 +249,6 @@ const Dashboard = () => {
 
           {/* Fortschritt nach Zeit (timeProgress) */}
           <View style={styles.progressTrack}>
-            {/* <- der Trick: width als Prozent-String */}
             <View style={[styles.progressFill, { width: `${timeProgressPct}%` }]} />
           </View>
 
@@ -211,7 +258,6 @@ const Dashboard = () => {
               <Text> Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.</Text>
             ) : null}
           </Text>
-
 
           {/* TEAM INFOS (noch Demo-Daten) */}
           <View style={styles.teamSectionHeader}>
@@ -224,9 +270,9 @@ const Dashboard = () => {
           </Text>
 
           {[
-            { name: 'Jessica Marie Müll', steps: '51.200', rankColor: '#C8A100' }, // 1
-            { name: 'Leonardo da Vinci', steps: '30.000', rankColor: '#999999' }, // 2
-            { name: 'Gustav Fröhlich', steps: '28.800', rankColor: '#C9716D' }, // 3
+            { name: 'Jessica Marie Müll', steps: '51.200', rankColor: '#C8A100' },
+            { name: 'Leonardo da Vinci', steps: '30.000', rankColor: '#999999' },
+            { name: 'Gustav Fröhlich', steps: '28.800', rankColor: '#C9716D' },
             { name: 'Bernadette Unförmlich', steps: '27.600' },
             { name: `${vm.user.name || 'Du'}`, steps: '6.400', isUser: true },
           ].map((u, idx) => (
@@ -252,7 +298,7 @@ const Dashboard = () => {
           ))}
         </View>
 
-        {/* MODAL */}
+        {/* MODAL: Schritte verwalten */}
         <Modal
           animationType="slide"
           transparent
@@ -272,14 +318,13 @@ const Dashboard = () => {
                 onChangeText={setStepInput}
               />
 
-
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}
                   onPress={() => {
                     const num = parseInt(stepInput, 10);
                     if (!isNaN(num)) {
-                      setStepsToday(prev => prev + num); // Schritte addieren
+                      setStepsToday(prev => prev + num);
                     }
                     setModalVisible(false);
                     setStepInput('');
@@ -296,7 +341,7 @@ const Dashboard = () => {
                   onPress={() => {
                     const num = parseInt(stepInput, 10);
                     if (!isNaN(num)) {
-                      setStepsToday(prev => Math.max(0, prev - num)); // Schritte abziehen, nicht unter 0
+                      setStepsToday(prev => Math.max(0, prev - num));
                     }
                     setModalVisible(false);
                     setStepInput('');
@@ -312,6 +357,80 @@ const Dashboard = () => {
               <Pressable style={styles.closeBtn} onPress={() => setModalVisible(false)}>
                 <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>Schließen</Text>
               </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        {/* MODAL: Calendar */}
+        <Modal
+          animationType="fade"
+          transparent
+          visible={calendarOpen}
+          onRequestClose={() => setCalendarOpen(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.calendarCard}>
+              <View style={styles.calHeader}>
+                <TouchableOpacity onPress={goPrevMonth} style={styles.navPill}>
+                  <Ionicons name="chevron-back" size={18} />
+                </TouchableOpacity>
+                <Text style={[styles.font, styles.calHeaderTitle]}>{calendarHeader}</Text>
+                <TouchableOpacity onPress={goNextMonth} style={styles.navPill}>
+                  <Ionicons name="chevron-forward" size={18} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.weekRow}>
+                {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
+                  <Text key={d} style={[styles.font, styles.weekCell]}>{d}</Text>
+                ))}
+              </View>
+
+              <View style={styles.grid}>
+                {calendarGrid.map(({ date, inMonth }, idx) => {
+                  const isSameDay =
+                    date.getFullYear() === calendarPick.getFullYear() &&
+                    date.getMonth() === calendarPick.getMonth() &&
+                    date.getDate() === calendarPick.getDate();
+
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.dayCellWrap,
+                        isSameDay && styles.daySelectedWrap,
+                      ]}
+                      onPress={() => setCalendarPick(date)}
+                      disabled={!inMonth}
+                    >
+                      <Text
+                        style={[
+                          styles.font,
+                          styles.dayCellText,
+                          !inMonth && styles.dayOutText,
+                          isSameDay && styles.daySelectedText,
+                        ]}
+                      >
+                        {date.getDate()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity
+                style={styles.applyBtn}
+                onPress={() => {
+                  setDisplayDate(calendarPick);
+                  setCalendarOpen(false);
+                }}
+              >
+                <Text style={[styles.font, styles.applyBtnText]}>Übernehmen</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setCalendarOpen(false)}>
+                <Text style={[styles.font, styles.cancelBtnText]}>Abbrechen</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -332,6 +451,18 @@ const styles = StyleSheet.create({
   topSection: {
     backgroundColor: 'transparent',
     padding: 0,
+  },
+
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  calIconBtn: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#E8EFEA',
   },
 
   date: {
@@ -389,11 +520,11 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 999,
-    backgroundColor: '#C5DECD', // original soft green
+    backgroundColor: '#C5DECD',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 12,
-    borderColor: '#DFEBE2', // original outer ring
+    borderColor: '#DFEBE2',
   },
   stepCircleInnerRing: {
     position: 'absolute',
@@ -471,7 +602,7 @@ const styles = StyleSheet.create({
     width: 20,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-    backgroundColor: '#7EA88F', // same for every day
+    backgroundColor: '#7EA88F',
   },
   dayLabel: {
     marginTop: 6,
@@ -490,11 +621,11 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     textAlign: 'center',
-    fontSize: 20,                 // bigger
+    fontSize: 20,
     color: '#2F3E34',
     fontWeight: '800',
-    marginTop: 6,                 // extra spacing
-    marginBottom: 30,             // extra spacing
+    marginTop: 6,
+    marginBottom: 30,
   },
   topScaleRow: {
     flexDirection: 'row',
@@ -520,10 +651,10 @@ const styles = StyleSheet.create({
   },
   progressNote: {
     textAlign: 'center',
-    fontSize: 18,                 // larger than before
+    fontSize: 18,
     color: '#2F3E34',
-    marginTop: 20,                 // more breathing room
-    marginBottom: 20,             // more breathing room
+    marginTop: 20,
+    marginBottom: 20,
   },
 
   teamSectionHeader: {
@@ -535,16 +666,16 @@ const styles = StyleSheet.create({
   teamTitle: {
     textAlign: 'center',
     fontWeight: '800',
-    fontSize: 22,                 // per your request
+    fontSize: 22,
     color: '#1F2937',
     marginBottom: 10,
-    marginTop: 10,             // spacing below title
+    marginTop: 10,
   },
   teamSubtitle: {
     textAlign: 'center',
     color: '#6B7280',
-    fontSize: 20,                 // per your request
-    marginBottom: 16,             // spacing below subtitle
+    fontSize: 20,
+    marginBottom: 16,
   },
 
   rankRow: {
@@ -566,8 +697,8 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   avatar: {
-    width: 54,                     // per your request
-    height: 54,                    // per your request
+    width: 54,
+    height: 54,
     borderRadius: 999,
     backgroundColor: '#D1D5DB',
     marginRight: 25,
@@ -592,7 +723,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Century Gothic',
   },
 
-  /* modal */
+  /* modal (shared overlay) */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -600,6 +731,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
   },
+
+  /* steps modal */
   modalView: {
     width: '100%',
     backgroundColor: '#FFFFFF',
@@ -644,6 +777,102 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
+  },
+
+  /* calendar modal card (clean, rounded, modern) */
+  calendarCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  calHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  calHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#2F3E34',
+  },
+  navPill: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: '#F2F5F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    marginBottom: 6,
+    paddingHorizontal: 6,
+  },
+  weekCell: {
+    width: `${100 / 7}%`,
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#7B8A80',
+    fontWeight: '700',
+  },
+
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  dayCellWrap: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  daySelectedWrap: {
+    backgroundColor: '#D7E3DA',
+  },
+  dayCellText: {
+    fontSize: 16,
+    color: '#2F3E34',
+  },
+  dayOutText: {
+    color: '#AEB7B1',
+  },
+  daySelectedText: {
+    fontWeight: '800',
+  },
+
+  applyBtn: {
+    backgroundColor: '#415949',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  applyBtnText: {
+    color: '#86AD8E',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  cancelBtn: {
+    backgroundColor: '#E8EFEA',
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    color: '#2F3E34',
+    fontWeight: '700',
   },
 });
 
