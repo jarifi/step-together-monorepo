@@ -1,5 +1,5 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -53,9 +53,9 @@ const Dashboard = () => {
 
   const [stepsToday, setStepsToday] = useState(227);
 
-  const stepLengthMeters = vm?.user?.stepLength ?? 0; 
+  const stepLengthMeters = vm?.user?.stepLength ?? 0;
   const distanceKm = useMemo(() => {
-    const km = (stepsToday * stepLengthMeters) / 1000; 
+    const km = (stepsToday * stepLengthMeters) / 1000;
     return Math.round(km * 100) / 100;
   }, [stepsToday, stepLengthMeters]);
 
@@ -64,15 +64,15 @@ const Dashboard = () => {
     return Math.round(k * 100) / 100;
   }, [stepsToday]);
 
-  const weeklySteps = vm?.steps_this_week ?? [0,0,0,0,0,0,0];
-  const weeklyMax = Math.max(1, ...weeklySteps); 
-  const weeklyTotal = useMemo(() => weeklySteps.reduce((a,b) => a + b, 0), [weeklySteps]);
+  const weeklySteps = vm?.steps_this_week ?? [0, 0, 0, 0, 0, 0, 0];
+  const weeklyMax = Math.max(1, ...weeklySteps);
+  const weeklyTotal = useMemo(() => weeklySteps.reduce((a, b) => a + b, 0), [weeklySteps]);
 
   // Challenge Prozent + Anzeige
-  const timeProgressRaw = vm?.challenge?.timeProgress ?? 0; 
+  const timeProgressRaw = vm?.challenge?.timeProgress ?? 0;
   const timeProgressPct = Math.round(Math.max(0, Math.min(1, timeProgressRaw)) * 100);
   const daysLeft = vm?.challenge?.daysLeft;
-  
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
@@ -179,7 +179,7 @@ const Dashboard = () => {
                     <View style={[styles.barFill, { height }]} />
                   </View>
                   <Text style={[styles.dayLabel, styles.font]}>
-                    {['MO','DI','MI','DO','FR','SA','SO'][i]}
+                    {['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'][i]}
                   </Text>
                 </View>
               );
@@ -272,13 +272,6 @@ const Dashboard = () => {
                 onChangeText={setStepInput}
               />
 
-              <TextInput
-                style={[styles.input, styles.font]}
-                placeholder="Datum auswählen (z.B. 05.08.2025)"
-                placeholderTextColor="#7FA58C"
-                value={selectedDate}
-                onChangeText={setSelectedDate}
-              />
 
               <View style={styles.modalButtons}>
                 <TouchableOpacity
