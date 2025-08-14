@@ -45,7 +45,7 @@ Content-Type: application/json
 }
 
 ### 2.4 Get All Users Using Access Token
-GET {{baseUrl}}/users/home/init
+GET {{baseUrl}}/users/user/dashboard/init
 Authorization: Bearer {{login.response.body.access_token}}
 
 ### 2.5 Get All Users Using Access Token
