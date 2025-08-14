@@ -105,11 +105,6 @@ def init_dashboard_data(
     team = get_team_by_user_id(db, user.id)
     challenge = get_active_challenge(db, team.id) if team else None
 
-    step_logs = (
-        get_steps_for_current_week(db, user.id, challenge.id)
-        if user and challenge else []
-    )
-
     steps_this_week = (
         get_steps_for_current_week(db, user.id, challenge.id)
         if user and challenge else []
