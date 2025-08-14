@@ -75,39 +75,6 @@ INSERT INTO `challenge_progress` (`id`, `user_id`, `challenge_id`, `distance_cov
 	(8, 1, 2, 20, 100, '2025-08-06 11:20:36.106', 0),
 	(9, 1, 2, 20, 100, '2025-08-06 12:03:21.837', 0);
 
--- Exportiere Struktur von Tabelle step_together_api.schritt_logs
-DROP TABLE IF EXISTS `schritt_logs`;
-CREATE TABLE IF NOT EXISTS `schritt_logs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL,
-  `challenge_id` int(11) NOT NULL,
-  `team_id` int(11) NOT NULL,
-  `date` datetime(3) NOT NULL,
-  `number_of_steps` int(11) NOT NULL,
-  `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Exportiere Daten aus Tabelle step_together_api.schritt_logs: ~16 rows (ungefähr)
-DELETE FROM `schritt_logs`;
-INSERT INTO `schritt_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `number_of_steps`, `is_deleted`) VALUES
-	(1, 1, 1, 1, '2025-05-03 00:00:00.000', 20000, 0),
-	(2, 2, 1, 1, '2025-05-03 00:00:00.000', 15000, 0),
-	(3, 1, 2, 2, '2025-05-03 00:00:00.000', 10000, 0),
-	(4, 2, 2, 2, '2025-05-03 00:00:00.000', 8000, 0),
-	(5, 1, 3, 3, '2025-05-03 00:00:00.000', 10000, 0),
-	(6, 2, 3, 3, '2025-05-03 00:00:00.000', 8000, 0),
-	(7, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(8, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(9, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(10, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(11, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(12, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(13, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(14, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(15, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0),
-	(16, 1, 10, 3, '2025-08-06 08:00:00.000', 12000, 0);
-
 -- Exportiere Struktur von Tabelle step_together_api.step_logs
 DROP TABLE IF EXISTS `step_logs`;
 CREATE TABLE IF NOT EXISTS `step_logs` (
@@ -124,12 +91,14 @@ CREATE TABLE IF NOT EXISTS `step_logs` (
 -- Exportiere Daten aus Tabelle step_together_api.step_logs: ~6 rows (ungefähr)
 DELETE FROM `step_logs`;
 INSERT INTO `step_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `number_of_steps`, `is_deleted`) VALUES
-	(1, 1, 1, 1, '2025-05-03 00:00:00.000', 20, 0),
-	(2, 1, 1, 1, '2025-05-04 00:00:00.000', 10, 0),
-	(3, 1, 2, 2, '2025-05-03 00:00:00.000', 10000, 0),
-	(4, 2, 2, 2, '2025-05-03 00:00:00.000', 8000, 0),
-	(5, 1, 3, 3, '2025-05-03 00:00:00.000', 10000, 0),
-	(6, 2, 3, 3, '2025-05-03 00:00:00.000', 8000, 0);
+	(1, 1, 1, 1, '2025-08-11 00:00:00.000', 20, 0),
+	(2, 1, 1, 1, '2025-08-12 00:00:00.000', 10, 0),
+	(3, 1, 1, 1, '2025-08-13 00:00:00.000', 80, 0),
+	(4, 1, 1, 1, '2025-08-14 00:00:00.000', 70, 0),
+	(5, 1, 2, 2, '2025-05-03 00:00:00.000', 10000, 0),
+	(6, 2, 2, 2, '2025-05-03 00:00:00.000', 8000, 0),
+	(7, 1, 3, 3, '2025-05-03 00:00:00.000', 10000, 0),
+	(8, 2, 3, 3, '2025-05-03 00:00:00.000', 8000, 0);
 
 -- Exportiere Struktur von Tabelle step_together_api.teams
 DROP TABLE IF EXISTS `teams`;
@@ -313,12 +282,12 @@ CREATE TABLE IF NOT EXISTS `users` (
   `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_key` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=172 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=173 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exportiere Daten aus Tabelle step_together_api.users: ~104 rows (ungefähr)
 DELETE FROM `users`;
 INSERT INTO `users` (`id`, `name`, `email`, `hashed_password`, `step_length`, `is_active`, `is_verified`, `verification_token`, `password_reset_token`, `failed_login_attempts`, `locked_until`, `created_at`, `updated_at`, `is_deleted`) VALUES
-	(1, 'AliceUp CuperUp', 'alice@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 1.2, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-08-12 12:11:54.582', 0),
+	(1, 'AliceUp CuperUp', 'alice@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 1.2, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-08-14 09:29:22.095', 0),
 	(2, 'Bob Smith', 'bob@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 10, 1, 1, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-08-12 08:20:26.712', 0),
 	(3, 'Charlie Brown', 'charlie@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.8, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-07-31 10:15:53.953', 0),
 	(4, 'Anna Scott', 'anna.mueller@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.957', '2025-07-31 10:32:23.426', 0),
