@@ -3,7 +3,7 @@ export type HomeInitDto = {
     id: number | null;
     name: string;
     email: string;
-    stepLength: number; 
+    stepLength: number;
   };
   team: {
     id: number | null;
@@ -14,14 +14,18 @@ export type HomeInitDto = {
     name: string;
     startLocation: string;
     targetLocation: string;
-    distanceKm: number;   
+    distanceKm: number;
     startDate: Date | null;
     endDate: Date | null;
     state: string;
-    daysLeft: number;     
+    daysLeft: number;
     timeProgress: number;
   };
-  steps_this_week?: number[];
+  steps_this_week?: {
+    date: string;
+    dayOfWeek: string;
+    numberOfSteps: number;
+  }[];
 };
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -47,11 +51,15 @@ export const mapHomeInitToDashboard = (data: any): HomeInitDto | null => {
     daysLeft = Math.max(0, daysBetween(now, end));
   }
 
-  // ⬇️ steps_this_week kommt als Array, ggf. kürzer (z.B. 4 Tage) -> auf 7 auffüllen
-  const rawWeek = Array.isArray(data.steps_this_week)
-    ? data.steps_this_week.map((n: any) => (Number.isFinite(+n) ? +n : 0))
+  const stepsWeek = Array.isArray(data.steps_this_week)
+    ? data.steps_this_week.map((entry: any) => ({
+        date: entry.date ?? '',
+        dayOfWeek: entry.dayOfWeek ?? '',
+        numberOfSteps: Number.isFinite(+entry.numberOfSteps)
+          ? +entry.numberOfSteps
+          : 0,
+      }))
     : [];
-  const week7 = Array.from({ length: 7 }, (_, i) => rawWeek[i] ?? 0);
 
   return {
     user: {
@@ -69,13 +77,14 @@ export const mapHomeInitToDashboard = (data: any): HomeInitDto | null => {
       name: challenge.name ?? '',
       startLocation: challenge.startLocation ?? '',
       targetLocation: challenge.targetLocation ?? '',
-      distanceKm: typeof challenge.distance === 'number' ? challenge.distance : 0, // passt zu deinem JSON
+      distanceKm:
+        typeof challenge.distance === 'number' ? challenge.distance : 0,
       startDate: start,
       endDate: end,
       state: challenge.state ?? '',
       daysLeft,
       timeProgress,
     },
-    steps_this_week: week7,
+    steps_this_week: stepsWeek,
   };
 };
