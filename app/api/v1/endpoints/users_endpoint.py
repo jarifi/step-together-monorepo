@@ -110,8 +110,10 @@ def init_dashboard_data(
         if user and challenge else []
     )
 
-    # Extract only numbers
-    steps_this_week = [log.number_of_steps for log in step_logs]
+    steps_this_week = (
+        get_steps_for_current_week(db, user.id, challenge.id)
+        if user and challenge else []
+    )
 
     return UserDashboardResponse(
         user=user,

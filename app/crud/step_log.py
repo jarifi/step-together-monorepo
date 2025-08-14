@@ -1,7 +1,7 @@
 #file: app/crud/step_log.py
 from sqlalchemy.orm import Session
 from app.models.step_log import StepLog
-from app.schema.step_log import StepLogCreate, StepLogResponse, StepLogUpdate # Corrected import: No StepLogSchema, use StepLogCreate for input
+from app.schema.step_log import StepLogCreate, StepLogResponse, StepDashboardResponse, StepLogUpdate # Corrected import: No StepLogSchema, use StepLogCreate for input
 from datetime import datetime, timedelta
 from sqlalchemy import func
 def get_all_step_logs(db: Session):
@@ -51,6 +51,9 @@ def delete_step_log(db: Session, step_log_id: int):
 def get_step_logs_by_user_id(db: Session, user_id: int):
     return db.query(StepLog).filter(StepLog.user_id == user_id).all()
 
+
+
+
 def get_steps_for_current_week(db: Session, user_id: int, challenge_id: int):
     today = datetime.now()
     start_of_week = today - timedelta(days=today.weekday())
@@ -62,13 +65,25 @@ def get_steps_for_current_week(db: Session, user_id: int, challenge_id: int):
     print("Start of week:", start_of_week.date())
     print("End of week:", end_of_week.date())
 
-    return (
-    db.query(StepLog)
-    .filter(
-        StepLog.user_id == user_id,
-        StepLog.challenge_id == challenge_id,
-        func.date(StepLog.date) >= start_of_week.date(),
-        func.date(StepLog.date) <= end_of_week.date()
+    step_data = (
+        db.query(
+            func.date(StepLog.date).label("date"),
+            func.sum(StepLog.number_of_steps).label("number_of_steps")
+        )
+        .filter(
+            StepLog.user_id == user_id,
+            StepLog.challenge_id == challenge_id,
+            func.date(StepLog.date) >= start_of_week.date(),
+            func.date(StepLog.date) <= end_of_week.date()
+        )
+        .group_by(func.date(StepLog.date))
+        .order_by(func.date(StepLog.date))
+        .all()
     )
-    .all()
-)
+    return [
+        StepDashboardResponse(
+            date=row.date,
+            number_of_steps=row.number_of_steps
+        )
+        for row in step_data
+    ]

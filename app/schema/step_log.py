@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from datetime import date
 from typing import Optional
 from app.models.base import CamelCaseBaseModel
 
@@ -15,6 +16,10 @@ class StepLogResponse(CamelCaseBaseModel):
     challenge_id: int
     team_id: int
     date: datetime
+    number_of_steps: int
+
+class StepDashboardResponse(CamelCaseBaseModel):
+    date: date
     number_of_steps: int
 
 class StepLogUpdate(CamelCaseBaseModel):
