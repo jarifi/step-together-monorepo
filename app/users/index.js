@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View, Pressable, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import UserCard from '../../components/UserCard';
-import { getUsers } from '../../services/userService';
+import { getUsers, deleteUser } from '../../services/userService';
 import CreateUserCard from '../../components/CreateUserCard';
 
 export default function UsersScreen() {
@@ -54,6 +54,14 @@ export default function UsersScreen() {
                 },
               })
             }
+            onDelete={async () => {
+              try {
+                await deleteUser(item.id);
+                setUsers((prev) => prev.filter((u) => u.id !== item.id));
+              } catch (error) {
+                console.error('Delete failed:', error);
+              }
+            }}
           />
         )}
       />
