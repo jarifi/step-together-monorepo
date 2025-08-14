@@ -10,7 +10,7 @@ export const getHomeInit = async () => {
 
     if (!token) throw new Error('No auth token found');
 
-    const res = await fetch(`${BASE_URL}/users/home/init`, {
+    const res = await fetch(`${BASE_URL}/users/user/dashboard/init`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

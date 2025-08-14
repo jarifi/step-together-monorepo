@@ -24,7 +24,6 @@ const Dashboard = () => {
   const [stepInput, setStepInput] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
 
-  // === Load Home ===
   useEffect(() => {
     const load = async () => {
       try {
@@ -52,30 +51,28 @@ const Dashboard = () => {
     []
   );
 
-  // === Demo/placeholder steps bis echte Steps-API kommt ===
-  const stepsToday = 227;
+  const [stepsToday, setStepsToday] = useState(227);
 
-  // Rechenhilfen (nutzen User.stepLength in m/Schritt falls gesetzt)
-  const stepLengthMeters = vm?.user?.stepLength ?? 0; // erwartetes Format: Meter pro Schritt
+  const stepLengthMeters = vm?.user?.stepLength ?? 0; 
   const distanceKm = useMemo(() => {
-    const km = (stepsToday * stepLengthMeters) / 1000; // m -> km
+    const km = (stepsToday * stepLengthMeters) / 1000; 
     return Math.round(km * 100) / 100;
   }, [stepsToday, stepLengthMeters]);
 
   const kcal = useMemo(() => {
-    // grobe Faustformel für Gehen ~0.04 kcal/Schritt (variiert stark)
     const k = stepsToday * 0.04;
     return Math.round(k * 100) / 100;
   }, [stepsToday]);
 
-  // Weekly (noch Demo)
-  const weeklySteps = [12, 145, 162, 180, 227, 110, 80];
-  const weeklyMax = Math.max(...weeklySteps);
+  const weeklySteps = vm?.steps_this_week ?? [0,0,0,0,0,0,0];
+  const weeklyMax = Math.max(1, ...weeklySteps); 
+  const weeklyTotal = useMemo(() => weeklySteps.reduce((a,b) => a + b, 0), [weeklySteps]);
 
   // Challenge Prozent + Anzeige
-  const timeProgressPct = Math.round((vm?.challenge?.timeProgress ?? 0) * 100);
-  const progressWidth = `${Math.min(Math.max(timeProgressPct, 0), 100)}%`;
-
+  const timeProgressRaw = vm?.challenge?.timeProgress ?? 0; 
+  const timeProgressPct = Math.round(Math.max(0, Math.min(1, timeProgressRaw)) * 100);
+  const daysLeft = vm?.challenge?.daysLeft;
+  
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
@@ -169,7 +166,7 @@ const Dashboard = () => {
 
           {/* WEEKLY SUMMARY */}
           <Text style={[styles.weeklyTitle, styles.font]}>
-            Diese Woche: <Text style={{ color: '#5F764E' }}>{stepsToday} Schritte</Text>
+            Diese Woche: <Text style={{ color: '#5F764E' }}>{weeklyTotal} Schritte</Text>
           </Text>
 
           {/* WEEKLY BAR CHART */}
@@ -182,7 +179,7 @@ const Dashboard = () => {
                     <View style={[styles.barFill, { height }]} />
                   </View>
                   <Text style={[styles.dayLabel, styles.font]}>
-                    {['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'][i]}
+                    {['MO','DI','MI','DO','FR','SA','SO'][i]}
                   </Text>
                 </View>
               );
@@ -196,24 +193,25 @@ const Dashboard = () => {
             <Text style={{ color: '#5F764E', fontWeight: '700' }}>Challenge </Text>Fortschritte
           </Text>
 
-          {/* obere Skala (optional statisch) */}
+          {/* obere Skala */}
           <View style={styles.topScaleRow}>
-            <Text style={[styles.scaleTick, styles.font]}>Start</Text>
-            <Text style={[styles.scaleTick, styles.font]}>Zeit</Text>
-            <Text style={[styles.scaleTick, styles.font]}>Ziel</Text>
+            <Text style={[styles.scaleTick, styles.font]}>Start </Text>
+            <Text style={[styles.scaleTick, styles.font]}>Ziel: {vm.challenge.distanceKm} km</Text>
           </View>
 
           {/* Fortschritt nach Zeit (timeProgress) */}
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill]} />
+            {/* <- der Trick: width als Prozent-String */}
+            <View style={[styles.progressFill, { width: `${timeProgressPct}%` }]} />
           </View>
 
           <Text style={[styles.progressNote, styles.font]}>
             <Text style={{ color: '#5F764E', fontWeight: '800' }}>{timeProgressPct}%</Text> der Challenge-Zeit sind vorbei.
-            {typeof vm.challenge.daysLeft === 'number' ? (
-              <> Noch <Text style={{ fontWeight: '900' }}>{vm.challenge.daysLeft}</Text> Tage übrig.</>
+            {Number.isFinite(daysLeft) ? (
+              <Text> Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.</Text>
             ) : null}
           </Text>
+
 
           {/* TEAM INFOS (noch Demo-Daten) */}
           <View style={styles.teamSectionHeader}>
@@ -286,20 +284,35 @@ const Dashboard = () => {
                 <TouchableOpacity
                   style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}
                   onPress={() => {
-                    // TODO: addSteps(stepInput, selectedDate)
+                    const num = parseInt(stepInput, 10);
+                    if (!isNaN(num)) {
+                      setStepsToday(prev => prev + num); // Schritte addieren
+                    }
                     setModalVisible(false);
+                    setStepInput('');
+                    setSelectedDate('');
                   }}
                 >
-                  <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>Hinzufügen</Text>
+                  <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>
+                    Hinzufügen
+                  </Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}
                   onPress={() => {
-                    // TODO: removeSteps(stepInput, selectedDate)
+                    const num = parseInt(stepInput, 10);
+                    if (!isNaN(num)) {
+                      setStepsToday(prev => Math.max(0, prev - num)); // Schritte abziehen, nicht unter 0
+                    }
                     setModalVisible(false);
+                    setStepInput('');
+                    setSelectedDate('');
                   }}
                 >
-                  <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>Entfernen</Text>
+                  <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>
+                    Entfernen
+                  </Text>
                 </TouchableOpacity>
               </View>
 
