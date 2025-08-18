@@ -1,6 +1,6 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { createTeam } from '../../services/teamService';
 
 export default function CreateTeamScreen() {
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     },
     createButton: {
         padding: 12,
-        backgroundColor: 'green',
+        backgroundColor: '#6B8F71',
         borderRadius: 6,
         alignItems: 'center',
     },

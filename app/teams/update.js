@@ -1,8 +1,8 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { updateTeam } from "../../services/teamService";
 import { useTeam } from "../../context/TeamContext";
+import { updateTeam } from "../../services/teamService";
 
 export default function UpdateTeamScreen() {
     const router = useRouter();
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     },
     updateButton: {
         padding: 12,
-        backgroundColor: 'green',
+        backgroundColor: '#6B8F71',
         borderRadius: 6,
         alignItems: 'center',
     },

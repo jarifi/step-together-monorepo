@@ -1,7 +1,7 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View, Pressable, Text } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import TeamCard from '../../components/TeamCard';
 import { getTeams } from '../../services/teamService';
 
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   createButton: {
-    backgroundColor: 'green',
+    backgroundColor: '#6B8F71',
     padding: 12,
     marginBottom: 16,
     borderRadius: 8,

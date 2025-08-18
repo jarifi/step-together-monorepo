@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function TeamCard({ team, onUpdate, onDelete }) {
   return (
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   updateButton: {
     width: 40,
     height: 40,
-    backgroundColor: 'green',
+    backgroundColor: '#6B8F71',
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
