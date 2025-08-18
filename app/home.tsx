@@ -12,11 +12,24 @@ import {
   View,
 } from 'react-native';
 
-import { getHomeInit } from '../services/dashboardService';
+import { getHomeInit, getWeekSteps } from '../services/dashboardService';
 import { mapHomeInitToDashboard, type HomeInitDto } from './dashboard/dashboardDto';
 
 const dayLabelDe = ['MO','DI','MI','DO','FR','SA','SO'];
 const dayOrderEn = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+const startOfWeek = (d: Date) => {
+  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = (copy.getDay() + 6) % 7; // 0=Mo..6=So
+  copy.setDate(copy.getDate() - dow);
+  copy.setHours(0,0,0,0);
+  return copy;
+};
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+const toISO = (d: Date) => d.toISOString().slice(0,10); // YYYY-MM-DD
 
 const Dashboard = () => {
   const [vm, setVm] = useState<HomeInitDto | null>(null);
@@ -25,11 +38,22 @@ const Dashboard = () => {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [stepInput, setStepInput] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState(''); // (wird für Add/Remove benutzt)
 
-
-  // UI-Quelle der Wahrheit für den Wochenchart (Mo..So)
   const [weekSteps, setWeekSteps] = useState<number[]>([0,0,0,0,0,0,0]);
+  const [displayDate, setDisplayDate] = useState(new Date());
+  const [weekLoading, setWeekLoading] = useState(false);
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date()));
+
+  const currentDate = useMemo(
+    () =>
+      displayDate.toLocaleDateString('de-DE', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [displayDate]
+  );
 
   // Helper: Date -> Index 0..6 (Mo..So); robust für ISO "YYYY-MM-DD" & "dd.mm.yyyy"
   const getIndexForDate = (dateStr?: string) => {
@@ -54,18 +78,6 @@ const Dashboard = () => {
     if (!d || isNaN(d.getTime())) return fallback();
     return (d.getDay() + 6) % 7; // 0=Mo..6=So
   };
-
-  // shown date above the welcome message
-  const [displayDate, setDisplayDate] = useState(new Date());
-  const currentDate = useMemo(
-    () =>
-      displayDate.toLocaleDateString('de-DE', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }),
-    [displayDate]
-  );
 
   // calendar modal
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -117,36 +129,68 @@ const Dashboard = () => {
     load();
   }, []);
 
-  // steps_this_week (Objekte) -> weekSteps (Mo..So number[]) in den UI-State mappen
-  useEffect(() => {
-    const weekObjs = vm?.steps_this_week ?? [];
+  const mapWeekObjectsToArray = (weekObjs: any[]) => {
     const byDay: Record<string, number> = {};
-    for (const item of weekObjs) {
+    for (const item of weekObjs ?? []) {
       const k = String(item?.dayOfWeek ?? '');
       const n = Number.isFinite(+item?.numberOfSteps) ? +item.numberOfSteps : 0;
       byDay[k] = (byDay[k] ?? 0) + n;
     }
-    const arr = dayOrderEn.map(d => byDay[d] ?? 0);
-    setWeekSteps(arr);
-  }, [vm?.steps_this_week]);
+    return dayOrderEn.map(d => byDay[d] ?? 0);
+  };
 
-  // Heute aus den Week-Objekten übernehmen (falls vorhanden)
-  const [stepsToday, setStepsToday] = useState(227);
-  useEffect(() => {
-    const week = vm?.steps_this_week ?? [];
-    if (!week.length) return;
-    const todayISO = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-    const todays = week.find(d => d.date === todayISO);
-    if (todays && Number.isFinite(+todays.numberOfSteps)) {
-      setStepsToday(+todays.numberOfSteps);
+  // Heute/Selected-Day Kennzahl
+  const [stepsToday, setStepsToday] = useState(0);
+
+  const loadWeekFor = async (pivot: Date) => {
+    const weekStart = startOfWeek(pivot);
+    const weekStartISO = toISO(weekStart);
+
+    // Falls dieselbe Woche wie schon geladen – kein Netzcall
+    if (sameDay(weekStart, selectedWeekStart) && vm?.steps_this_week?.length && weekSteps.some(x => x>0)) {
+      // trotzdem den Tag neu setzen (falls nur Day gewechselt)
+      const idx = (pivot.getDay() + 6) % 7;
+      setStepsToday(weekSteps[idx] ?? 0);
+      return;
     }
-  }, [vm?.steps_this_week]);
 
-  // Optional: immer in Sync mit weekSteps halten (Ring/kcal/km)
+    setWeekLoading(true);
+    try {
+      let weekObjs: any[] = [];
+
+      // ✅ FIX: API mit weekStartISO aufrufen
+      const apiWeek = await getWeekSteps();
+
+      if (Array.isArray(apiWeek) && apiWeek.length) {
+        weekObjs = apiWeek;
+      } else {
+        // Fallback: wenn keine API oder leere Antwort, nimm die "aktuelle Woche" vom Home-Init,
+        // aber nur, wenn das pivot in der *aktuellen* Woche liegt.
+        const nowWeekStart = startOfWeek(new Date());
+        if (sameDay(nowWeekStart, weekStart) && Array.isArray(vm?.steps_this_week)) {
+          weekObjs = vm!.steps_this_week as any[];
+        } else {
+          weekObjs = []; // keine Daten verfügbar
+        }
+      }
+
+      const arr = mapWeekObjectsToArray(weekObjs);
+      setWeekSteps(arr);
+      setSelectedWeekStart(weekStart);
+
+      // Steps für den ausgewählten Tag (der in der geladenen Woche liegt)
+      const idx = (pivot.getDay() + 6) % 7;
+      setStepsToday(arr[idx] ?? 0);
+    } finally {
+      setWeekLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const idxToday = getIndexForDate();
-    setStepsToday(weekSteps[idxToday] ?? 0);
-  }, [weekSteps]);
+    if (!vm) return;
+    loadWeekFor(displayDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayDate, vm?.user?.id]); // vm user id als einfache “loaded”-Wache
 
   // Kennzahlen aus State
   const weeklyMax   = Math.max(1, ...weekSteps);
@@ -163,7 +207,6 @@ const Dashboard = () => {
     return Math.round(k * 100) / 100;
   }, [stepsToday]);
 
-  // Challenge Prozent + Anzeige
   const timeProgressRaw = vm?.challenge?.timeProgress ?? 0;
   const timeProgressPct = Math.round(Math.max(0, Math.min(1, timeProgressRaw)) * 100);
   const daysLeft = vm?.challenge?.daysLeft;
@@ -188,7 +231,7 @@ const Dashboard = () => {
         ) : null}
         <TouchableOpacity
           onPress={() => {
-             // quick retry
+            // quick retry
             setLoading(true);
             setErrorMsg(null);
             getHomeInit()
@@ -223,6 +266,13 @@ const Dashboard = () => {
               <Ionicons name="calendar-outline" size={22} color="#2F3E34" />
             </TouchableOpacity>
           </View>
+
+          {/* Optional: Lade-Note bei Wochenwechsel */}
+          {/* {weekLoading ? (
+            <Text style={[styles.font, { textAlign:'center', color:'#6B7280', marginTop:6 }]}>
+              Woche wird geladen…
+            </Text>
+          ) : null} */}
 
           {/* Optional: Username */}
           {vm.user?.name ? (
@@ -382,9 +432,9 @@ const Dashboard = () => {
                   onPress={() => {
                     const num = parseInt(stepInput, 10);
                     if (!isNaN(num)) {
-                      const idx = selectedDate
-                        ? getIndexForDate(selectedDate)
-                        : getIndexForDate(new Date().toISOString());
+                      // ✅ Nutze ausgewählten Tag oder displayDate als Basis
+                      const baseISO = selectedDate || toISO(displayDate);
+                      const idx = getIndexForDate(baseISO);
 
                       setWeekSteps(prev => {
                         const copy = [...prev];
@@ -392,7 +442,9 @@ const Dashboard = () => {
                         return copy;
                       });
 
-                      if (!selectedDate || idx === getIndexForDate(new Date().toISOString())) {
+                      // wenn es der aktuell angezeigte Tag ist, Ring syncen
+                      const currentIdx = (displayDate.getDay() + 6) % 7;
+                      if (idx === currentIdx) {
                         setStepsToday(prev => prev + num);
                       }
                     }
@@ -411,9 +463,8 @@ const Dashboard = () => {
                   onPress={() => {
                     const num = parseInt(stepInput, 10);
                     if (!isNaN(num)) {
-                      const idx = selectedDate
-                        ? getIndexForDate(selectedDate)
-                        : getIndexForDate(new Date().toISOString());
+                      const baseISO = selectedDate || toISO(displayDate);
+                      const idx = getIndexForDate(baseISO);
 
                       setWeekSteps(prev => {
                         const copy = [...prev];
@@ -421,7 +472,8 @@ const Dashboard = () => {
                         return copy;
                       });
 
-                      if (!selectedDate || idx === getIndexForDate(new Date().toISOString())) {
+                      const currentIdx = (displayDate.getDay() + 6) % 7;
+                      if (idx === currentIdx) {
                         setStepsToday(prev => Math.max(0, prev - num));
                       }
                     }

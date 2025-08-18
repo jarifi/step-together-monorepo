@@ -27,3 +27,28 @@ export const getHomeInit = async () => {
     return null;
   }
 };
+
+export const getWeekSteps = async () => {
+  try {
+    if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) throw new Error('No auth token found');
+
+    const res = await fetch(`${BASE_URL}/step_logs/user/week?week_start=${weekStartISO}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || `HTTP ${res.status}`);
+
+    // Erwartetes Format (Beispiel):
+    // [{ date:"2025-08-11", dayOfWeek:"Monday", numberOfSteps: 1200 }, ...]
+    return Array.isArray(json) ? json : [];
+  } catch (err) {
+    console.error('Error fetching week steps:', err);
+    return [];
+  }
+};
