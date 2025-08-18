@@ -1,5 +1,6 @@
+// app/home.tsx (Dashboard)
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -7,16 +8,54 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
-import { getHomeInit, getWeekSteps } from '../services/dashboardService';
-import { mapHomeInitToDashboard, type HomeInitDto } from './dashboard/dashboardDto';
 import styles from './styles/dashboardStyles';
 
+// WICHTIG: Pfade an dein Projekt anpassen (wie von dir gepostet)
+import { mapHomeInitToDashboard } from '../services/dashboard/dashboardDto';
+import { getHomeInit } from '../services/dashboard/dashboardService';
 
-const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
-const dayOrderEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+// ======================
+// Types
+// ======================
+type StepsEntry = {
+  date: string; // YYYY-MM-DD
+  dayOfWeek: 'MO' | 'DI' | 'MI' | 'DO' | 'FR' | 'SA' | 'SO' | string;
+  numberOfSteps: number;
+};
+
+type HomeInitDto = {
+  user: {
+    id: number | null;
+    name: string;
+    email: string;
+    stepLength: number;
+  };
+  team: {
+    id: number | null;
+    name: string;
+  };
+  challenge: {
+    id: number | null;
+    name: string;
+    startLocation: string;
+    targetLocation: string;
+    distanceKm: number;
+    startDate: Date | null;
+    endDate: Date | null;
+    state: string;
+    daysLeft: number;
+    timeProgress: number; // 0..1
+  };
+  steps_this_week?: StepsEntry[];
+};
+
+// ======================
+// Local helpers
+// ======================
+const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'] as const;
 
 const startOfWeek = (d: Date) => {
   const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -29,21 +68,65 @@ const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
-const toISO = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
 
+const toISO = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
+
+// Normalisiert eine beliebige week-Objektliste zu [Mo..So] numbers
+const mapWeekObjectsToArray = (weekObjs: any[]) => {
+  const dayOrderDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'] as const;
+  const dayOrderEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+
+  const normalize = (v: string) => {
+    const s = v?.toLowerCase?.() ?? '';
+    const enIdx = dayOrderEn.findIndex((d) => d.toLowerCase() === s);
+    if (enIdx >= 0) return enIdx;
+    const deIdx = dayOrderDe.findIndex((d) => d.toLowerCase() === s);
+    if (deIdx >= 0) return deIdx;
+    return -1;
+  };
+
+  const byIdx: number[] = [0, 0, 0, 0, 0, 0, 0];
+  for (const item of weekObjs ?? []) {
+    const n = Number.isFinite(+item?.numberOfSteps) ? +item.numberOfSteps : 0;
+    let idx = normalize(String(item?.dayOfWeek ?? ''));
+    if (idx < 0 && item?.date) {
+      const d = new Date(item.date);
+      if (!isNaN(d.getTime())) idx = (d.getDay() + 6) % 7; // Mo=0..So=6
+    }
+    if (idx >= 0) byIdx[idx] += n;
+  }
+  return byIdx; // [Mo..So]
+};
+
+// ======================
+// Component
+// ======================
 const Dashboard = () => {
+  // Core VM
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // UI State
   const [modalVisible, setModalVisible] = useState(false);
   const [stepInput, setStepInput] = useState('');
-  const [selectedDate, setSelectedDate] = useState(''); // (wird für Add/Remove benutzt)
 
-  const [weekSteps, setWeekSteps] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
-  const [displayDate, setDisplayDate] = useState(new Date());
-  const [weekLoading, setWeekLoading] = useState(false);
+  // Date & Week State
+  const [displayDate, setDisplayDate] = useState(new Date()); // aktuell ausgewählter Tag
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date()));
+  const [weekSteps, setWeekSteps] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]); // [Mo..So]
+  const [stepsToday, setStepsToday] = useState(0);
+  const [weekLoading, setWeekLoading] = useState(false);
+
+  // Calendar modal state
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [calendarPick, setCalendarPick] = useState<Date>(new Date());
 
   const currentDate = useMemo(
     () =>
@@ -55,35 +138,6 @@ const Dashboard = () => {
     [displayDate]
   );
 
-  // Helper: Date -> Index 0..6 (Mo..So); robust für ISO "YYYY-MM-DD" & "dd.mm.yyyy"
-  const getIndexForDate = (dateStr?: string) => {
-    const fallback = () => (new Date().getDay() + 6) % 7; // 0=Mo..6=So
-    if (!dateStr) return fallback();
-
-    const iso = /^\d{4}-\d{2}-\d{2}$/;
-    let d: Date | null = null;
-
-    if (iso.test(dateStr)) {
-      d = new Date(dateStr + 'T00:00:00');
-    } else {
-      const m = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-      if (m) {
-        const [, dd, mm, yyyy] = m;
-        d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-      } else {
-        const tmp = new Date(dateStr);
-        d = isNaN(tmp.getTime()) ? null : tmp;
-      }
-    }
-    if (!d || isNaN(d.getTime())) return fallback();
-    return (d.getDay() + 6) % 7; // 0=Mo..6=So
-  };
-
-  // calendar modal
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
-  const [calendarPick, setCalendarPick] = useState<Date>(new Date());
-
   const calendarHeader = useMemo(
     () => calendarMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
     [calendarMonth]
@@ -93,7 +147,7 @@ const Dashboard = () => {
     const firstOfMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
     const firstWeekday = ((firstOfMonth.getDay() + 6) % 7) + 1; // 1=Mon..7=Sun
     const start = new Date(firstOfMonth);
-    start.setDate(firstOfMonth.getDate() - (firstWeekday - 1)); // back to Monday
+    start.setDate(firstOfMonth.getDate() - (firstWeekday - 1)); // zurück auf Montag
 
     const cells: { date: Date; inMonth: boolean }[] = [];
     for (let i = 0; i < 42; i++) {
@@ -112,87 +166,87 @@ const Dashboard = () => {
   const goNextMonth = () =>
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
+  // ========= Initial load (fetch + map) =========
   useEffect(() => {
-    const load = async () => {
+    let alive = true;
+    (async () => {
       try {
         setLoading(true);
         setErrorMsg(null);
-        const raw = await getHomeInit();
-        const mapped = mapHomeInitToDashboard(raw);
+        const raw = await getHomeInit(); // kann null liefern (Error im Service)
+        if (!alive) return;
+
+        const mapped = mapHomeInitToDashboard(raw) as HomeInitDto | null;
+        if (!mapped) {
+          setVm(null);
+          setErrorMsg('Keine Daten verfügbar.');
+          return;
+        }
+
         setVm(mapped);
+
+        // Wenn steps_this_week da ist UND es die aktuelle Woche ist → Chart füllen
+        const nowWeekStart = startOfWeek(new Date());
+        const vmWeekArr = mapWeekObjectsToArray(mapped.steps_this_week ?? []);
+        setWeekSteps(vmWeekArr);
+        setSelectedWeekStart(nowWeekStart);
+
+        // Steps für aktuell ausgewählten Tag (initial: heute)
+        const idx = (displayDate.getDay() + 6) % 7;
+        setStepsToday(vmWeekArr[idx] ?? 0);
       } catch (e: any) {
+        if (!alive) return;
         setErrorMsg(e?.message ?? 'Unbekannter Fehler');
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
+    })();
+    return () => {
+      alive = false;
     };
-    load();
+    // displayDate absichtlich nicht als dependency → initial load only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const mapWeekObjectsToArray = (weekObjs: any[]) => {
-    const byDay: Record<string, number> = {};
-    for (const item of weekObjs ?? []) {
-      const k = String(item?.dayOfWeek ?? '');
-      const n = Number.isFinite(+item?.numberOfSteps) ? +item.numberOfSteps : 0;
-      byDay[k] = (byDay[k] ?? 0) + n;
-    }
-    return dayOrderEn.map(d => byDay[d] ?? 0);
-  };
+  // ========= Week change when displayDate changes =========
+  useEffect(() => {
+    if (!vm?.user?.id) return; // warte bis VM bereit ist
 
-  // Heute/Selected-Day Kennzahl
-  const [stepsToday, setStepsToday] = useState(0);
-
-  const loadWeekFor = async (pivot: Date) => {
+    const pivot = displayDate;
     const weekStart = startOfWeek(pivot);
-    const weekStartISO = toISO(weekStart);
 
-    // Falls dieselbe Woche wie schon geladen – kein Netzcall
-    if (sameDay(weekStart, selectedWeekStart) && vm?.steps_this_week?.length && weekSteps.some(x => x > 0)) {
-      // trotzdem den Tag neu setzen (falls nur Day gewechselt)
+    // Wenn wir bereits diese Woche im State haben → nur stepsToday updaten
+    if (sameDay(weekStart, selectedWeekStart)) {
       const idx = (pivot.getDay() + 6) % 7;
       setStepsToday(weekSteps[idx] ?? 0);
       return;
     }
 
+    // Wir haben keinen Endpunkt für beliebige Wochen → zeig leere Woche (UX clean),
+    // außer die gewählte Woche ist die aktuelle → dann nutze vm.steps_this_week.
     setWeekLoading(true);
-    try {
-      let weekObjs: any[] = [];
-
-      // ✅ FIX: API mit weekStartISO aufrufen
-      const apiWeek = await getWeekSteps();
-
-      if (Array.isArray(apiWeek) && apiWeek.length) {
-        weekObjs = apiWeek;
-      } else {
-        // Fallback: wenn keine API oder leere Antwort, nimm die "aktuelle Woche" vom Home-Init,
-        // aber nur, wenn das pivot in der *aktuellen* Woche liegt.
-        const nowWeekStart = startOfWeek(new Date());
-        if (sameDay(nowWeekStart, weekStart) && Array.isArray(vm?.steps_this_week)) {
-          weekObjs = vm!.steps_this_week as any[];
+    (async () => {
+      try {
+        const nowWeek = startOfWeek(new Date());
+        if (sameDay(weekStart, nowWeek)) {
+          const arr = mapWeekObjectsToArray(vm?.steps_this_week ?? []);
+          setWeekSteps(arr);
+          const idx = (pivot.getDay() + 6) % 7;
+          setStepsToday(arr[idx] ?? 0);
         } else {
-          weekObjs = []; // keine Daten verfügbar
+          const empty = [0, 0, 0, 0, 0, 0, 0];
+          setWeekSteps(empty);
+          const idx = (pivot.getDay() + 6) % 7;
+          setStepsToday(empty[idx] ?? 0);
         }
+        setSelectedWeekStart(weekStart);
+      } finally {
+        setWeekLoading(false);
       }
+    })();
+  }, [displayDate, vm?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      const arr = mapWeekObjectsToArray(weekObjs);
-      setWeekSteps(arr);
-      setSelectedWeekStart(weekStart);
-
-      // Steps für den ausgewählten Tag (der in der geladenen Woche liegt)
-      const idx = (pivot.getDay() + 6) % 7;
-      setStepsToday(arr[idx] ?? 0);
-    } finally {
-      setWeekLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!vm) return;
-    loadWeekFor(displayDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayDate, vm?.user?.id]); // vm user id als einfache “loaded”-Wache
-
-  // Kennzahlen aus State
+  // ========= Derived metrics =========
   const weeklyMax = Math.max(1, ...weekSteps);
   const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
 
@@ -211,6 +265,7 @@ const Dashboard = () => {
   const timeProgressPct = Math.round(Math.max(0, Math.min(1, timeProgressRaw)) * 100);
   const daysLeft = vm?.challenge?.daysLeft;
 
+  // ========= Render Guards =========
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
@@ -230,14 +285,23 @@ const Dashboard = () => {
           <Text style={[styles.font, { color: '#6B7280', marginTop: 6, textAlign: 'center' }]}>{String(errorMsg)}</Text>
         ) : null}
         <TouchableOpacity
-          onPress={() => {
-            // quick retry
-            setLoading(true);
-            setErrorMsg(null);
-            getHomeInit()
-              .then((raw) => setVm(mapHomeInitToDashboard(raw)))
-              .catch((e) => setErrorMsg(e?.message ?? 'Unbekannter Fehler'))
-              .finally(() => setLoading(false));
+          onPress={async () => {
+            try {
+              setLoading(true);
+              setErrorMsg(null);
+              const raw = await getHomeInit();
+              const mapped = mapHomeInitToDashboard(raw) as HomeInitDto | null;
+              setVm(mapped);
+              const arr = mapWeekObjectsToArray(mapped?.steps_this_week ?? []);
+              setWeekSteps(arr);
+              const idx = (new Date().getDay() + 6) % 7;
+              setStepsToday(arr[idx] ?? 0);
+              setSelectedWeekStart(startOfWeek(new Date()));
+            } catch (e: any) {
+              setErrorMsg(e?.message ?? 'Unbekannter Fehler');
+            } finally {
+              setLoading(false);
+            }
           }}
           style={{ marginTop: 16, backgroundColor: '#7FA58C', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12 }}
         >
@@ -247,6 +311,19 @@ const Dashboard = () => {
     );
   }
 
+  // ========= Handlers =========
+  const applyStepDelta = (delta: number) => {
+    const idx = (displayDate.getDay() + 6) % 7; // 0..6
+    setWeekSteps((prev) => {
+      const next = [...prev];
+      const newVal = Math.max(0, (next[idx] ?? 0) + delta);
+      next[idx] = newVal;
+      setStepsToday(newVal); // sync Kennzahl
+      return next;
+    });
+  };
+
+  // ========= Render =========
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
@@ -267,14 +344,7 @@ const Dashboard = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Optional: Lade-Note bei Wochenwechsel */}
-          {/* {weekLoading ? (
-            <Text style={[styles.font, { textAlign:'center', color:'#6B7280', marginTop:6 }]}>
-              Woche wird geladen…
-            </Text>
-          ) : null} */}
-
-          {/* Optional: Username */}
+          {/* Username */}
           {vm.user?.name ? (
             <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 6 }]}>
               Willkommen, <Text style={{ color: '#2F3E34', fontWeight: '700' }}>{vm.user.name}</Text> 👋
@@ -294,7 +364,7 @@ const Dashboard = () => {
             {/* kcal */}
             <View style={styles.metricSide}>
               <Ionicons name="flame" size={24} color="#E25822" style={{ marginBottom: 4 }} />
-              <Text style={[styles.metricSideValue, styles.font]}>{kcal}</Text>
+              <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
             </View>
 
@@ -303,7 +373,7 @@ const Dashboard = () => {
               <View style={styles.stepCircleOuter}>
                 <View style={styles.stepCircleInnerRing} />
                 <View style={styles.stepCircle}>
-                  <Text style={[styles.stepValue, styles.font]}>{stepsToday}</Text>
+                  <Text style={[styles.stepValue, styles.font]}>{weekLoading ? '…' : stepsToday}</Text>
                   <Text style={[styles.stepLabel, styles.font]}>SCHRITTE</Text>
                 </View>
               </View>
@@ -312,7 +382,7 @@ const Dashboard = () => {
             {/* distance */}
             <View style={[styles.metricSide, { alignItems: 'flex-start' }]}>
               <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4, alignSelf: 'center' }} />
-              <Text style={[styles.metricSideValue, styles.font]}>{distanceKm}</Text>
+              <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : distanceKm}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
             </View>
           </View>
@@ -355,7 +425,7 @@ const Dashboard = () => {
             <Text style={[styles.scaleTick, styles.font]}>Ziel: {vm.challenge.distanceKm} km</Text>
           </View>
 
-          {/* Fortschritt nach Zeit (timeProgress) */}
+          {/* Fortschritt nach Zeit */}
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${timeProgressPct}%` }]} />
           </View>
@@ -363,11 +433,14 @@ const Dashboard = () => {
           <Text style={[styles.progressNote, styles.font]}>
             <Text style={{ color: '#5F764E', fontWeight: '800' }}>{timeProgressPct}%</Text> der Challenge-Zeit sind vorbei.
             {Number.isFinite(daysLeft) ? (
-              <Text> Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.</Text>
+              <Text>
+                {' '}
+                Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.
+              </Text>
             ) : null}
           </Text>
 
-          {/* TEAM INFOS (noch Demo-Daten) */}
+          {/* TEAM INFOS (Demo) */}
           <View style={styles.teamSectionHeader}>
             <Text style={[styles.teamTitle, styles.font]}>Team Infos</Text>
           </View>
@@ -384,13 +457,7 @@ const Dashboard = () => {
             { name: 'Bernadette Unförmlich', steps: '27.600' },
             { name: `${vm.user.name || 'Du'}`, steps: '6.400', isUser: true },
           ].map((u, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.rankRow,
-                u.isUser && styles.rankRowMe,
-              ]}
-            >
+            <View key={idx} style={[styles.rankRow, u.isUser && styles.rankRowMe]}>
               <Text style={[styles.rankBadge, styles.font, u.rankColor ? { color: u.rankColor } : null]}>
                 {idx + 1}#
               </Text>
@@ -406,16 +473,10 @@ const Dashboard = () => {
           ))}
         </View>
 
-        {/* MODAL: Schritte verwalten (modern card) */}
-        <Modal
-          animationType="fade"
-          transparent
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
+        {/* MODAL: Schritte verwalten */}
+        <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.stepsCard}>
-              {/* Header */}
               <View style={styles.cardHeader}>
                 <Text style={[styles.font, styles.cardTitle]}>Schritte verwalten</Text>
                 <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.headerX}>
@@ -423,7 +484,6 @@ const Dashboard = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Input */}
               <View style={styles.fieldWrap}>
                 <Text style={[styles.font, styles.fieldLabel]}>Anzahl Schritte</Text>
                 <View style={styles.inputWrap}>
@@ -439,16 +499,14 @@ const Dashboard = () => {
                 </View>
               </View>
 
-              {/* Actions */}
               <View style={styles.actionsRow}>
                 <TouchableOpacity
                   style={styles.primaryBtn}
                   onPress={() => {
                     const num = parseInt(stepInput, 10);
-                    if (!isNaN(num)) setStepsToday(prev => prev + num);
+                    if (!isNaN(num) && num > 0) applyStepDelta(num);
                     setModalVisible(false);
                     setStepInput('');
-                    setSelectedDate('');
                   }}
                 >
                   <Text style={[styles.font, styles.primaryBtnText]}>Hinzufügen</Text>
@@ -458,10 +516,9 @@ const Dashboard = () => {
                   style={styles.secondaryBtn}
                   onPress={() => {
                     const num = parseInt(stepInput, 10);
-                    if (!isNaN(num)) setStepsToday(prev => Math.max(0, prev - num));
+                    if (!isNaN(num) && num > 0) applyStepDelta(-num);
                     setModalVisible(false);
                     setStepInput('');
-                    setSelectedDate('');
                   }}
                 >
                   <Text style={[styles.font, styles.secondaryBtnText]}>Entfernen</Text>
@@ -475,14 +532,8 @@ const Dashboard = () => {
           </View>
         </Modal>
 
-
         {/* MODAL: Calendar */}
-        <Modal
-          animationType="fade"
-          transparent
-          visible={calendarOpen}
-          onRequestClose={() => setCalendarOpen(false)}
-        >
+        <Modal animationType="fade" transparent visible={calendarOpen} onRequestClose={() => setCalendarOpen(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.calendarCard}>
               <View style={styles.calHeader}>
@@ -497,7 +548,9 @@ const Dashboard = () => {
 
               <View style={styles.weekRow}>
                 {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
-                  <Text key={d} style={[styles.font, styles.weekCell]}>{d}</Text>
+                  <Text key={d} style={[styles.font, styles.weekCell]}>
+                    {d}
+                  </Text>
                 ))}
               </View>
 
@@ -511,10 +564,7 @@ const Dashboard = () => {
                   return (
                     <TouchableOpacity
                       key={idx}
-                      style={[
-                        styles.dayCellWrap,
-                        isSameDay && styles.daySelectedWrap,
-                      ]}
+                      style={[styles.dayCellWrap, isSameDay && styles.daySelectedWrap]}
                       onPress={() => setCalendarPick(date)}
                       disabled={!inMonth}
                     >
@@ -553,4 +603,5 @@ const Dashboard = () => {
     </>
   );
 };
+
 export default Dashboard;
