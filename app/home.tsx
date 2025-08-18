@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -407,94 +406,75 @@ const Dashboard = () => {
           ))}
         </View>
 
-        {/* MODAL: Schritte verwalten */}
+        {/* MODAL: Schritte verwalten (modern card) */}
         <Modal
-          animationType="slide"
+          animationType="fade"
           transparent
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalView}>
-              <Text style={[styles.modalTitle, styles.font]}>Schritte Verwalten</Text>
-
-              <TextInput
-                style={[styles.input, styles.font]}
-                placeholder="Anzahl Schritte"
-                placeholderTextColor="#7FA58C"
-                keyboardType="numeric"
-                value={stepInput}
-                onChangeText={setStepInput}
-              />
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}
-                  onPress={() => {
-                    const num = parseInt(stepInput, 10);
-                    if (!isNaN(num)) {
-                      // ✅ Nutze ausgewählten Tag oder displayDate als Basis
-                      const baseISO = selectedDate || toISO(displayDate);
-                      const idx = getIndexForDate(baseISO);
-
-                      setWeekSteps(prev => {
-                        const copy = [...prev];
-                        copy[idx] += num;
-                        return copy;
-                      });
-
-                      // wenn es der aktuell angezeigte Tag ist, Ring syncen
-                      const currentIdx = (displayDate.getDay() + 6) % 7;
-                      if (idx === currentIdx) {
-                        setStepsToday(prev => prev + num);
-                      }
-                    }
-                    setModalVisible(false);
-                    setStepInput('');
-                    setSelectedDate('');
-                  }}
-                >
-                  <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>
-                    Hinzufügen
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: '#7FA58C' }]}
-                  onPress={() => {
-                    const num = parseInt(stepInput, 10);
-                    if (!isNaN(num)) {
-                      const baseISO = selectedDate || toISO(displayDate);
-                      const idx = getIndexForDate(baseISO);
-
-                      setWeekSteps(prev => {
-                        const copy = [...prev];
-                        copy[idx] = Math.max(0, copy[idx] - num);
-                        return copy;
-                      });
-
-                      const currentIdx = (displayDate.getDay() + 6) % 7;
-                      if (idx === currentIdx) {
-                        setStepsToday(prev => Math.max(0, prev - num));
-                      }
-                    }
-                    setModalVisible(false);
-                    setStepInput('');
-                    setSelectedDate('');
-                  }}
-                >
-                  <Text style={[styles.font, { color: '#FFFFFF', fontWeight: '700' }]}>
-                    Entfernen
-                  </Text>
+            <View style={styles.stepsCard}>
+              {/* Header */}
+              <View style={styles.cardHeader}>
+                <Text style={[styles.font, styles.cardTitle]}>Schritte verwalten</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.headerX}>
+                  <Ionicons name="close" size={18} />
                 </TouchableOpacity>
               </View>
 
-              <Pressable style={styles.closeBtn} onPress={() => setModalVisible(false)}>
-                <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>Schließen</Text>
-              </Pressable>
+              {/* Input */}
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.font, styles.fieldLabel]}>Anzahl Schritte</Text>
+                <View style={styles.inputWrap}>
+                  <Ionicons name="walk-outline" size={18} style={{ marginRight: 8, opacity: 0.6 }} />
+                  <TextInput
+                    style={[styles.inputBare, styles.font]}
+                    placeholder="z. B. 1200"
+                    placeholderTextColor="#9AA7A0"
+                    keyboardType="numeric"
+                    value={stepInput}
+                    onChangeText={setStepInput}
+                  />
+                </View>
+              </View>
+
+              {/* Actions */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() => {
+                    const num = parseInt(stepInput, 10);
+                    if (!isNaN(num)) setStepsToday(prev => prev + num);
+                    setModalVisible(false);
+                    setStepInput('');
+                    setSelectedDate('');
+                  }}
+                >
+                  <Text style={[styles.font, styles.primaryBtnText]}>Hinzufügen</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() => {
+                    const num = parseInt(stepInput, 10);
+                    if (!isNaN(num)) setStepsToday(prev => Math.max(0, prev - num));
+                    setModalVisible(false);
+                    setStepInput('');
+                    setSelectedDate('');
+                  }}
+                >
+                  <Text style={[styles.font, styles.secondaryBtnText]}>Entfernen</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.cancelGhost} onPress={() => setModalVisible(false)}>
+                <Text style={[styles.font, styles.cancelGhostText]}>Abbrechen</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
+
 
         {/* MODAL: Calendar */}
         <Modal
