@@ -1,13 +1,14 @@
+import { Stack, router, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Stack, usePathname, router } from 'expo-router';
-import { isLoggedIn } from '../lib/auth';
 import Toast from 'react-native-toast-message';
 import Sidebar from "../components/Sidebar";
+import { isLoggedIn } from '../lib/auth';
 
-import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
-import { useColorScheme } from '../hooks/useColorScheme';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import React from "react";
 import { UserProvider } from '../context/UserContext';
+import { useColorScheme } from '../hooks/useColorScheme';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
