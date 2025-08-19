@@ -75,6 +75,26 @@ INSERT INTO `challenge_progress` (`id`, `user_id`, `challenge_id`, `distance_cov
 	(8, 1, 2, 20, 100, '2025-08-06 11:20:36.106', 0),
 	(9, 1, 2, 20, 100, '2025-08-06 12:03:21.837', 0);
 
+-- Exportiere Struktur von Tabelle step_together_api.challenge_team
+DROP TABLE IF EXISTS `challenge_team`;
+CREATE TABLE IF NOT EXISTS `challenge_team` (
+  `challenge_id` int(11) NOT NULL,
+  `team_id` int(11) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`challenge_id`,`team_id`),
+  KEY `fk_team` (`team_id`),
+  CONSTRAINT `fk_challenge` FOREIGN KEY (`challenge_id`) REFERENCES `challenges` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Exportiere Daten aus Tabelle step_together_api.challenge_team: ~4 rows (ungefähr)
+DELETE FROM `challenge_team`;
+INSERT INTO `challenge_team` (`challenge_id`, `team_id`, `created_at`) VALUES
+	(1, 1, '2025-08-19 06:43:19'),
+	(1, 2, '2025-08-19 06:43:19'),
+	(2, 2, '2025-08-19 06:43:19'),
+	(2, 3, '2025-08-19 06:43:19');
+
 -- Exportiere Struktur von Tabelle step_together_api.step_logs
 DROP TABLE IF EXISTS `step_logs`;
 CREATE TABLE IF NOT EXISTS `step_logs` (
@@ -86,9 +106,9 @@ CREATE TABLE IF NOT EXISTS `step_logs` (
   `number_of_steps` int(11) NOT NULL,
   `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportiere Daten aus Tabelle step_together_api.step_logs: ~6 rows (ungefähr)
+-- Exportiere Daten aus Tabelle step_together_api.step_logs: ~48 rows (ungefähr)
 DELETE FROM `step_logs`;
 INSERT INTO `step_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `number_of_steps`, `is_deleted`) VALUES
 	(1, 1, 1, 1, '2025-08-11 00:00:00.000', 20, 0),
@@ -116,32 +136,29 @@ INSERT INTO `step_logs` (`id`, `user_id`, `challenge_id`, `team_id`, `date`, `nu
 	(23, 6, 1, 3, '2025-08-13 00:00:00.000', 80, 0),
 	(24, 6, 1, 3, '2025-08-14 00:00:00.000', 70, 0),
 	(25, 1, 2, 1, '2025-08-11 00:00:00.000', 20, 0),
-    (26, 1, 2, 1, '2025-08-12 00:00:00.000', 10, 0),
-    (27, 1, 2, 1, '2025-08-13 00:00:00.000', 80, 0),
-    (28, 1, 2, 1, '2025-08-14 00:00:00.000', 70, 0),
-    (29, 2, 2, 1, '2025-08-11 00:00:00.000', 20, 0),
-    (30, 2, 2, 1, '2025-08-12 00:00:00.000', 10, 0),
-    (31, 2, 2, 1, '2025-08-13 00:00:00.000', 80, 0),
-    (32, 2, 2, 1, '2025-08-14 00:00:00.000', 70, 0),
-    (33, 3, 2, 2, '2025-08-11 00:00:00.000', 20, 0),
-    (34, 3, 2, 2, '2025-08-12 00:00:00.000', 10, 0),
-    (35, 3, 2, 2, '2025-08-13 00:00:00.000', 80, 0),
-    (36, 3, 2, 2, '2025-08-14 00:00:00.000', 70, 0),
-    (37, 4, 2, 2, '2025-08-11 00:00:00.000', 20, 0),
-    (38, 4, 2, 2, '2025-08-12 00:00:00.000', 10, 0),
-    (39, 4, 2, 2, '2025-08-13 00:00:00.000', 80, 0),
-    (40, 4, 2, 2, '2025-08-14 00:00:00.000', 70, 0),
-    (41, 5, 2, 3, '2025-08-11 00:00:00.000', 20, 0),
-    (42, 5, 2, 3, '2025-08-12 00:00:00.000', 10, 0),
-    (43, 5, 2, 3, '2025-08-13 00:00:00.000', 80, 0),
-    (44, 5, 2, 3, '2025-08-14 00:00:00.000', 70, 0),
-    (45, 6, 2, 3, '2025-08-11 00:00:00.000', 20, 0),
-    (46, 6, 2, 3, '2025-08-12 00:00:00.000', 10, 0),
-    (47, 6, 2, 3, '2025-08-13 00:00:00.000', 80, 0),
-    (48, 6, 2, 3, '2025-08-14 00:00:00.000', 70, 0);
-	
-	
-
+	(26, 1, 2, 1, '2025-08-12 00:00:00.000', 10, 0),
+	(27, 1, 2, 1, '2025-08-13 00:00:00.000', 80, 0),
+	(28, 1, 2, 1, '2025-08-14 00:00:00.000', 70, 0),
+	(29, 2, 2, 1, '2025-08-11 00:00:00.000', 20, 0),
+	(30, 2, 2, 1, '2025-08-12 00:00:00.000', 10, 0),
+	(31, 2, 2, 1, '2025-08-13 00:00:00.000', 80, 0),
+	(32, 2, 2, 1, '2025-08-14 00:00:00.000', 70, 0),
+	(33, 3, 2, 2, '2025-08-11 00:00:00.000', 20, 0),
+	(34, 3, 2, 2, '2025-08-12 00:00:00.000', 10, 0),
+	(35, 3, 2, 2, '2025-08-13 00:00:00.000', 80, 0),
+	(36, 3, 2, 2, '2025-08-14 00:00:00.000', 70, 0),
+	(37, 4, 2, 2, '2025-08-11 00:00:00.000', 20, 0),
+	(38, 4, 2, 2, '2025-08-12 00:00:00.000', 10, 0),
+	(39, 4, 2, 2, '2025-08-13 00:00:00.000', 80, 0),
+	(40, 4, 2, 2, '2025-08-14 00:00:00.000', 70, 0),
+	(41, 5, 2, 3, '2025-08-11 00:00:00.000', 20, 0),
+	(42, 5, 2, 3, '2025-08-12 00:00:00.000', 10, 0),
+	(43, 5, 2, 3, '2025-08-13 00:00:00.000', 80, 0),
+	(44, 5, 2, 3, '2025-08-14 00:00:00.000', 70, 0),
+	(45, 6, 2, 3, '2025-08-11 00:00:00.000', 20, 0),
+	(46, 6, 2, 3, '2025-08-12 00:00:00.000', 10, 0),
+	(47, 6, 2, 3, '2025-08-13 00:00:00.000', 80, 0),
+	(48, 6, 2, 3, '2025-08-14 00:00:00.000', 70, 0);
 
 -- Exportiere Struktur von Tabelle step_together_api.teams
 DROP TABLE IF EXISTS `teams`;
@@ -194,15 +211,15 @@ CREATE TABLE IF NOT EXISTS `team_members` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Exportiere Daten aus Tabelle step_together_api.team_members: ~108 rows (ungefähr)
+-- Exportiere Daten aus Tabelle step_together_api.team_members: ~100 rows (ungefähr)
 DELETE FROM `team_members`;
 INSERT INTO `team_members` (`id`, `user_id`, `team_id`, `joining_date`, `is_deleted`) VALUES
 	(1, 1, 1, '2025-07-31 10:11:55.302', 0),
 	(2, 2, 1, '2025-07-31 10:11:55.302', 0),
-	(3, 3, 1, '2025-07-31 10:11:55.302', 0),
-	(4, 4, 1, '2025-07-31 10:11:55.302', 0),
-	(5, 5, 1, '2025-07-31 10:11:55.302', 0),
-	(6, 6, 2, '2025-07-31 10:11:55.310', 0),
+	(3, 3, 2, '2025-07-31 10:11:55.302', 0),
+	(4, 4, 2, '2025-07-31 10:11:55.302', 0),
+	(5, 5, 3, '2025-07-31 10:11:55.302', 0),
+	(6, 6, 3, '2025-07-31 10:11:55.310', 0),
 	(7, 7, 2, '2025-07-31 10:11:55.310', 0),
 	(8, 8, 2, '2025-07-31 10:11:55.310', 0),
 	(9, 9, 2, '2025-07-31 10:11:55.310', 0),
@@ -296,15 +313,7 @@ INSERT INTO `team_members` (`id`, `user_id`, `team_id`, `joining_date`, `is_dele
 	(97, 97, 20, '2025-07-31 10:11:55.371', 0),
 	(98, 98, 20, '2025-07-31 10:11:55.371', 0),
 	(99, 99, 20, '2025-07-31 10:11:55.371', 0),
-	(100, 100, 20, '2025-07-31 10:11:55.371', 0),
-	(101, 1, 1, '2025-08-06 11:02:54.145', 0),
-	(102, 1, 1, '2025-08-06 11:03:07.510', 0),
-	(103, 1, 2, '2025-08-06 11:03:21.322', 0),
-	(104, 1, 2, '2025-08-06 11:03:50.353', 0),
-	(105, 1, 2, '2025-08-06 12:03:30.192', 0),
-	(106, 1, 2, '2025-08-06 12:03:40.788', 0),
-	(107, 1, 2, '2025-08-06 12:03:54.224', 0),
-	(108, 1, 2, '2025-08-07 07:33:05.050', 0);
+	(100, 100, 20, '2025-07-31 10:11:55.371', 0);
 
 -- Exportiere Struktur von Tabelle step_together_api.users
 DROP TABLE IF EXISTS `users`;
@@ -330,7 +339,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 -- Exportiere Daten aus Tabelle step_together_api.users: ~104 rows (ungefähr)
 DELETE FROM `users`;
 INSERT INTO `users` (`id`, `name`, `email`, `hashed_password`, `step_length`, `is_active`, `is_verified`, `verification_token`, `password_reset_token`, `failed_login_attempts`, `locked_until`, `created_at`, `updated_at`, `is_deleted`) VALUES
-	(1, 'AliceUp CuperUp', 'alice@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 1.2, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-08-14 09:29:22.095', 0),
+	(1, 'AliceUp CuperUp', 'alice@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.95, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-08-18 14:49:51.167', 0),
 	(2, 'Bob Smith', 'bob@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 10, 1, 1, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-08-12 08:20:26.712', 0),
 	(3, 'Charlie Brown', 'charlie@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.8, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.953', '2025-07-31 10:15:53.953', 0),
 	(4, 'Anna Scott', 'anna.mueller@example.com', '$2b$12$vN6B/84ztylEhOGB/5VICeD6UFHFwT2NOXT9wZKLKDbbU0GCXME1O', 0.75, 1, 0, NULL, NULL, 0, NULL, '2025-07-31 10:15:53.957', '2025-07-31 10:32:23.426', 0),

@@ -12,3 +12,8 @@ class TeamMemberResponse(CamelCaseBaseModel):
     user_id: int
     team_id: int
     joining_date: Optional[datetime] = None
+
+class TeamMemberChallengeSteps(CamelCaseBaseModel):
+    id: int
+    name: str
+    number_of_steps: int

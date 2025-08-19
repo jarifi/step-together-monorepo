@@ -66,7 +66,9 @@ Content-Type: application/json
     "name": "Team D"
 }
 
-
+### 3.2 Get All Teams Members from Team Challenge
+GET {{baseUrl}}/teams/members/active_challenge/1/1
+Authorization: Bearer {{login.response.body.access_token}}
 
 ### 4. Get All Team Members Using Access Token
 GET {{baseUrl}}/team_members

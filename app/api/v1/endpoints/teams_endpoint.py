@@ -1,12 +1,19 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy import and_
 
 from app.db.session import get_db
 from app.schema.team import TeamCreate, TeamSchema, TeamUpdate
+from app.schema.team_member import TeamMemberChallengeSteps
 from app.crud import team as team_crud
 from app.core.security import get_current_user
 from app.models.user import User
+from app.models.team import Team
+from app.models.challenge_team import ChallengeTeam
+from app.models.team_member import TeamMember
+from app.models.step_log import StepLog
 
 router = APIRouter(tags=["teams"])
 
@@ -66,3 +73,36 @@ def delete_team(
     if not success:
         raise HTTPException(status_code=404, detail="Team not found")
     return {"deleted": True}
+
+@router.get("/members/active_challenge/{team_id}/{challenge_id}", response_model=List[TeamMemberChallengeSteps])
+def get_team_members_challenge_steps(
+    team_id: int,
+    challenge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    challenge_team = (
+        db.query(ChallengeTeam).filter(ChallengeTeam.team_id == team_id, ChallengeTeam.challenge_id == challenge_id,).first()
+    )
+    if not challenge_team:
+        raise HTTPException(status_code=404, detail="This team is not part of the challange") 
+    results = (
+        db.query(
+            User.id.label("id"),
+            User.name.label("name"),
+            func.coalesce(func.sum(StepLog.number_of_steps), 0).label("numberOfSteps"),
+        )
+        .join(TeamMember, TeamMember.user_id == User.id)
+        .outerjoin(
+            StepLog,
+            and_(
+                StepLog.user_id == User.id,
+                StepLog.challenge_id == challenge_id
+            )
+        )
+        .filter(TeamMember.team_id == team_id)
+        .group_by(User.id, User.name)
+        .all()
+    )
+
+    return results
