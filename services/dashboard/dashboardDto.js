@@ -1,16 +1,7 @@
-// Helpers
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
-export const toDate = (iso) => (iso ? new Date(iso) : null);
+// Helpers 
+export const MS_PER_DAY = 86_400_000;
 
-const MS_PER_DAY = 86_400_000;
-
-// "YYYY-MM-DD" als lokales Datum (vermeidet UTC-Shift)
-const fromIsoLocal = (s) => {
-  if (!s) return null;
-  const [y, m, d] = String(s).split('-').map((n) => Number(n));
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
-};
+export const stripTime = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 export const toIsoDate = (d) => {
   const y = d.getFullYear();
@@ -19,18 +10,66 @@ export const toIsoDate = (d) => {
   return `${y}-${m}-${dd}`;
 };
 
-export const mondayOf = (d) => {
-  const c = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const dow = (c.getDay() + 6) % 7; // 0=Mo..6=So
-  c.setDate(c.getDate() - dow);
-  c.setHours(0, 0, 0, 0);
-  return c;
+// ISO “YYYY-MM-DD[...optional time...]” → Date (lokal, ohne UTC-Shift)
+export const fromIsoLocal = (s) => {
+  if (!s) return null;
+  const base = String(s).split('T')[0];
+  const [y, m, d] = base.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
 };
 
-const daysBetween = (a, b) => Math.ceil((b.getTime() - a.getTime()) / MS_PER_DAY);
+// "YYYY-MM-DD" | "YYYY-MM-DDTHH:mm:ss" -> "YYYY-MM-DDT00:00:00"
+export const toIsoDateTimeMidnight = (iso) => {
+  const base = String(iso).split('T')[0];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(base)) throw new Error(`Invalid iso date: ${iso}`);
+  return `${base}T00:00:00`;
+};
 
-const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
-const dayLabelEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+export const inSameDayIso = (lhsIso, rhsIso) => {
+  const l = fromIsoLocal(lhsIso);
+  const r = fromIsoLocal(rhsIso);
+  if (!l || !r) return false;
+  return toIsoDate(l) === toIsoDate(r);
+};
+
+export const sameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+export const startOfWeek = (d) => {
+  const copy = stripTime(d);
+  const dow = (copy.getDay() + 6) % 7; // Mo=0..So=6
+  copy.setDate(copy.getDate() - dow);
+  return copy;
+};
+
+export const firstOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+export const lastOfMonth  = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
+
+export const daysBetween = (a, b) => Math.ceil((stripTime(b).getTime() - stripTime(a).getTime()) / MS_PER_DAY);
+
+export const isInRange = (d, min, max) => {
+  const x = stripTime(d);
+  const lo = min ? stripTime(min) : null;
+  const hi = max ? stripTime(max) : null;
+  if (lo && x < lo) return false;
+  if (hi && x > hi) return false;
+  return true;
+};
+
+export const clampDate = (d, min, max) => {
+  const x = stripTime(d);
+  if (min && x < stripTime(min)) return stripTime(min);
+  if (max && x > stripTime(max)) return stripTime(max);
+  return x;
+};
+
+// Steps-Helpers
+export const clamp01 = (v) => Math.max(0, Math.min(1, v));
+export const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+export const dayLabelEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const normalizeDayOfWeek = (val) => {
   if (!val) return null;
@@ -41,11 +80,9 @@ const normalizeDayOfWeek = (val) => {
   return idx >= 0 ? dayLabelDe[idx] : null;
 };
 
-// ======================
 // Woche Mo..So exakt zur Pivot-Woche
-// ======================
 export const parseStepsThisWeek = (raw, pivotMonday) => {
-  const baseMonday = mondayOf(pivotMonday || new Date());
+  const baseMonday = startOfWeek(pivotMonday || new Date());
   const sums = new Array(7).fill(0);
 
   const addAtIdx = (idx, v) => {
@@ -66,8 +103,7 @@ export const parseStepsThisWeek = (raw, pivotMonday) => {
         if (e?.date) {
           const d = fromIsoLocal(e.date);
           if (d) {
-            const diffMon = mondayOf(d).getTime() - baseMonday.getTime();
-            if (diffMon === 0) idx = (d.getDay() + 6) % 7;
+            if (startOfWeek(d).getTime() === baseMonday.getTime()) idx = (d.getDay() + 6) % 7;
           }
         }
 
@@ -91,13 +127,15 @@ export const parseStepsThisWeek = (raw, pivotMonday) => {
 // ======================
 // Main Mapper
 // ======================
+export const toDate = (iso) => (iso ? new Date(iso) : null);
+
 export const mapHomeInitToDashboard = (data, pivotMonday) => {
   if (!data) return null;
   const { user = {}, team = {}, challenge = {} } = data;
 
   const start = toDate(challenge.startDate);
-  const end = toDate(challenge.endDate);
-  const now = new Date();
+  const end   = toDate(challenge.endDate);
+  const now   = new Date();
 
   let daysLeft = 0;
   let timeProgress = 0;

@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import {
+  fromIsoLocal,
+  inSameDayIso,
+  toIsoDate,
+  toIsoDateTimeMidnight,
+} from './dashboardDto';
 
 const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
@@ -36,29 +42,6 @@ const http = async (url, options) => {
     throw err;
   }
   return payload;
-};
-
-// ---------- Date Helpers ----------
-const toISO = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-};
-
-// ISO “YYYY-MM-DD[...optional time...]” → Date (lokal, ohne UTC-Shift)
-const fromIsoLocal = (s) => {
-  if (!s) return null;
-  const [y, m, d] = String(s).split('T')[0].split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
-};
-
-const inSameDayIso = (lhsIso, rhsIso) => {
-  const l = fromIsoLocal(lhsIso);
-  const r = fromIsoLocal(rhsIso);
-  if (!l || !r) return false;
-  return toISO(l) === toISO(r);
 };
 
 // ---------- API: Dashboard-Init ----------
@@ -108,8 +91,8 @@ export const getWeekSteps = async (userId, weekStartISO) => {
     .map((x) => {
       const d = fromIsoLocal(x.date);
       return {
-        date: toISO(d),
-        dayOfWeek: d.toLocaleDateString('en-US', { weekday: 'long' }), // Tuesday, ...
+        date: toIsoDate(d),
+        dayOfWeek: d.toLocaleDateString('en-US', { weekday: 'long' }),
         numberOfSteps:
           Number.isFinite(+x?.numberOfSteps) ? +x.numberOfSteps :
           Number.isFinite(+x?.steps) ? +x.steps : 0,
@@ -119,7 +102,12 @@ export const getWeekSteps = async (userId, weekStartISO) => {
 };
 
 // Upsert: existiert ein Log für dateISO → update, sonst create
-export const upsertStepsForDate = async (userId, dateISO, absoluteSteps) => {
+export const upsertStepsForDate = async (
+  userId,
+  dateISO,
+  absoluteSteps,
+  context // { challengeId: number; teamId: number }
+) => {
   if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
   if (userId === undefined || userId === null) throw new Error('userId required');
   if (!dateISO) throw new Error('dateISO required');
@@ -133,13 +121,23 @@ export const upsertStepsForDate = async (userId, dateISO, absoluteSteps) => {
 
   if (existing?.id != null) {
     const id = String(existing.id);
+    // falls dein Backend /step_logs/{id} erwartet, nimm: const url = joinUrl(base, id);
     const url = `${base}?step_log_id=${encodeURIComponent(id)}`;
     const body = JSON.stringify({ numberOfSteps: Number(absoluteSteps) });
     return await http(url, { method: 'PUT', headers, body });
   }
 
-  // Create
+  // --- CREATE ---
+  if (!context?.challengeId || !context?.teamId) {
+    throw new Error('challengeId/teamId required for create');
+  }
+
   const url = base;
-  const body = JSON.stringify({ date: dateISO, numberOfSteps: Number(absoluteSteps) });
+  const body = JSON.stringify({
+    challengeId: context.challengeId,
+    teamId: context.teamId,
+    date: toIsoDateTimeMidnight(dateISO),
+    numberOfSteps: Number(absoluteSteps),
+  });
   return await http(url, { method: 'POST', headers, body });
 };

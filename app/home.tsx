@@ -10,12 +10,25 @@ import {
   View,
 } from 'react-native';
 
-import { mapHomeInitToDashboard, parseStepsThisWeek } from '../services/dashboard/dashboardDto';
+import {
+  clampDate,
+  dayLabelDe,
+  firstOfMonth,
+  isInRange,
+  lastOfMonth,
+  mapHomeInitToDashboard,
+  parseStepsThisWeek,
+  sameDay,
+  startOfWeek,
+  stripTime,
+  toIsoDate as toISO,
+} from '../services/dashboard/dashboardDto';
+
 import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboard/dashboardService';
 import styles from './styles/dashboardStyles';
 
 // ======================
-// Types
+// Types (lokal)
 // ======================
 export type StepsEntry = {
   date: string; // YYYY-MM-DD
@@ -50,31 +63,6 @@ export type HomeInitDto = {
 };
 
 // ======================
-// Local helpers
-// ======================
-const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'] as const;
-
-const startOfWeek = (d: Date): Date => {
-  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const dow = (copy.getDay() + 6) % 7; // 0=Mo..6=So
-  copy.setDate(copy.getDate() - dow);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-};
-
-const sameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
-const toISO = (d: Date) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-};
-
-// ======================
 // Component
 // ======================
 const Dashboard: React.FC = () => {
@@ -99,6 +87,16 @@ const Dashboard: React.FC = () => {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [calendarPick, setCalendarPick] = useState<Date>(new Date());
 
+  // ===== Challenge bounds =====
+  const minDate = useMemo(() => (vm?.challenge?.startDate ? stripTime(vm.challenge.startDate) : null), [vm?.challenge?.startDate]);
+  const maxDate = useMemo(() => (vm?.challenge?.endDate ? stripTime(vm.challenge.endDate) : null), [vm?.challenge?.endDate]);
+
+  // Clamp displayDate wenn Bounds sich ändern
+  useEffect(() => {
+    if (!vm) return;
+    setDisplayDate((d) => clampDate(d, minDate, maxDate));
+  }, [vm, minDate, maxDate]);
+
   const currentDate = useMemo(
     () =>
       displayDate.toLocaleDateString('de-DE', {
@@ -115,24 +113,42 @@ const Dashboard: React.FC = () => {
   );
 
   const calendarGrid = useMemo(() => {
-    const firstOfMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
-    const firstWeekday = ((firstOfMonth.getDay() + 6) % 7) + 1;
-    const start = new Date(firstOfMonth);
-    start.setDate(firstOfMonth.getDate() - (firstWeekday - 1));
+    const first = firstOfMonth(calendarMonth);
+    const firstWeekday = ((first.getDay() + 6) % 7) + 1; // 1..7, Mo=1
+    const start = new Date(first);
+    start.setDate(first.getDate() - (firstWeekday - 1));
 
-    const cells: { date: Date; inMonth: boolean }[] = [];
+    const cells: { date: Date; inMonth: boolean; selectable: boolean }[] = [];
     for (let i = 0; i < 42; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      cells.push({ date: d, inMonth: d.getMonth() === calendarMonth.getMonth() });
+      const inMonth = d.getMonth() === calendarMonth.getMonth();
+      const selectable = isInRange(d, minDate, maxDate);
+      cells.push({ date: d, inMonth, selectable });
     }
     return cells;
-  }, [calendarMonth]);
+  }, [calendarMonth, minDate, maxDate]);
 
-  const goPrevMonth = () =>
+  const canGoPrevMonth = useMemo(() => {
+    if (!minDate) return true;
+    const prev = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+    return lastOfMonth(prev) >= firstOfMonth(minDate);
+  }, [calendarMonth, minDate]);
+
+  const canGoNextMonth = useMemo(() => {
+    if (!maxDate) return true;
+    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+    return firstOfMonth(next) <= lastOfMonth(maxDate);
+  }, [calendarMonth, maxDate]);
+
+  const goPrevMonth = () => {
+    if (!canGoPrevMonth) return;
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
-  const goNextMonth = () =>
+  };
+  const goNextMonth = () => {
+    if (!canGoNextMonth) return;
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  };
 
   // ========= Initial load =========
   useEffect(() => {
@@ -153,12 +169,18 @@ const Dashboard: React.FC = () => {
         }
 
         setVm(mapped);
-        const arr = (mapped.steps_this_week ?? []).map((s) => s.numberOfSteps);
-        setWeekSteps(arr.length === 7 ? arr : [0, 0, 0, 0, 0, 0, 0]);
 
-        const idx = (displayDate.getDay() + 6) % 7;
-        setStepsToday(arr[idx] ?? 0);
-        setSelectedWeekStart(pivot);
+        // Clamp initial dates in Challenge
+        const initialDisplay = clampDate(new Date(), mapped.challenge.startDate, mapped.challenge.endDate);
+        setDisplayDate(initialDisplay);
+        setSelectedWeekStart(startOfWeek(initialDisplay));
+
+        const arr = (mapped.steps_this_week ?? []).map((s) => s.numberOfSteps);
+        const weekArr = arr.length === 7 ? arr : [0, 0, 0, 0, 0, 0, 0];
+        setWeekSteps(weekArr);
+
+        const idx = (initialDisplay.getDay() + 6) % 7;
+        setStepsToday(weekArr[idx] ?? 0);
       } catch (e: any) {
         if (!alive) return;
         setErrorMsg(e?.message ?? 'Unbekannter Fehler');
@@ -175,7 +197,10 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!vm?.user?.id) return;
 
-    const pivot = displayDate;
+    // clamp displayDate before using it
+    const pivot = clampDate(displayDate, minDate, maxDate);
+    if (!sameDay(pivot, displayDate)) setDisplayDate(pivot);
+
     const weekStart = startOfWeek(pivot);
 
     if (sameDay(weekStart, selectedWeekStart)) {
@@ -209,13 +234,15 @@ const Dashboard: React.FC = () => {
         setWeekLoading(false);
       }
     })();
-  }, [displayDate, vm?.user?.id, selectedWeekStart, weekSteps]);
+  }, [displayDate, vm?.user?.id, selectedWeekStart, weekSteps, minDate, maxDate]);
 
   // ---- Save Steps ----
   const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
-    if (!vm?.user?.id) return;
-    const idx = (displayDate.getDay() + 6) % 7;
-    const dateISO = toISO(displayDate);
+    if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
+
+    const dateSafe = clampDate(displayDate, minDate, maxDate);
+    const idx = (dateSafe.getDay() + 6) % 7;
+    const dateISO = toISO(dateSafe);
 
     const prev = [...weekSteps];
     const next = [...weekSteps];
@@ -224,15 +251,26 @@ const Dashboard: React.FC = () => {
     setStepsToday(next[idx]);
 
     try {
-      await upsertStepsForDate(vm.user.id, dateISO, next[idx]);
-    } catch {
+      await upsertStepsForDate(
+        vm.user.id,
+        dateISO,
+        next[idx],
+        {
+          challengeId: vm.challenge.id,
+          teamId: vm.team.id,
+        }
+      );
+    } catch (e) {
+      // rollback bei Fehler
       setWeekSteps(prev);
       setStepsToday(prev[idx] ?? 0);
+      console.warn('Save steps failed:', e);
     }
   };
 
   const applyStepDelta = async (delta: number) => {
-    const idx = (displayDate.getDay() + 6) % 7;
+    const dateSafe = clampDate(displayDate, minDate, maxDate);
+    const idx = (dateSafe.getDay() + 6) % 7;
     const current = weekSteps[idx] ?? 0;
     const target = Math.max(0, current + delta);
     await saveAbsoluteStepsForSelectedDay(target);
@@ -286,12 +324,18 @@ const Dashboard: React.FC = () => {
               const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
               setVm(mapped);
 
-              const arr = (mapped?.steps_this_week ?? []).map((s) => s.numberOfSteps);
-              setWeekSteps(arr.length === 7 ? arr : [0, 0, 0, 0, 0, 0, 0]);
+              const initialDisplay = mapped
+                ? clampDate(new Date(), mapped.challenge.startDate, mapped.challenge.endDate)
+                : new Date();
 
-              const idx = (new Date().getDay() + 6) % 7;
-              setStepsToday(arr[idx] ?? 0);
-              setSelectedWeekStart(pivot);
+              const arr = (mapped?.steps_this_week ?? []).map((s) => s.numberOfSteps);
+              const weekArr = arr.length === 7 ? arr : [0, 0, 0, 0, 0, 0, 0];
+              setWeekSteps(weekArr);
+
+              const idx = (initialDisplay.getDay() + 6) % 7;
+              setStepsToday(weekArr[idx] ?? 0);
+              setSelectedWeekStart(startOfWeek(initialDisplay));
+              setDisplayDate(initialDisplay);
             } catch (e: any) {
               setErrorMsg(e?.message ?? 'Unbekannter Fehler');
             } finally {
@@ -305,6 +349,7 @@ const Dashboard: React.FC = () => {
       </View>
     );
   }
+
   // ========= Render =========
   return (
     <>
@@ -316,8 +361,9 @@ const Dashboard: React.FC = () => {
             <TouchableOpacity
               accessibilityRole="button"
               onPress={() => {
-                setCalendarPick(displayDate);
-                setCalendarMonth(displayDate);
+                const safe = clampDate(displayDate, minDate, maxDate);
+                setCalendarPick(safe);
+                setCalendarMonth(new Date(safe.getFullYear(), safe.getMonth(), 1));
                 setCalendarOpen(true);
               }}
               style={[styles.calIconBtn, { marginLeft: 10 }]}
@@ -517,11 +563,11 @@ const Dashboard: React.FC = () => {
           <View style={styles.modalOverlay}>
             <View style={styles.calendarCard}>
               <View style={styles.calHeader}>
-                <TouchableOpacity onPress={goPrevMonth} style={styles.navPill}>
+                <TouchableOpacity onPress={goPrevMonth} style={[styles.navPill, !canGoPrevMonth && { opacity: 0.35 }]} disabled={!canGoPrevMonth}>
                   <Ionicons name="chevron-back" size={18} />
                 </TouchableOpacity>
                 <Text style={[styles.font, styles.calHeaderTitle]}>{calendarHeader}</Text>
-                <TouchableOpacity onPress={goNextMonth} style={styles.navPill}>
+                <TouchableOpacity onPress={goNextMonth} style={[styles.navPill, !canGoNextMonth && { opacity: 0.35 }]} disabled={!canGoNextMonth}>
                   <Ionicons name="chevron-forward" size={18} />
                 </TouchableOpacity>
               </View>
@@ -535,25 +581,27 @@ const Dashboard: React.FC = () => {
               </View>
 
               <View style={styles.grid}>
-                {calendarGrid.map(({ date, inMonth }, idx) => {
-                  const isSameDay =
-                    date.getFullYear() === calendarPick.getFullYear() &&
-                    date.getMonth() === calendarPick.getMonth() &&
-                    date.getDate() === calendarPick.getDate();
+                {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
+                  const isSame = sameDay(date, calendarPick);
+                  const disabled = !inMonth || !selectable;
 
                   return (
                     <TouchableOpacity
                       key={idx}
-                      style={[styles.dayCellWrap, isSameDay && styles.daySelectedWrap]}
-                      onPress={() => setCalendarPick(date)}
-                      disabled={!inMonth}
+                      style={[
+                        styles.dayCellWrap,
+                        isSame && !disabled && styles.daySelectedWrap,
+                        disabled && { opacity: 0.35 },
+                      ]}
+                      onPress={() => !disabled && setCalendarPick(date)}
+                      disabled={disabled}
                     >
                       <Text
                         style={[
                           styles.font,
                           styles.dayCellText,
                           !inMonth && styles.dayOutText,
-                          isSameDay && styles.daySelectedText,
+                          isSame && !disabled && styles.daySelectedText,
                         ]}
                       >
                         {date.getDate()}
@@ -566,7 +614,8 @@ const Dashboard: React.FC = () => {
               <TouchableOpacity
                 style={styles.applyBtn}
                 onPress={() => {
-                  setDisplayDate(calendarPick);
+                  const safe = clampDate(calendarPick, minDate, maxDate);
+                  setDisplayDate(safe);
                   setCalendarOpen(false);
                 }}
               >
