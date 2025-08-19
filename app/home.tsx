@@ -1,4 +1,3 @@
-// app/home.tsx (Dashboard)
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -13,9 +12,8 @@ import {
 
 import styles from './styles/dashboardStyles';
 
-// WICHTIG: Pfade an dein Projekt anpassen (wie von dir gepostet)
-import { mapHomeInitToDashboard } from '../services/dashboard/dashboardDto';
-import { getHomeInit } from '../services/dashboard/dashboardService';
+import { mapHomeInitToDashboard, parseStepsThisWeek } from '../services/dashboard/dashboardDto';
+import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboard/dashboardService';
 
 // ======================
 // Types
@@ -64,6 +62,7 @@ const startOfWeek = (d: Date) => {
   copy.setHours(0, 0, 0, 0);
   return copy;
 };
+
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
@@ -74,33 +73,6 @@ const toISO = (d: Date) => {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
-};
-
-// Normalisiert eine beliebige week-Objektliste zu [Mo..So] numbers
-const mapWeekObjectsToArray = (weekObjs: any[]) => {
-  const dayOrderDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'] as const;
-  const dayOrderEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
-
-  const normalize = (v: string) => {
-    const s = v?.toLowerCase?.() ?? '';
-    const enIdx = dayOrderEn.findIndex((d) => d.toLowerCase() === s);
-    if (enIdx >= 0) return enIdx;
-    const deIdx = dayOrderDe.findIndex((d) => d.toLowerCase() === s);
-    if (deIdx >= 0) return deIdx;
-    return -1;
-  };
-
-  const byIdx: number[] = [0, 0, 0, 0, 0, 0, 0];
-  for (const item of weekObjs ?? []) {
-    const n = Number.isFinite(+item?.numberOfSteps) ? +item.numberOfSteps : 0;
-    let idx = normalize(String(item?.dayOfWeek ?? ''));
-    if (idx < 0 && item?.date) {
-      const d = new Date(item.date);
-      if (!isNaN(d.getTime())) idx = (d.getDay() + 6) % 7; // Mo=0..So=6
-    }
-    if (idx >= 0) byIdx[idx] += n;
-  }
-  return byIdx; // [Mo..So]
 };
 
 // ======================
@@ -173,10 +145,11 @@ const Dashboard = () => {
       try {
         setLoading(true);
         setErrorMsg(null);
-        const raw = await getHomeInit(); // kann null liefern (Error im Service)
+        const raw = await getHomeInit();
         if (!alive) return;
 
-        const mapped = mapHomeInitToDashboard(raw) as HomeInitDto | null;
+        const pivot = startOfWeek(new Date());
+        const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
         if (!mapped) {
           setVm(null);
           setErrorMsg('Keine Daten verfügbar.');
@@ -185,15 +158,12 @@ const Dashboard = () => {
 
         setVm(mapped);
 
-        // Wenn steps_this_week da ist UND es die aktuelle Woche ist → Chart füllen
-        const nowWeekStart = startOfWeek(new Date());
-        const vmWeekArr = mapWeekObjectsToArray(mapped.steps_this_week ?? []);
-        setWeekSteps(vmWeekArr);
-        setSelectedWeekStart(nowWeekStart);
+        const arr = (mapped.steps_this_week ?? []).map((s) => s.numberOfSteps);
+        setWeekSteps(arr.length === 7 ? arr : [0, 0, 0, 0, 0, 0, 0]);
 
-        // Steps für aktuell ausgewählten Tag (initial: heute)
         const idx = (displayDate.getDay() + 6) % 7;
-        setStepsToday(vmWeekArr[idx] ?? 0);
+        setStepsToday(arr[idx] ?? 0);
+        setSelectedWeekStart(pivot);
       } catch (e: any) {
         if (!alive) return;
         setErrorMsg(e?.message ?? 'Unbekannter Fehler');
@@ -204,47 +174,85 @@ const Dashboard = () => {
     return () => {
       alive = false;
     };
-    // displayDate absichtlich nicht als dependency → initial load only
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ========= Week change when displayDate changes =========
   useEffect(() => {
-    if (!vm?.user?.id) return; // warte bis VM bereit ist
+    if (!vm?.user?.id) return;
 
     const pivot = displayDate;
     const weekStart = startOfWeek(pivot);
 
-    // Wenn wir bereits diese Woche im State haben → nur stepsToday updaten
+    // gleiche Woche → nur today updaten
     if (sameDay(weekStart, selectedWeekStart)) {
       const idx = (pivot.getDay() + 6) % 7;
       setStepsToday(weekSteps[idx] ?? 0);
       return;
     }
 
-    // Wir haben keinen Endpunkt für beliebige Wochen → zeig leere Woche (UX clean),
-    // außer die gewählte Woche ist die aktuelle → dann nutze vm.steps_this_week.
     setWeekLoading(true);
     (async () => {
       try {
-        const nowWeek = startOfWeek(new Date());
-        if (sameDay(weekStart, nowWeek)) {
-          const arr = mapWeekObjectsToArray(vm?.steps_this_week ?? []);
-          setWeekSteps(arr);
-          const idx = (pivot.getDay() + 6) % 7;
-          setStepsToday(arr[idx] ?? 0);
-        } else {
-          const empty = [0, 0, 0, 0, 0, 0, 0];
-          setWeekSteps(empty);
-          const idx = (pivot.getDay() + 6) % 7;
-          setStepsToday(empty[idx] ?? 0);
-        }
+        const weekStartISO = toISO(weekStart);
+        const resp = await getWeekSteps(vm.user!.id!, weekStartISO); // <— userId jetzt nötig
+        const parsed = Array.isArray(resp)
+          ? parseStepsThisWeek(resp, weekStart)
+          : parseStepsThisWeek([], weekStart);
+
+        const arr = parsed.map((x) => x.numberOfSteps);
+        setWeekSteps(arr);
+
+        const idx = (pivot.getDay() + 6) % 7;
+        setStepsToday(arr[idx] ?? 0);
+        setSelectedWeekStart(weekStart);
+      } catch {
+        const empty = [0, 0, 0, 0, 0, 0, 0];
+        const idx = (pivot.getDay() + 6) % 7;
+        setWeekSteps(empty);
+        setStepsToday(empty[idx] ?? 0);
         setSelectedWeekStart(weekStart);
       } finally {
         setWeekLoading(false);
       }
     })();
-  }, [displayDate, vm?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayDate, vm?.user?.id]);
+
+  // ---- Speichern (optimistic absolute value, Upsert-by-date) ----
+  const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
+    if (!vm?.user?.id) return;
+    const idx = (displayDate.getDay() + 6) % 7;
+    const dateISO = toISO(displayDate);
+
+    // optimistic
+    const prev = [...weekSteps];
+    const next = [...weekSteps];
+    next[idx] = Math.max(0, Math.floor(newValue));
+    setWeekSteps(next);
+    setStepsToday(next[idx]);
+
+    try {
+      await upsertStepsForDate(vm.user.id, dateISO, next[idx]);
+      // Optional: revalidate hier, falls du out-of-band Updates erwartest
+    } catch (e) {
+      // rollback
+      setWeekSteps(prev);
+      setStepsToday(prev[idx] ?? 0);
+      throw e;
+    }
+  };
+
+  const applyStepDelta = async (delta: number) => {
+    const idx = (displayDate.getDay() + 6) % 7;
+    const current = weekSteps[idx] ?? 0;
+    const target = Math.max(0, current + delta);
+    try {
+      await saveAbsoluteStepsForSelectedDay(target);
+    } catch {
+      // Optional: Toast
+    }
+  };
 
   // ========= Derived metrics =========
   const weeklyMax = Math.max(1, ...weekSteps);
@@ -276,6 +284,7 @@ const Dashboard = () => {
   }
 
   if (errorMsg || !vm) {
+    const pivot = startOfWeek(new Date());
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4', padding: 24 }}>
         <Text style={[styles.font, { color: '#B91C1C', fontSize: 16, textAlign: 'center' }]}>
@@ -290,13 +299,15 @@ const Dashboard = () => {
               setLoading(true);
               setErrorMsg(null);
               const raw = await getHomeInit();
-              const mapped = mapHomeInitToDashboard(raw) as HomeInitDto | null;
+              const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
               setVm(mapped);
-              const arr = mapWeekObjectsToArray(mapped?.steps_this_week ?? []);
-              setWeekSteps(arr);
+
+              const arr = (mapped?.steps_this_week ?? []).map((s) => s.numberOfSteps);
+              setWeekSteps(arr.length === 7 ? arr : [0, 0, 0, 0, 0, 0, 0]);
+
               const idx = (new Date().getDay() + 6) % 7;
               setStepsToday(arr[idx] ?? 0);
-              setSelectedWeekStart(startOfWeek(new Date()));
+              setSelectedWeekStart(pivot);
             } catch (e: any) {
               setErrorMsg(e?.message ?? 'Unbekannter Fehler');
             } finally {
@@ -310,18 +321,6 @@ const Dashboard = () => {
       </View>
     );
   }
-
-  // ========= Handlers =========
-  const applyStepDelta = (delta: number) => {
-    const idx = (displayDate.getDay() + 6) % 7; // 0..6
-    setWeekSteps((prev) => {
-      const next = [...prev];
-      const newVal = Math.max(0, (next[idx] ?? 0) + delta);
-      next[idx] = newVal;
-      setStepsToday(newVal); // sync Kennzahl
-      return next;
-    });
-  };
 
   // ========= Render =========
   return (
@@ -363,7 +362,7 @@ const Dashboard = () => {
           <View style={styles.metricsRow}>
             {/* kcal */}
             <View style={styles.metricSide}>
-              <Ionicons name="flame" size={24} color="#E25822" style={{ marginBottom: 4 }} />
+              <Ionicons name="flame" size={24} style={{ marginBottom: 4 }} />
               <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
             </View>
@@ -381,7 +380,7 @@ const Dashboard = () => {
 
             {/* distance */}
             <View style={[styles.metricSide, { alignItems: 'flex-start' }]}>
-              <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4, alignSelf: 'center' }} />
+              <MaterialIcons name="place" size={24} style={{ marginBottom: 4, alignSelf: 'center' }} />
               <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : distanceKm}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
             </View>
@@ -419,13 +418,11 @@ const Dashboard = () => {
             <Text style={{ color: '#5F764E', fontWeight: '700' }}>Challenge </Text>Fortschritte
           </Text>
 
-          {/* obere Skala */}
           <View style={styles.topScaleRow}>
             <Text style={[styles.scaleTick, styles.font]}>Start </Text>
             <Text style={[styles.scaleTick, styles.font]}>Ziel: {vm.challenge.distanceKm} km</Text>
           </View>
 
-          {/* Fortschritt nach Zeit */}
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${timeProgressPct}%` }]} />
           </View>
@@ -451,16 +448,14 @@ const Dashboard = () => {
           </Text>
 
           {[
-            { name: 'Jessica Marie Müll', steps: '51.200', rankColor: '#C8A100' },
-            { name: 'Leonardo da Vinci', steps: '30.000', rankColor: '#999999' },
-            { name: 'Gustav Fröhlich', steps: '28.800', rankColor: '#C9716D' },
+            { name: 'Jessica Marie Müll', steps: '51.200' },
+            { name: 'Leonardo da Vinci', steps: '30.000' },
+            { name: 'Gustav Fröhlich', steps: '28.800' },
             { name: 'Bernadette Unförmlich', steps: '27.600' },
             { name: `${vm.user.name || 'Du'}`, steps: '6.400', isUser: true },
           ].map((u, idx) => (
             <View key={idx} style={[styles.rankRow, u.isUser && styles.rankRowMe]}>
-              <Text style={[styles.rankBadge, styles.font, u.rankColor ? { color: u.rankColor } : null]}>
-                {idx + 1}#
-              </Text>
+              <Text style={[styles.rankBadge, styles.font]}>{idx + 1}#</Text>
               <View style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={styles.rowBetween}>
@@ -502,9 +497,9 @@ const Dashboard = () => {
               <View style={styles.actionsRow}>
                 <TouchableOpacity
                   style={styles.primaryBtn}
-                  onPress={() => {
+                  onPress={async () => {
                     const num = parseInt(stepInput, 10);
-                    if (!isNaN(num) && num > 0) applyStepDelta(num);
+                    if (!isNaN(num) && num > 0) await applyStepDelta(num);
                     setModalVisible(false);
                     setStepInput('');
                   }}
@@ -514,9 +509,9 @@ const Dashboard = () => {
 
                 <TouchableOpacity
                   style={styles.secondaryBtn}
-                  onPress={() => {
+                  onPress={async () => {
                     const num = parseInt(stepInput, 10);
-                    if (!isNaN(num) && num > 0) applyStepDelta(-num);
+                    if (!isNaN(num) && num > 0) await applyStepDelta(-num);
                     setModalVisible(false);
                     setStepInput('');
                   }}

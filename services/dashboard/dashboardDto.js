@@ -1,21 +1,20 @@
-// ======================
-// Helpers
-// ======================
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
-const toDate = (iso) => (iso ? new Date(iso) : null);
-const daysBetween = (a, b) => Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+export const toDate = (iso) => (iso ? new Date(iso) : null);
 
-const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
-const dayLabelEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+// ISO "YYYY-MM-DD" → lokal (UTC-Shift vermeiden)
+const fromIsoLocal = (s) => {
+  const [y, m, d] = String(s).split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
+};
 
-const toIsoDate = (d) => {
+export const toIsoDate = (d) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 };
 
-const mondayOf = (d) => {
+export const mondayOf = (d) => {
   const c = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const dow = (c.getDay() + 6) % 7; // 0=Mo..6=So
   c.setDate(c.getDate() - dow);
@@ -23,11 +22,9 @@ const mondayOf = (d) => {
   return c;
 };
 
-const deFromDate = (iso) => {
-  const dd = new Date(iso);
-  const dow = (dd.getDay() + 6) % 7; // 0..6
-  return dayLabelDe[dow];
-};
+const daysBetween = (a, b) => Math.ceil((b - a) / (1000 * 60 * 60 * 24));
+const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+const dayLabelEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const normalizeDayOfWeek = (val) => {
   if (!val) return null;
@@ -39,75 +36,58 @@ const normalizeDayOfWeek = (val) => {
 };
 
 // ======================
-// Steps-Parser
-//  - akzeptiert number[] oder object[]
-//  - normalisiert dayOfWeek -> DE ('MO'..'SO')
-//  - füllt die Woche Mo-So vollständig (fehlende Tage = 0)
+// Exakt die Pivot-Woche mappen (Mo..So)
+//  - raw: number[] ODER object[]
+//  - pivotMonday: Montag-Datum der Zielwoche
 // ======================
-const parseStepsThisWeek = (raw) => {
-  const asObjects = (() => {
-    if (!Array.isArray(raw)) return [];
+export const parseStepsThisWeek = (raw, pivotMonday) => {
+  const baseMonday = mondayOf(pivotMonday || new Date());
+  const sums = new Array(7).fill(0);
 
-    if (raw.length > 0 && typeof raw[0] === 'number') {
-      // number[] → auf aktuelle Woche legen
-      const base = mondayOf(new Date());
-      return raw.slice(0, 7).map((n, i) => {
-        const d = new Date(base);
-        d.setDate(base.getDate() + i);
-        return {
-          date: toIsoDate(d),
-          dayOfWeek: dayLabelDe[i],
-          numberOfSteps: Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0,
-        };
-      });
+  const addAtIdx = (idx, v) => {
+    if (idx >= 0 && idx < 7) sums[idx] += Math.max(0, Math.floor(Number(v) || 0));
+  };
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    if (typeof raw[0] === 'number') {
+      // number[]: Index 0..6 → Mo..So relativ zur Pivot
+      raw.slice(0, 7).forEach((n, i) => addAtIdx(i, n));
+    } else {
+      // object[]: { date?, dayOfWeek?, numberOfSteps|steps? }
+      for (const e of raw) {
+        const val = e?.numberOfSteps ?? e?.steps ?? 0;
+        let idx = -1;
+
+        if (e?.date) {
+          const d = fromIsoLocal(e.date);
+          // Nur zählen, wenn Datum in der Pivot-Woche liegt
+          const offsetDays = Math.floor((mondayOf(d) - baseMonday) / (1000 * 60 * 60 * 24));
+          if (offsetDays === 0) idx = (d.getDay() + 6) % 7;
+        }
+        // Fallback: dayOfWeek (EN/DE)
+        if (idx < 0 && e?.dayOfWeek) {
+          const de = normalizeDayOfWeek(e.dayOfWeek);
+          idx = dayLabelDe.indexOf(de ?? '');
+        }
+        addAtIdx(idx, val);
+      }
     }
-
-    // object[]
-    return raw.map((e) => {
-      const date = typeof e?.date === 'string' && e.date ? e.date : toIsoDate(new Date());
-      const fromPayload = normalizeDayOfWeek(e?.dayOfWeek);
-      const dayOfWeek = fromPayload ?? deFromDate(date);
-      const stepsRaw = typeof e?.numberOfSteps !== 'undefined' ? Number(e.numberOfSteps) : Number(e?.steps);
-      const numberOfSteps = Number.isFinite(stepsRaw) ? Math.max(0, Math.floor(stepsRaw)) : 0;
-      return { date, dayOfWeek, numberOfSteps };
-    });
-  })();
-
-  // Montag der Zielwoche bestimmen
-  let baseMonday = mondayOf(new Date());
-  if (asObjects.length) {
-    const minDate = asObjects
-      .map((e) => new Date(e.date))
-      .reduce((min, d) => (d < min ? d : min), new Date(asObjects[0].date));
-    baseMonday = mondayOf(minDate);
   }
 
-  // Per 'MO'..'SO' zusammenfassen
-  const byKey = new Map();
-  for (const e of asObjects) {
-    byKey.set(e.dayOfWeek, (byKey.get(e.dayOfWeek) ?? 0) + e.numberOfSteps);
-  }
-
-  // Woche vollständig aufbauen (Mo..So), fehlende = 0
-  const fullWeek = dayLabelDe.map((label, i) => {
+  // Ausgabe als vollständige Woche (Objekte)
+  return sums.map((n, i) => {
     const d = new Date(baseMonday);
     d.setDate(baseMonday.getDate() + i);
-    return {
-      date: toIsoDate(d),
-      dayOfWeek: label,
-      numberOfSteps: byKey.get(label) ?? 0,
-    };
+    return { date: toIsoDate(d), dayOfWeek: dayLabelDe[i], numberOfSteps: n };
   });
-
-  return fullWeek;
 };
 
 // ======================
 // Main Mapper
+//  - optional pivotMonday, um steps_this_week korrekt zu bauen
 // ======================
-export const mapHomeInitToDashboard = (data) => {
+export const mapHomeInitToDashboard = (data, pivotMonday) => {
   if (!data) return null;
-
   const { user = {}, team = {}, challenge = {} } = data;
 
   const start = toDate(challenge.startDate);
@@ -117,44 +97,40 @@ export const mapHomeInitToDashboard = (data) => {
   let daysLeft = 0;
   let timeProgress = 0;
   if (start && end && end > start) {
-    const span = end.getTime() - start.getTime();
-    timeProgress = clamp01((now.getTime() - start.getTime()) / span);
+    const span = end - start;
+    timeProgress = clamp01((now - start) / span);
     daysLeft = Math.max(0, daysBetween(now, end));
   }
 
-  // distance flexibel akzeptieren (distance | distanceKm)
-  const distAny =
-    typeof challenge.distanceKm === 'number'
-      ? challenge.distanceKm
-      : typeof challenge.distance === 'number'
-      ? challenge.distance
-      : Number(challenge.distanceKm ?? challenge.distance);
-  const distanceKm = Number.isFinite(distAny) ? Number(distAny) : 0;
+  const distAny = challenge.distanceKm ?? challenge.distance;
+  const distanceKm = Number.isFinite(+distAny) ? +distAny : 0;
 
   return {
     user: {
-      id: Number.isFinite(user.id) ? Number(user.id) : null,
-      name: typeof user.name === 'string' ? user.name : '',
-      email: typeof user.email === 'string' ? user.email : '',
-      stepLength:
-        typeof user.stepLength === 'number' && Number.isFinite(user.stepLength) ? user.stepLength : 0,
+      id: Number.isFinite(+user.id) ? +user.id : null,
+      name: user.name || '',
+      email: user.email || '',
+      stepLength: Number.isFinite(+user.stepLength) ? +user.stepLength : 0,
     },
     team: {
-      id: Number.isFinite(team.id) ? Number(team.id) : null,
-      name: typeof team.name === 'string' ? team.name : '',
+      id: Number.isFinite(+team.id) ? +team.id : null,
+      name: team.name || '',
     },
     challenge: {
-      id: Number.isFinite(challenge.id) ? Number(challenge.id) : null,
-      name: typeof challenge.name === 'string' ? challenge.name : '',
-      startLocation: typeof challenge.startLocation === 'string' ? challenge.startLocation : '',
-      targetLocation: typeof challenge.targetLocation === 'string' ? challenge.targetLocation : '',
+      id: Number.isFinite(+challenge.id) ? +challenge.id : null,
+      name: challenge.name || '',
+      startLocation: challenge.startLocation || '',
+      targetLocation: challenge.targetLocation || '',
       distanceKm,
       startDate: start,
       endDate: end,
-      state: typeof challenge.state === 'string' ? challenge.state : '',
+      state: challenge.state || '',
       daysLeft,
       timeProgress,
     },
-    steps_this_week: parseStepsThisWeek(data.steps_this_week),
+    steps_this_week: parseStepsThisWeek(
+      data.steps_this_week,
+      pivotMonday ?? mondayOf(new Date())
+    ),
   };
 };
