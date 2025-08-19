@@ -91,6 +91,8 @@ const Dashboard: React.FC = () => {
   const minDate = useMemo(() => (vm?.challenge?.startDate ? stripTime(vm.challenge.startDate) : null), [vm?.challenge?.startDate]);
   const maxDate = useMemo(() => (vm?.challenge?.endDate ? stripTime(vm.challenge.endDate) : null), [vm?.challenge?.endDate]);
 
+  const today = stripTime(new Date());
+
   // Clamp displayDate wenn Bounds sich ändern
   useEffect(() => {
     if (!vm) return;
@@ -105,6 +107,15 @@ const Dashboard: React.FC = () => {
         year: 'numeric',
       }),
     [displayDate]
+  );
+
+  const todayClamped = useMemo(
+    () => clampDate(new Date(), minDate, maxDate),
+    [minDate, maxDate]
+  );
+  const isFutureSelected = useMemo(
+    () => stripTime(displayDate) > todayClamped,
+    [displayDate, todayClamped]
   );
 
   const calendarHeader = useMemo(
@@ -234,13 +245,17 @@ const Dashboard: React.FC = () => {
         setWeekLoading(false);
       }
     })();
-  }, [displayDate, vm?.user?.id, selectedWeekStart, weekSteps, minDate, maxDate]);
+  // 🔒 keine Abhängigkeit von weekSteps, sonst unnötige Re-runs
+  }, [displayDate, vm?.user?.id, selectedWeekStart, minDate, maxDate]);
 
   // ---- Save Steps ----
   const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
     if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
 
     const dateSafe = clampDate(displayDate, minDate, maxDate);
+    // ❗ Keine Edits in der Zukunft
+    if (stripTime(dateSafe) > stripTime(new Date())) return;
+
     const idx = (dateSafe.getDay() + 6) % 7;
     const dateISO = toISO(dateSafe);
 
@@ -255,10 +270,7 @@ const Dashboard: React.FC = () => {
         vm.user.id,
         dateISO,
         next[idx],
-        {
-          challengeId: vm.challenge.id,
-          teamId: vm.team.id,
-        }
+        { challengeId: vm.challenge.id, teamId: vm.team.id }
       );
     } catch (e) {
       // rollback bei Fehler
@@ -270,6 +282,7 @@ const Dashboard: React.FC = () => {
 
   const applyStepDelta = async (delta: number) => {
     const dateSafe = clampDate(displayDate, minDate, maxDate);
+    if (stripTime(dateSafe) > stripTime(new Date())) return; // ❗
     const idx = (dateSafe.getDay() + 6) % 7;
     const current = weekSteps[idx] ?? 0;
     const target = Math.max(0, current + delta);
@@ -416,8 +429,14 @@ const Dashboard: React.FC = () => {
           </View>
 
           {/* EDIT BTN */}
-          <TouchableOpacity style={styles.editBtn} onPress={() => setModalVisible(true)}>
-            <Text style={[styles.editBtnText, styles.font]}>Schritte bearbeiten</Text>
+          <TouchableOpacity
+            style={[styles.editBtn, isFutureSelected && { opacity: 0.5 }]}
+            disabled={isFutureSelected}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text style={[styles.editBtnText, styles.font]}>
+              {isFutureSelected ? 'Zukunft nicht bearbeitbar' : 'Schritte bearbeiten'}
+            </Text>
           </TouchableOpacity>
 
           {/* WEEKLY SUMMARY */}
@@ -527,7 +546,8 @@ const Dashboard: React.FC = () => {
 
               <View style={styles.actionsRow}>
                 <TouchableOpacity
-                  style={styles.primaryBtn}
+                  style={[styles.primaryBtn, isFutureSelected && { opacity: 0.5 }]}
+                  disabled={isFutureSelected}
                   onPress={async () => {
                     const num = parseInt(stepInput, 10);
                     if (!isNaN(num) && num > 0) await applyStepDelta(num);
@@ -539,7 +559,8 @@ const Dashboard: React.FC = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.secondaryBtn}
+                  style={[styles.secondaryBtn, isFutureSelected && { opacity: 0.5 }]}
+                  disabled={isFutureSelected}
                   onPress={async () => {
                     const num = parseInt(stepInput, 10);
                     if (!isNaN(num) && num > 0) await applyStepDelta(-num);
@@ -550,6 +571,12 @@ const Dashboard: React.FC = () => {
                   <Text style={[styles.font, styles.secondaryBtnText]}>Entfernen</Text>
                 </TouchableOpacity>
               </View>
+
+              {isFutureSelected ? (
+                <Text style={[styles.font, { color: '#6B7280', textAlign: 'center', marginTop: 8 }]}>
+                  Zukünftige Tage können nicht bearbeitet werden.
+                </Text>
+              ) : null}
 
               <TouchableOpacity style={styles.cancelGhost} onPress={() => setModalVisible(false)}>
                 <Text style={[styles.font, styles.cancelGhostText]}>Abbrechen</Text>
@@ -585,11 +612,19 @@ const Dashboard: React.FC = () => {
                   const isSame = sameDay(date, calendarPick);
                   const disabled = !inMonth || !selectable;
 
+                  const isPast = stripTime(date) < today;
+                  const isToday = sameDay(date, today);
+
                   return (
                     <TouchableOpacity
                       key={idx}
                       style={[
                         styles.dayCellWrap,
+                        // Past-Tage sanft einfärben (nur wenn in aktuellem Monat & auswählbar)
+                        isPast && inMonth && selectable && styles.dayPastWrap,
+                        // Heute mit Ring
+                        isToday && styles.dayTodayWrap,
+                        // Selection gewinnt (kommt später, überschreibt Background)
                         isSame && !disabled && styles.daySelectedWrap,
                         disabled && { opacity: 0.35 },
                       ]}

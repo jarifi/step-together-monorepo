@@ -582,6 +582,14 @@ const styles = StyleSheet.create({
         color: '#2F3E34',
         fontWeight: '700',
     },
+    dayPastWrap: {
+    backgroundColor: '#EEF3EF',
+    },
+    dayTodayWrap: {
+    borderWidth: 2,
+    borderColor: '#BFD4C5',
+    borderRadius: 12,
+    },
 });
 
 export default styles;
