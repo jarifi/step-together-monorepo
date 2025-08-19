@@ -70,6 +70,15 @@ Content-Type: application/json
 GET {{baseUrl}}/teams/members/active_challenge/1/1
 Authorization: Bearer {{login.response.body.access_token}}
 
+### 3.3 Add user to team
+POST {{baseUrl}}/teams/join_team/20
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+    "user_id": 15
+}
+
 ### 4. Get All Team Members Using Access Token
 GET {{baseUrl}}/team_members
 Authorization: Bearer {{login.response.body.access_token}}

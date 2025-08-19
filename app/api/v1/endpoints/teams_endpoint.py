@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy import and_
 
 from app.db.session import get_db
-from app.schema.team import TeamCreate, TeamSchema, TeamUpdate
+from app.schema.team import TeamCreate, TeamSchema, TeamUpdate, AddUserToTeamRequest
 from app.schema.team_member import TeamMemberChallengeSteps
 from app.crud import team as team_crud
 from app.core.security import get_current_user
@@ -106,3 +106,33 @@ def get_team_members_challenge_steps(
     )
 
     return results
+
+@router.post("/join_team/{team_id}", status_code=status.HTTP_201_CREATED)
+def add_user_to_team(
+    team_id: int,
+    request: AddUserToTeamRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found.")
+    
+    user = db.query(User).filter(User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    existing = (
+        db.query(TeamMember)
+        .filter(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="User is already a member of this team.")
+    
+    new_member = TeamMember(team_id=team_id, user_id=request.user_id)
+    db.add(new_member)
+    db.commit()
+    db.refresh(new_member)
+
+    return {"message": f"User {request.user_id} joined team {team_id}"}

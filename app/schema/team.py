@@ -28,3 +28,6 @@ class TeamSchema(CamelCaseBaseModel):
         ),
         "populate_by_name": True
     } 
+
+class AddUserToTeamRequest(CamelCaseBaseModel):
+    user_id: int
