@@ -1,10 +1,15 @@
+// Helpers
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 export const toDate = (iso) => (iso ? new Date(iso) : null);
 
-// ISO "YYYY-MM-DD" → lokal (UTC-Shift vermeiden)
+const MS_PER_DAY = 86_400_000;
+
+// "YYYY-MM-DD" als lokales Datum (vermeidet UTC-Shift)
 const fromIsoLocal = (s) => {
-  const [y, m, d] = String(s).split('-').map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
+  if (!s) return null;
+  const [y, m, d] = String(s).split('-').map((n) => Number(n));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
 };
 
 export const toIsoDate = (d) => {
@@ -22,59 +27,60 @@ export const mondayOf = (d) => {
   return c;
 };
 
-const daysBetween = (a, b) => Math.ceil((b - a) / (1000 * 60 * 60 * 24));
+const daysBetween = (a, b) => Math.ceil((b.getTime() - a.getTime()) / MS_PER_DAY);
+
 const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
 const dayLabelEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const normalizeDayOfWeek = (val) => {
   if (!val) return null;
   const s = String(val).toLowerCase();
-  const enIdx = dayLabelEn.findIndex((d) => d.toLowerCase() === s);
-  if (enIdx >= 0) return dayLabelDe[enIdx];
-  const deIdx = dayLabelDe.findIndex((d) => d.toLowerCase() === s);
-  return deIdx >= 0 ? dayLabelDe[deIdx] : null;
+  let idx = dayLabelEn.findIndex((d) => d.toLowerCase() === s);
+  if (idx >= 0) return dayLabelDe[idx];
+  idx = dayLabelDe.findIndex((d) => d.toLowerCase() === s);
+  return idx >= 0 ? dayLabelDe[idx] : null;
 };
 
 // ======================
-// Exakt die Pivot-Woche mappen (Mo..So)
-//  - raw: number[] ODER object[]
-//  - pivotMonday: Montag-Datum der Zielwoche
+// Woche Mo..So exakt zur Pivot-Woche
 // ======================
 export const parseStepsThisWeek = (raw, pivotMonday) => {
   const baseMonday = mondayOf(pivotMonday || new Date());
   const sums = new Array(7).fill(0);
 
   const addAtIdx = (idx, v) => {
-    if (idx >= 0 && idx < 7) sums[idx] += Math.max(0, Math.floor(Number(v) || 0));
+    if (idx >= 0 && idx < 7) {
+      const n = Math.floor(Number(v) || 0);
+      if (n > 0) sums[idx] += n;
+    }
   };
 
-  if (Array.isArray(raw) && raw.length > 0) {
+  if (Array.isArray(raw) && raw.length) {
     if (typeof raw[0] === 'number') {
-      // number[]: Index 0..6 → Mo..So relativ zur Pivot
       raw.slice(0, 7).forEach((n, i) => addAtIdx(i, n));
     } else {
-      // object[]: { date?, dayOfWeek?, numberOfSteps|steps? }
       for (const e of raw) {
         const val = e?.numberOfSteps ?? e?.steps ?? 0;
         let idx = -1;
 
         if (e?.date) {
           const d = fromIsoLocal(e.date);
-          // Nur zählen, wenn Datum in der Pivot-Woche liegt
-          const offsetDays = Math.floor((mondayOf(d) - baseMonday) / (1000 * 60 * 60 * 24));
-          if (offsetDays === 0) idx = (d.getDay() + 6) % 7;
+          if (d) {
+            const diffMon = mondayOf(d).getTime() - baseMonday.getTime();
+            if (diffMon === 0) idx = (d.getDay() + 6) % 7;
+          }
         }
-        // Fallback: dayOfWeek (EN/DE)
+
         if (idx < 0 && e?.dayOfWeek) {
           const de = normalizeDayOfWeek(e.dayOfWeek);
-          idx = dayLabelDe.indexOf(de ?? '');
+          if (de) idx = dayLabelDe.indexOf(de);
         }
+
         addAtIdx(idx, val);
       }
     }
   }
 
-  // Ausgabe als vollständige Woche (Objekte)
   return sums.map((n, i) => {
     const d = new Date(baseMonday);
     d.setDate(baseMonday.getDate() + i);
@@ -84,7 +90,6 @@ export const parseStepsThisWeek = (raw, pivotMonday) => {
 
 // ======================
 // Main Mapper
-//  - optional pivotMonday, um steps_this_week korrekt zu bauen
 // ======================
 export const mapHomeInitToDashboard = (data, pivotMonday) => {
   if (!data) return null;
@@ -97,8 +102,8 @@ export const mapHomeInitToDashboard = (data, pivotMonday) => {
   let daysLeft = 0;
   let timeProgress = 0;
   if (start && end && end > start) {
-    const span = end - start;
-    timeProgress = clamp01((now - start) / span);
+    const span = end.getTime() - start.getTime();
+    timeProgress = clamp01((now.getTime() - start.getTime()) / span);
     daysLeft = Math.max(0, daysBetween(now, end));
   }
 
@@ -128,9 +133,6 @@ export const mapHomeInitToDashboard = (data, pivotMonday) => {
       daysLeft,
       timeProgress,
     },
-    steps_this_week: parseStepsThisWeek(
-      data.steps_this_week,
-      pivotMonday ?? mondayOf(new Date())
-    ),
+    steps_this_week: parseStepsThisWeek(data.steps_this_week, pivotMonday),
   };
 };

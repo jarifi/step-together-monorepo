@@ -10,21 +10,20 @@ import {
   View,
 } from 'react-native';
 
-import styles from './styles/dashboardStyles';
-
 import { mapHomeInitToDashboard, parseStepsThisWeek } from '../services/dashboard/dashboardDto';
 import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboard/dashboardService';
+import styles from './styles/dashboardStyles';
 
 // ======================
 // Types
 // ======================
-type StepsEntry = {
+export type StepsEntry = {
   date: string; // YYYY-MM-DD
-  dayOfWeek: 'MO' | 'DI' | 'MI' | 'DO' | 'FR' | 'SA' | 'SO' | string;
+  dayOfWeek: string;
   numberOfSteps: number;
 };
 
-type HomeInitDto = {
+export type HomeInitDto = {
   user: {
     id: number | null;
     name: string;
@@ -55,7 +54,7 @@ type HomeInitDto = {
 // ======================
 const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'] as const;
 
-const startOfWeek = (d: Date) => {
+const startOfWeek = (d: Date): Date => {
   const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const dow = (copy.getDay() + 6) % 7; // 0=Mo..6=So
   copy.setDate(copy.getDate() - dow);
@@ -78,7 +77,7 @@ const toISO = (d: Date) => {
 // ======================
 // Component
 // ======================
-const Dashboard = () => {
+const Dashboard: React.FC = () => {
   // Core VM
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,9 +88,9 @@ const Dashboard = () => {
   const [stepInput, setStepInput] = useState('');
 
   // Date & Week State
-  const [displayDate, setDisplayDate] = useState(new Date()); // aktuell ausgewählter Tag
+  const [displayDate, setDisplayDate] = useState(new Date());
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date()));
-  const [weekSteps, setWeekSteps] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]); // [Mo..So]
+  const [weekSteps, setWeekSteps] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [stepsToday, setStepsToday] = useState(0);
   const [weekLoading, setWeekLoading] = useState(false);
 
@@ -117,18 +116,15 @@ const Dashboard = () => {
 
   const calendarGrid = useMemo(() => {
     const firstOfMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
-    const firstWeekday = ((firstOfMonth.getDay() + 6) % 7) + 1; // 1=Mon..7=Sun
+    const firstWeekday = ((firstOfMonth.getDay() + 6) % 7) + 1;
     const start = new Date(firstOfMonth);
-    start.setDate(firstOfMonth.getDate() - (firstWeekday - 1)); // zurück auf Montag
+    start.setDate(firstOfMonth.getDate() - (firstWeekday - 1));
 
     const cells: { date: Date; inMonth: boolean }[] = [];
     for (let i = 0; i < 42; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      cells.push({
-        date: d,
-        inMonth: d.getMonth() === calendarMonth.getMonth(),
-      });
+      cells.push({ date: d, inMonth: d.getMonth() === calendarMonth.getMonth() });
     }
     return cells;
   }, [calendarMonth]);
@@ -138,7 +134,7 @@ const Dashboard = () => {
   const goNextMonth = () =>
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
-  // ========= Initial load (fetch + map) =========
+  // ========= Initial load =========
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -157,7 +153,6 @@ const Dashboard = () => {
         }
 
         setVm(mapped);
-
         const arr = (mapped.steps_this_week ?? []).map((s) => s.numberOfSteps);
         setWeekSteps(arr.length === 7 ? arr : [0, 0, 0, 0, 0, 0, 0]);
 
@@ -174,17 +169,15 @@ const Dashboard = () => {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ========= Week change when displayDate changes =========
+  // ========= Week change =========
   useEffect(() => {
     if (!vm?.user?.id) return;
 
     const pivot = displayDate;
     const weekStart = startOfWeek(pivot);
 
-    // gleiche Woche → nur today updaten
     if (sameDay(weekStart, selectedWeekStart)) {
       const idx = (pivot.getDay() + 6) % 7;
       setStepsToday(weekSteps[idx] ?? 0);
@@ -195,7 +188,7 @@ const Dashboard = () => {
     (async () => {
       try {
         const weekStartISO = toISO(weekStart);
-        const resp = await getWeekSteps(vm.user!.id!, weekStartISO); // <— userId jetzt nötig
+        const resp = await getWeekSteps(vm.user!.id!, weekStartISO);
         const parsed = Array.isArray(resp)
           ? parseStepsThisWeek(resp, weekStart)
           : parseStepsThisWeek([], weekStart);
@@ -216,16 +209,14 @@ const Dashboard = () => {
         setWeekLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayDate, vm?.user?.id]);
+  }, [displayDate, vm?.user?.id, selectedWeekStart, weekSteps]);
 
-  // ---- Speichern (optimistic absolute value, Upsert-by-date) ----
+  // ---- Save Steps ----
   const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
     if (!vm?.user?.id) return;
     const idx = (displayDate.getDay() + 6) % 7;
     const dateISO = toISO(displayDate);
 
-    // optimistic
     const prev = [...weekSteps];
     const next = [...weekSteps];
     next[idx] = Math.max(0, Math.floor(newValue));
@@ -234,12 +225,9 @@ const Dashboard = () => {
 
     try {
       await upsertStepsForDate(vm.user.id, dateISO, next[idx]);
-      // Optional: revalidate hier, falls du out-of-band Updates erwartest
-    } catch (e) {
-      // rollback
+    } catch {
       setWeekSteps(prev);
       setStepsToday(prev[idx] ?? 0);
-      throw e;
     }
   };
 
@@ -247,14 +235,10 @@ const Dashboard = () => {
     const idx = (displayDate.getDay() + 6) % 7;
     const current = weekSteps[idx] ?? 0;
     const target = Math.max(0, current + delta);
-    try {
-      await saveAbsoluteStepsForSelectedDay(target);
-    } catch {
-      // Optional: Toast
-    }
+    await saveAbsoluteStepsForSelectedDay(target);
   };
 
-  // ========= Derived metrics =========
+  // ========= Derived =========
   const weeklyMax = Math.max(1, ...weekSteps);
   const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
 
@@ -321,7 +305,6 @@ const Dashboard = () => {
       </View>
     );
   }
-
   // ========= Render =========
   return (
     <>
@@ -362,7 +345,7 @@ const Dashboard = () => {
           <View style={styles.metricsRow}>
             {/* kcal */}
             <View style={styles.metricSide}>
-              <Ionicons name="flame" size={24} style={{ marginBottom: 4 }} />
+              <Ionicons name="flame" size={24} color="#E25822" style={{ marginBottom: 4 }} />
               <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
             </View>
@@ -380,7 +363,7 @@ const Dashboard = () => {
 
             {/* distance */}
             <View style={[styles.metricSide, { alignItems: 'flex-start' }]}>
-              <MaterialIcons name="place" size={24} style={{ marginBottom: 4, alignSelf: 'center' }} />
+              <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4, alignSelf: 'center' }} />
               <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : distanceKm}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
             </View>
@@ -448,14 +431,16 @@ const Dashboard = () => {
           </Text>
 
           {[
-            { name: 'Jessica Marie Müll', steps: '51.200' },
-            { name: 'Leonardo da Vinci', steps: '30.000' },
-            { name: 'Gustav Fröhlich', steps: '28.800' },
+            { name: 'Jessica Marie Müll', steps: '51.200', rankColor: '#C8A100' },
+            { name: 'Leonardo da Vinci', steps: '30.000', rankColor: '#999999' },
+            { name: 'Gustav Fröhlich', steps: '28.800', rankColor: '#C9716D' },
             { name: 'Bernadette Unförmlich', steps: '27.600' },
             { name: `${vm.user.name || 'Du'}`, steps: '6.400', isUser: true },
           ].map((u, idx) => (
             <View key={idx} style={[styles.rankRow, u.isUser && styles.rankRowMe]}>
-              <Text style={[styles.rankBadge, styles.font]}>{idx + 1}#</Text>
+              <Text style={[styles.rankBadge, styles.font, u.rankColor ? { color: u.rankColor } : null]}>
+                {idx + 1}#
+              </Text>
               <View style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={styles.rowBetween}>
