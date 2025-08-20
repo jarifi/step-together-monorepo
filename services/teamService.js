@@ -76,3 +76,27 @@ export const createTeam = async (data) => {
         throw err;
     }
 };
+
+export const getTeamRanking = async (teamId, challengeId) => {
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+    const res = await fetch(
+      `${BASE_URL}/teams/members/active_challenge/${teamId}/${challengeId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Failed to fetch team ranking');
+
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('Error fetching team ranking:', err);
+    return [];
+  }
+};

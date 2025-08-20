@@ -81,7 +81,7 @@ export const getWeekSteps = async (userId, weekStartISO) => {
   weekEnd.setDate(weekStart.getDate() + 6);
 
   const withinWeek = (dateStr) => {
-    const d = fromIsoLocal(dateStr);
+    const d = fromIsoLocal(dateStr || '');
     return d && d >= weekStart && d <= weekEnd;
   };
 
@@ -106,7 +106,7 @@ export const upsertStepsForDate = async (
   userId,
   dateISO,
   absoluteSteps,
-  context // { challengeId: number; teamId: number }
+  context 
 ) => {
   if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
   if (userId === undefined || userId === null) throw new Error('userId required');
@@ -121,8 +121,8 @@ export const upsertStepsForDate = async (
 
   if (existing?.id != null) {
     const id = String(existing.id);
-    // falls dein Backend /step_logs/{id} erwartet, nimm: const url = joinUrl(base, id);
-    const url = `${base}?step_log_id=${encodeURIComponent(id)}`;
+    const url = joinUrl(base, id);
+
     const body = JSON.stringify({ numberOfSteps: Number(absoluteSteps) });
     return await http(url, { method: 'PUT', headers, body });
   }
@@ -141,3 +141,5 @@ export const upsertStepsForDate = async (
   });
   return await http(url, { method: 'POST', headers, body });
 };
+
+

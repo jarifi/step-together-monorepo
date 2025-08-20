@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     calIconBtn: {
-        padding: 8,
+        padding: 10,
         borderRadius: 12,
         backgroundColor: '#E8EFEA',
     },

@@ -1,7 +1,11 @@
-// Helpers 
+// ======================
+// Helpers
+// ======================
+
 export const MS_PER_DAY = 86_400_000;
 
-export const stripTime = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+export const stripTime = (d) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 export const toIsoDate = (d) => {
   const y = d.getFullYear();
@@ -48,7 +52,8 @@ export const startOfWeek = (d) => {
 export const firstOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
 export const lastOfMonth  = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
 
-export const daysBetween = (a, b) => Math.ceil((stripTime(b).getTime() - stripTime(a).getTime()) / MS_PER_DAY);
+export const daysBetween = (a, b) =>
+  Math.ceil((stripTime(b).getTime() - stripTime(a).getTime()) / MS_PER_DAY);
 
 export const isInRange = (d, min, max) => {
   const x = stripTime(d);
@@ -66,7 +71,10 @@ export const clampDate = (d, min, max) => {
   return x;
 };
 
+// ======================
 // Steps-Helpers
+// ======================
+
 export const clamp01 = (v) => Math.max(0, Math.min(1, v));
 export const dayLabelDe = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
 export const dayLabelEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -127,6 +135,7 @@ export const parseStepsThisWeek = (raw, pivotMonday) => {
 // ======================
 // Main Mapper
 // ======================
+
 export const toDate = (iso) => (iso ? new Date(iso) : null);
 
 export const mapHomeInitToDashboard = (data, pivotMonday) => {

@@ -1,7 +1,9 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Modal,
   ScrollView,
   Text,
@@ -25,6 +27,7 @@ import {
 } from '../services/dashboard/dashboardDto';
 
 import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboard/dashboardService';
+import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
 
 // ======================
@@ -41,7 +44,7 @@ export type HomeInitDto = {
     id: number | null;
     name: string;
     email: string;
-    stepLength: number;
+    stepLength: number; // Meter pro Schritt
   };
   team: {
     id: number | null;
@@ -52,14 +55,24 @@ export type HomeInitDto = {
     name: string;
     startLocation: string;
     targetLocation: string;
-    distanceKm: number;
+    distanceKm?: number; // optional – Backend kann auch "distance" liefern
+    distance?: number;   // optional – Fallback
     startDate: Date | null;
     endDate: Date | null;
     state: string;
-    daysLeft: number;
-    timeProgress: number; // 0..1
+    daysLeft?: number;
+    timeProgress?: number; // 0..1
   };
   steps_this_week?: StepsEntry[];
+};
+
+export type RankingItem = {
+  userId: number | null;
+  name: string;
+  steps: number;
+  stepLength?: number | null; // m per step (neu)
+  isUser?: boolean;
+  rankColor?: string | null;
 };
 
 // ======================
@@ -88,10 +101,35 @@ const Dashboard: React.FC = () => {
   const [calendarPick, setCalendarPick] = useState<Date>(new Date());
 
   // ===== Challenge bounds =====
-  const minDate = useMemo(() => (vm?.challenge?.startDate ? stripTime(vm.challenge.startDate) : null), [vm?.challenge?.startDate]);
-  const maxDate = useMemo(() => (vm?.challenge?.endDate ? stripTime(vm.challenge.endDate) : null), [vm?.challenge?.endDate]);
+  const minDate = useMemo(
+    () => (vm?.challenge?.startDate ? stripTime(vm.challenge.startDate) : null),
+    [vm?.challenge?.startDate]
+  );
+  const maxDate = useMemo(
+    () => (vm?.challenge?.endDate ? stripTime(vm.challenge.endDate) : null),
+    [vm?.challenge?.endDate]
+  );
 
   const today = stripTime(new Date());
+
+  const [rankings, setRankings] = useState<RankingItem[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingError, setRankingError] = useState<string | null>(null);
+  const fmt = useMemo(() => new Intl.NumberFormat('de-DE'), []);
+  const fmt1 = useMemo(() => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }), []);
+
+  const [distanceKmDone, setDistanceKmDone] = useState(0);
+  const [distancePct, setDistancePct] = useState(0); // 0..100
+
+  // Fixe, realistische Schrittlänge als Fallback
+  const FIX_STEP_LENGTH_M = 0.78;
+
+  // ===== mounted guard =====
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   // Clamp displayDate wenn Bounds sich ändern
   useEffect(() => {
@@ -109,10 +147,8 @@ const Dashboard: React.FC = () => {
     [displayDate]
   );
 
-  const todayClamped = useMemo(
-    () => clampDate(new Date(), minDate, maxDate),
-    [minDate, maxDate]
-  );
+  const todayClamped = useMemo(() => clampDate(new Date(), minDate, maxDate), [minDate, maxDate]);
+
   const isFutureSelected = useMemo(
     () => stripTime(displayDate) > todayClamped,
     [displayDate, todayClamped]
@@ -161,6 +197,13 @@ const Dashboard: React.FC = () => {
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
   };
 
+  // ===== Challenge-Distanz robust (distance vs distanceKm) =====
+  const challengeDistanceKm = useMemo(() => {
+    const dAny = (vm as any)?.challenge;
+    const d = dAny ? (dAny.distanceKm ?? dAny.distance ?? 0) : 0;
+    return Number(d || 0);
+  }, [vm?.challenge?.distanceKm, (vm as any)?.challenge?.distance]);
+
   // ========= Initial load =========
   useEffect(() => {
     let alive = true;
@@ -168,6 +211,7 @@ const Dashboard: React.FC = () => {
       try {
         setLoading(true);
         setErrorMsg(null);
+
         const raw = await getHomeInit();
         if (!alive) return;
 
@@ -204,13 +248,126 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
-  // ========= Week change =========
+  // ===== zentraler Refresh (Woche + Ranking) =====
+  const refreshWeekAndRanking = useCallback(async () => {
+    if (!vm?.user?.id) return;
+    const pivot = clampDate(displayDate, minDate, maxDate);
+    const weekStart = startOfWeek(pivot);
+
+    try {
+      setWeekLoading(true);
+      const [respWeek, respRank] = await Promise.all([
+        getWeekSteps(vm.user.id, toISO(weekStart)),
+        (vm.team?.id && vm.challenge?.id)
+          ? getTeamRanking(vm.team.id, vm.challenge.id)
+          : Promise.resolve(null),
+      ]);
+
+      if (!isMountedRef.current) return;
+
+      // Woche parsen + setzen
+      const parsed = Array.isArray(respWeek)
+        ? parseStepsThisWeek(respWeek, weekStart)
+        : parseStepsThisWeek([], weekStart);
+      const arr = parsed.map((x) => x.numberOfSteps);
+      setWeekSteps(arr);
+
+      const idx = (pivot.getDay() + 6) % 7;
+      setStepsToday(arr[idx] ?? 0);
+      setSelectedWeekStart(weekStart);
+
+      // Ranking normalisieren (mit stepLength)
+      if (respRank) {
+        const normalized: RankingItem[] = respRank.map((r: any) => {
+          const sl = Number(
+            r?.stepLength ??
+            r?.user?.stepLength ??
+            r?.step_length ??
+            r?.user_step_length ??
+            0
+          );
+          return {
+            userId: r?.id ?? null,
+            name: String(r?.name ?? '—'),
+            steps: Number(r?.numberOfSteps ?? r?.steps ?? 0),
+            stepLength: Number.isFinite(sl) && sl > 0 ? sl : FIX_STEP_LENGTH_M,
+          };
+        });
+
+        normalized.sort((a, b) => b.steps - a.steps);
+        const decorated = normalized.map((r, i) => ({
+          ...r,
+          isUser: vm.user?.id != null && r.userId === vm.user.id,
+          rankColor: i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
+        }));
+
+        setRankings(decorated);
+      }
+    } catch {
+      // optional logging
+    } finally {
+      if (isMountedRef.current) setWeekLoading(false);
+    }
+  }, [vm?.user?.id, vm?.team?.id, vm?.challenge?.id, displayDate, minDate, maxDate]);
+
+  // Team-Ranking initial (und bei IDs) laden
+  useEffect(() => {
+    if (!vm?.team?.id || !vm?.challenge?.id) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        setRankingLoading(true);
+        setRankingError(null);
+
+        const raw = await getTeamRanking(vm.team.id!, vm.challenge.id!);
+        if (!alive) return;
+
+        const normalized: RankingItem[] = raw.map((r: any) => {
+          const sl = Number(
+            r?.stepLength ??
+            r?.user?.stepLength ??
+            r?.step_length ??
+            r?.user_step_length ??
+            0
+          );
+          return {
+            userId: r?.id ?? null,
+            name: String(r?.name ?? '—'),
+            steps: Number(r?.numberOfSteps ?? r?.steps ?? 0),
+            stepLength: Number.isFinite(sl) && sl > 0 ? sl : FIX_STEP_LENGTH_M,
+          };
+        });
+
+        normalized.sort((a, b) => b.steps - a.steps);
+
+        const decorated = normalized.map((r, i) => ({
+          ...r,
+          isUser: vm.user?.id != null && r.userId === vm.user.id,
+          rankColor: i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
+        }));
+
+        setRankings(decorated);
+      } catch (err: any) {
+        console.error('Error fetching team ranking', err);
+        setRankingError(err?.message ?? 'Konnte Ranking nicht laden');
+        setRankings([]);
+      } finally {
+        setRankingLoading(false);
+      }
+    })();
+
+    return () => { alive = false; };
+  }, [vm?.team?.id, vm?.challenge?.id, vm?.user?.id]);
+
+  // ========= Week change & Tageswerte =========
   useEffect(() => {
     if (!vm?.user?.id) return;
 
-    // clamp displayDate before using it
     const pivot = clampDate(displayDate, minDate, maxDate);
-    if (!sameDay(pivot, displayDate)) setDisplayDate(pivot);
+    if (!sameDay(pivot, displayDate)) {
+      setDisplayDate(pivot);
+    }
 
     const weekStart = startOfWeek(pivot);
 
@@ -245,7 +402,7 @@ const Dashboard: React.FC = () => {
         setWeekLoading(false);
       }
     })();
-  // 🔒 keine Abhängigkeit von weekSteps, sonst unnötige Re-runs
+    // bewusst ohne weekSteps in deps (sonst Loop)
   }, [displayDate, vm?.user?.id, selectedWeekStart, minDate, maxDate]);
 
   // ---- Save Steps ----
@@ -253,7 +410,7 @@ const Dashboard: React.FC = () => {
     if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
 
     const dateSafe = clampDate(displayDate, minDate, maxDate);
-    // ❗ Keine Edits in der Zukunft
+    // Keine Edits in der Zukunft
     if (stripTime(dateSafe) > stripTime(new Date())) return;
 
     const idx = (dateSafe.getDay() + 6) % 7;
@@ -272,6 +429,8 @@ const Dashboard: React.FC = () => {
         next[idx],
         { challengeId: vm.challenge.id, teamId: vm.team.id }
       );
+      // <- sofortiger Re-Fetch (Server-Truth + Ranking)
+      refreshWeekAndRanking();
     } catch (e) {
       // rollback bei Fehler
       setWeekSteps(prev);
@@ -282,7 +441,7 @@ const Dashboard: React.FC = () => {
 
   const applyStepDelta = async (delta: number) => {
     const dateSafe = clampDate(displayDate, minDate, maxDate);
-    if (stripTime(dateSafe) > stripTime(new Date())) return; // ❗
+    if (stripTime(dateSafe) > stripTime(new Date())) return;
     const idx = (dateSafe.getDay() + 6) % 7;
     const current = weekSteps[idx] ?? 0;
     const target = Math.max(0, current + delta);
@@ -293,20 +452,69 @@ const Dashboard: React.FC = () => {
   const weeklyMax = Math.max(1, ...weekSteps);
   const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
 
-  const stepLengthMeters = vm?.user?.stepLength ?? 0;
+  // Für Tageskarte (Heutige Distanz/Kcal) nehmen wir die **eigene** Schrittlänge,
+  // das ist okay – hat nichts mit Team-Progress zu tun.
+  const stepLengthMeters = (vm?.user?.stepLength && vm.user.stepLength > 0)
+    ? vm.user.stepLength
+    : FIX_STEP_LENGTH_M;
+
   const distanceKm = useMemo(() => {
     const km = (stepsToday * stepLengthMeters) / 1000;
     return Math.round(km * 100) / 100;
   }, [stepsToday, stepLengthMeters]);
 
   const kcal = useMemo(() => {
-    const k = stepsToday * 0.04;
+    const k = stepsToday * 0.04; // grobe Schätzung
     return Math.round(k * 100) / 100;
   }, [stepsToday]);
 
   const timeProgressRaw = vm?.challenge?.timeProgress ?? 0;
   const timeProgressPct = Math.round(Math.max(0, Math.min(1, timeProgressRaw)) * 100);
   const daysLeft = vm?.challenge?.daysLeft;
+
+  // ===== Team-Progress: Summe aller Schritte * individuelle Schrittlänge =====
+  useEffect(() => {
+    const targetKm = Number(challengeDistanceKm || 0);
+    if (!Array.isArray(rankings) || rankings.length === 0 || !targetKm) {
+      setDistanceKmDone(0);
+      setDistancePct(0);
+      return;
+    }
+
+    // Σ (steps_i * stepLength_i) / 1000
+    const kmSum = rankings.reduce((sum, r) => {
+      const steps = Number(r?.steps || 0);
+      const len   = Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
+      return sum + (steps * len) / 1000;
+    }, 0);
+
+    const pct = Math.max(0, Math.min(100, (kmSum / Math.max(1, targetKm)) * 100));
+    setDistanceKmDone(Number.isFinite(kmSum) ? kmSum : 0);
+    setDistancePct(Math.round(pct));
+  }, [rankings, challengeDistanceKm]);
+
+  // ===== Auto-Refresh: Fokus, Foreground, Intervall =====
+  useFocusEffect(
+    useCallback(() => {
+      refreshWeekAndRanking();
+      return undefined;
+    }, [refreshWeekAndRanking])
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshWeekAndRanking();
+    });
+    return () => sub.remove();
+  }, [refreshWeekAndRanking]);
+
+  useEffect(() => {
+    if (!vm?.user?.id) return;
+    const id = setInterval(() => {
+      refreshWeekAndRanking();
+    }, 30000); // 30s (gern 60–120s)
+    return () => clearInterval(id);
+  }, [vm?.user?.id, vm?.team?.id, vm?.challenge?.id, selectedWeekStart, refreshWeekAndRanking]);
 
   // ========= Render Guards =========
   if (loading) {
@@ -370,7 +578,6 @@ const Dashboard: React.FC = () => {
         {/* DATE + USER + CHALLENGE */}
         <View style={styles.topSection}>
           <View style={styles.dateRow}>
-            <Text style={[styles.date, styles.font]}>{currentDate}</Text>
             <TouchableOpacity
               accessibilityRole="button"
               onPress={() => {
@@ -379,8 +586,11 @@ const Dashboard: React.FC = () => {
                 setCalendarMonth(new Date(safe.getFullYear(), safe.getMonth(), 1));
                 setCalendarOpen(true);
               }}
-              style={[styles.calIconBtn, { marginLeft: 10 }]}
+              style={[styles.calIconBtn, { flexDirection: 'row', alignItems: 'center' }]}
             >
+              <Text style={[styles.date, styles.font, { marginRight: 6 }]}>
+                {currentDate}
+              </Text>
               <Ionicons name="calendar-outline" size={22} color="#2F3E34" />
             </TouchableOpacity>
           </View>
@@ -397,7 +607,7 @@ const Dashboard: React.FC = () => {
           <Text style={[styles.challengeRow, styles.font]}>
             <Text style={styles.challengeLabel}>Challenge: </Text>
             {vm.challenge.startLocation || '—'} → {vm.challenge.targetLocation || '—'}{' '}
-            <Text style={styles.challengeMeta}>({vm.challenge.distanceKm ?? 0} Km)</Text>
+            <Text style={styles.challengeMeta}>({challengeDistanceKm} km)</Text>
           </Text>
 
           {/* METRICS */}
@@ -468,24 +678,19 @@ const Dashboard: React.FC = () => {
 
           <View style={styles.topScaleRow}>
             <Text style={[styles.scaleTick, styles.font]}>Start </Text>
-            <Text style={[styles.scaleTick, styles.font]}>Ziel: {vm.challenge.distanceKm} km</Text>
+            <Text style={[styles.scaleTick, styles.font]}>Ziel: {challengeDistanceKm} km</Text>
           </View>
 
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${timeProgressPct}%` }]} />
+            <View style={[styles.progressFill, { width: `${distancePct}%` }]} />
           </View>
-
           <Text style={[styles.progressNote, styles.font]}>
-            <Text style={{ color: '#5F764E', fontWeight: '800' }}>{timeProgressPct}%</Text> der Challenge-Zeit sind vorbei.
-            {Number.isFinite(daysLeft) ? (
-              <Text>
-                {' '}
-                Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.
-              </Text>
-            ) : null}
+            <Text style={{ color: '#5F764E', fontWeight: '800' }}>{distancePct}%</Text> der Strecke geschafft.
+            {' '}({fmt1.format(distanceKmDone)} / {challengeDistanceKm} km){'\n'}
+            {typeof daysLeft === 'number' ? <>Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.</> : null}
           </Text>
 
-          {/* TEAM INFOS (Demo) */}
+          {/* TEAM INFOS */}
           <View style={styles.teamSectionHeader}>
             <Text style={[styles.teamTitle, styles.font]}>Team Infos</Text>
           </View>
@@ -495,24 +700,36 @@ const Dashboard: React.FC = () => {
             der Challenge
           </Text>
 
-          {[
-            { name: 'Jessica Marie Müll', steps: '51.200', rankColor: '#C8A100' },
-            { name: 'Leonardo da Vinci', steps: '30.000', rankColor: '#999999' },
-            { name: 'Gustav Fröhlich', steps: '28.800', rankColor: '#C9716D' },
-            { name: 'Bernadette Unförmlich', steps: '27.600' },
-            { name: `${vm.user.name || 'Du'}`, steps: '6.400', isUser: true },
-          ].map((u, idx) => (
-            <View key={idx} style={[styles.rankRow, u.isUser && styles.rankRowMe]}>
+          {rankingLoading && (
+            <View style={{ paddingVertical: 8 }}>
+              <ActivityIndicator />
+            </View>
+          )}
+
+          {rankingError && !rankingLoading && (
+            <Text style={[styles.font, { color: '#B91C1C', marginVertical: 6 }]}>
+              {rankingError}
+            </Text>
+          )}
+
+          {!rankingLoading && !rankingError && rankings.length === 0 && (
+            <Text style={[styles.font, { color: '#6B7280', marginVertical: 6 }]}>
+              Noch keine Ranking-Daten vorhanden.
+            </Text>
+          )}
+
+          {!rankingLoading && !rankingError && rankings.length > 0 && rankings.map((u, idx) => (
+            <View key={`${u.userId ?? 'x'}-${idx}`} style={[styles.rankRow, u.isUser && styles.rankRowMe]}>
               <Text style={[styles.rankBadge, styles.font, u.rankColor ? { color: u.rankColor } : null]}>
                 {idx + 1}#
               </Text>
               <View style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={styles.rowBetween}>
-                  <Text style={[styles.userName, styles.font]}>{u.name}</Text>
+                  <Text style={[styles.userName, styles.font]} numberOfLines={1}>{u.name}</Text>
                   {u.isUser ? <Text style={[styles.youNote, styles.font]}>(Du)</Text> : null}
                 </View>
-                <Text style={[styles.userSteps, styles.font]}>{u.steps}</Text>
+                <Text style={[styles.userSteps, styles.font]}>{fmt.format(u.steps)}</Text>
               </View>
             </View>
           ))}
@@ -537,7 +754,7 @@ const Dashboard: React.FC = () => {
                     style={[styles.inputBare, styles.font]}
                     placeholder="z. B. 1200"
                     placeholderTextColor="#9AA7A0"
-                    keyboardType="numeric"
+                    keyboardType="number-pad"
                     value={stepInput}
                     onChangeText={setStepInput}
                   />
@@ -617,14 +834,11 @@ const Dashboard: React.FC = () => {
 
                   return (
                     <TouchableOpacity
-                      key={idx}
+                      key={`${date.toISOString()}-${idx}`}
                       style={[
                         styles.dayCellWrap,
-                        // Past-Tage sanft einfärben (nur wenn in aktuellem Monat & auswählbar)
                         isPast && inMonth && selectable && styles.dayPastWrap,
-                        // Heute mit Ring
                         isToday && styles.dayTodayWrap,
-                        // Selection gewinnt (kommt später, überschreibt Background)
                         isSame && !disabled && styles.daySelectedWrap,
                         disabled && { opacity: 0.35 },
                       ]}
