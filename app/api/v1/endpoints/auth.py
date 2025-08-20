@@ -22,16 +22,16 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
   db_user = get_user_by_email(db, user.email)
 
   if not db_user:
-    raise HTTPException(status_code=400, detail="User not found")
+    raise HTTPException(status_code=400, detail="Benutzer nicht gefunden.")
   
   if db_user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-    raise HTTPException(status_code=403, detail="Account locked due to too many failed login attempts.")
+    raise HTTPException(status_code=403, detail="Konto gesperrt wegen zu vieler fehlgeschlagener Anmeldeversuche.")
   
   if not verify_password(user.password, db_user.hashed_password):
     db_user.failed_login_attempts += 1
     db.commit()
     db.refresh(db_user)
-    raise HTTPException(status_code=400, detail="Invalid credentials")
+    raise HTTPException(status_code=400, detail="Ungültige Anmeldedaten.")
   
   if db_user.failed_login_attempts > 0:
     db_user.failed_login_attempts = 0
