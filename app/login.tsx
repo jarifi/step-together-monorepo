@@ -1,23 +1,23 @@
 import { useState } from 'react';
 
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
   Alert,
   ImageBackground,
-  Pressable,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 import { router } from 'expo-router';
 
 
 
-import { saveToken, saveUserId } from '../lib/auth';
 import { useUser } from '../context/UserContext';
+import { saveToken, saveUserId } from '../lib/auth';
 
 import Constants from 'expo-constants';
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
@@ -28,9 +28,11 @@ console.log("ARIFI" + API_BASE_URL);
 export default function LoginScreen() {
   const [email, setEmail] = useState('alice@example.com');
   const [password, setPassword] = useState('StrongPassword123');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { setUser, setToken, setUserId } = useUser();
 
   const handleLogin = async () => {
+    setErrorMessage(null);
     console.log('API_BASE_URL:', API_BASE_URL);
     console.log('Requesting:', `${API_BASE_URL}/auth/login`)
     try {
@@ -45,8 +47,26 @@ export default function LoginScreen() {
 
       const data = await response.json();
 
-      if (!response.ok || !data.access_token || !data.user_id) {
-        throw new Error(data.message || 'Login fehlgeschlagen');
+      if (!response.ok) {
+        let message = 'Login fehlgeschlagen';
+
+        if (Array.isArray(data.detail)) {
+        message = data.detail.map((d: any) => {
+        if (typeof d.msg === 'string' && d.msg.toLowerCase().includes('email')) { 
+          return 'Bitte gib eine gültige E-Mail-Adresse ein';
+        }
+        return typeof d.msg === 'string' ? d.msg : JSON.stringify(d);
+        }).join('\n');
+      } else if (data.detail) {
+        message = data.detail;
+      }
+      showError(message);
+      return;
+      }
+
+      if (!data.access_token || !data.user_id) {
+        showError('Login fehlgeschlagen');
+        return;
       }
 
       await saveToken(data.access_token);
@@ -59,8 +79,13 @@ export default function LoginScreen() {
       router.replace('/home');
     } catch (err: any) {
       console.error('Login-Fehler:', err.message ?? err);
-      Alert.alert('Fehler', err.message ?? 'Unbekannter Fehler');
+      showError(err.message ?? "Unbekannter Fehler");
     }
+  };
+
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setTimeout(() => setErrorMessage(null), 3000);
   };
 
   return (
@@ -93,9 +118,15 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry
           />
+
+          {errorMessage && (
+            <Text style={{ color: 'red', marginBottom: 10, textAlign: 'center'}}>
+              {errorMessage}
+            </Text>
+          )}
           <Pressable style={styles.button} onPress={handleLogin}>
             <Text style={styles.buttonText}>Einloggen</Text>
-          </Pressable >
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </ImageBackground>
