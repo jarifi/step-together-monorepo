@@ -1,8 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
-import CreateUserCard from '../../components/CreateUserCard';
+import { ActivityIndicator, FlatList, StyleSheet, View, Pressable, Text } from 'react-native';
 import UserCard from '../../components/UserCard';
 import { deleteUser, getUsers } from '../../services/userService';
 
@@ -55,7 +54,9 @@ export default function UsersScreen() {
 
   return (
     <View style={styles.container}>
-      <CreateUserCard onPress={() => router.push('/users/create')} />
+      <Pressable onPress={() => router.push('/users/create')} style={styles.createButton}>
+        <Text style={styles.createButtonText}>Neue Benutzer erstellen</Text>
+      </Pressable>
 
       {loadingInitial && users.length === 0 ? (
         <ActivityIndicator style={styles.loader} size="large" />
@@ -104,5 +105,17 @@ const styles = StyleSheet.create({
   loader: {
     flex: 1,
     justifyContent: 'center',
+  },
+  createButton: {
+    backgroundColor: '#6B8F71',
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  createButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

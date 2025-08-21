@@ -76,3 +76,17 @@ export const createChallenge = async (data) => {
         throw err;
     }
 };
+
+export const deleteChallenge = async (id) => {
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${BASE_URL}/challenges/${id}`, {
+        method: 'DELETE',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to delete user');
+    }
+    return true;
+};

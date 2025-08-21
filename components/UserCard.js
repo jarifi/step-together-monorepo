@@ -1,6 +1,6 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 
 export default function UserCard({ user, onUpdate, onDelete }) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -14,15 +14,17 @@ export default function UserCard({ user, onUpdate, onDelete }) {
         <Text style={styles.email}>{user.email}</Text>
       </View>
 
-      {onUpdate && (
-        <Pressable onPress={onUpdate} style={styles.updateButton}>
-          <MaterialIcons name='edit' size={20} color="#fff" />
-        </Pressable>
-      )}
+      <View style={styles.buttonContainer}>
+        {onUpdate && (
+          <Pressable onPress={onUpdate} style={styles.updateButton}>
+            <MaterialIcons name='edit' size={20} color="#fff" />
+          </Pressable>
+        )}
 
-      <Pressable onPress={() => setModalVisible(true)} style={styles.deleteButton}>
-        <MaterialIcons name='delete' size={20} color="#fff" />
-      </Pressable>
+        <Pressable onPress={() => setModalVisible(true)} style={styles.deleteButton}>
+          <MaterialIcons name='delete' size={20} color="#fff" />
+        </Pressable>
+      </View>
 
       <Modal
         animationType='fade'
@@ -75,10 +77,14 @@ const styles = StyleSheet.create({
   email: {
     color: 'gray',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   updateButton: {
     width: 40,
     height: 40,
-    backgroundColor: 'green',
+    backgroundColor: '#6B8F71',
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',

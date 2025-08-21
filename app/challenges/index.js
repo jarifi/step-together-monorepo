@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import ChallengeCard from '../../components/ChallengeCard';
-import { getChallenges } from '../../services/challengeService';
+import { deleteChallenge, getChallenges } from '../../services/challengeService';
 
 export default function ChallengesScreen() {
     const [challenges, setChallenges] = useState([]);
@@ -83,6 +83,14 @@ export default function ChallengesScreen() {
                                     },
                                 })
                             }
+                            onDelete={async () => {
+                                try {
+                                    await deleteChallenge(item.id);
+                                    setChallenges((prev) => prev.filter((u) => u.id !== item.id));
+                                } catch (error) {
+                                    console.error('Delete failed:', error);
+                                }
+                            }}
                         />
                     )}
                     onEndReached={loadChallenges}
