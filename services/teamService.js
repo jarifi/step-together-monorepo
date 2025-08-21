@@ -3,11 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
-export const getTeams = async () => {
+export const getTeams = async (skip = 0, limit = 10) => {
   try {
     const token = await AsyncStorage.getItem('userToken');
 
-    const res = await fetch(`${BASE_URL}/teams/`, {
+    const res = await fetch(`${BASE_URL}/teams/?skip=${skip}&limit=${limit}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -55,26 +55,26 @@ export const updateTeam = async (id, data) => {
 };
 
 export const createTeam = async (data) => {
-    try {
-        const token = await AsyncStorage.getItem('userToken');
-        const res = await fetch(`${BASE_URL}/teams/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(data),
-        });
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+    const res = await fetch(`${BASE_URL}/teams/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
 
-        const newTeam = await res.json();
-        if (!res.ok) {
-            throw new Error(newTeam.message || 'Failed to create team');
-        }
-        return newTeam;
-    } catch (err) {
-        console.error('Error creating team:', err);
-        throw err;
+    const newTeam = await res.json();
+    if (!res.ok) {
+      throw new Error(newTeam.message || 'Failed to create team');
     }
+    return newTeam;
+  } catch (err) {
+    console.error('Error creating team:', err);
+    throw err;
+  }
 };
 
 export const getTeamRanking = async (teamId, challengeId) => {

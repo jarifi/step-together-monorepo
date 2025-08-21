@@ -4,11 +4,11 @@ import Constants from 'expo-constants';
 const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
 
-export const getUsers = async () => {
+export const getUsers = async (skip = 0, limit = 10) => {
   try {
     const token = await AsyncStorage.getItem('userToken');
 
-    const res = await fetch(`${BASE_URL}/users/`, {
+    const res = await fetch(`${BASE_URL}/users/?skip=${skip}&limit=${limit}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

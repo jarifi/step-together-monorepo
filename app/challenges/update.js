@@ -2,7 +2,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { updateChallenge } from '../../services/ChallengeService';
+import { updateChallenge } from '../../services/challengeService';
 
 export default function UpdateChallengeScreen() {
     const router = useRouter();

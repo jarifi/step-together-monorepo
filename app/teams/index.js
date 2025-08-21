@@ -7,23 +7,47 @@ import { getTeams } from '../../services/teamService';
 
 export default function TeamsScreen() {
   const [teams, setTeams] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [skip, setSkip] = useState(0);
+  const limit = 10;
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const router = useRouter();
 
   const loadTeams = async () => {
-    setLoading(true);
-    const data = await getTeams();
-    setTeams(data);
-    setLoading(false);
+    if (loadingMore || !hasMore) return;
+
+    const isInitial = teams.length === 0;
+    if (isInitial) setLoadingInitial(true);
+    else setLoadingMore(true);
+
+    try {
+      const data = await getTeams(skip, limit);
+      setTeams(prev => [...prev, ...data]);
+      setSkip(prev => prev + data.length);
+
+      if (data.length < limit) {
+        setHasMore(false);
+      }
+
+    } catch (err) {
+      console.error(('Failed to load teams:', err));
+    } finally {
+      if (isInitial) setLoadingInitial(false);
+      else setLoadingMore(false);
+    }
   };
 
   useFocusEffect(
     useCallback(() => {
+      setSkip(0);
+      setTeams([]);
+      setHasMore(true);
       loadTeams();
     }, [])
   );
 
-  if (loading) {
+  if (loadingInitial) {
     return <ActivityIndicator style={styles.loader} size="large" />;
   }
 
@@ -32,24 +56,32 @@ export default function TeamsScreen() {
       <Pressable onPress={() => router.push('/teams/create')} style={styles.createButton}>
         <Text style={styles.createButtonText}>Neues Team erstellen</Text>
       </Pressable>
-      <FlatList
-        data={teams}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TeamCard
-            team={item}
-            onUpdate={() =>
-              router.push({
-                pathname: '/teams/update',
-                params: {
-                  id: item.id,
-                  name: item.name,
-                },
-              })
-            }
-          />
-        )}
-      />
+
+      {loadingInitial && teams.length === 0 ? (
+        <ActivityIndicator style={styles.loader} size="large" />
+      ) : (
+        <FlatList
+          data={teams}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TeamCard
+              team={item}
+              onUpdate={() =>
+                router.push({
+                  pathname: '/teams/update',
+                  params: {
+                    id: item.id,
+                    name: item.name,
+                  },
+                })
+              }
+            />
+          )}
+          onEndReached={loadTeams}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 16 }} /> : null}
+        />
+      )}
     </View>
   );
 }

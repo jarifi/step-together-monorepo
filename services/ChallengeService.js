@@ -3,11 +3,11 @@ import Constants from 'expo-constants';
 
 const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
-export const getChallenges = async () => {
+export const getChallenges = async (skip = 0, limit = 10) => {
     try {
         const token = await AsyncStorage.getItem('userToken');
 
-        const res = await fetch(`${BASE_URL}/challenges/`, {
+        const res = await fetch(`${BASE_URL}/challenges/?skip=${skip}&limit=${limit}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

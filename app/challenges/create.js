@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { createChallenge } from '../../services/ChallengeService';
+import { createChallenge } from '../../services/challengeService';
 
 export default function CreateChallengeScreen() {
     const router = useRouter();
