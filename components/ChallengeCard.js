@@ -20,7 +20,7 @@ const ChallengeCard = ({ challenge, onUpdate, onDelete }) => {
 
     return (
         <View style={styles.card}>
-            
+
             <View style={styles.info}>
                 <Text style={styles.title}>{challenge.name}</Text>
                 <Text style={styles.details}>
@@ -34,13 +34,13 @@ const ChallengeCard = ({ challenge, onUpdate, onDelete }) => {
             </View>
 
             <View style={styles.buttonContainer}>
-            <Pressable onPress={onUpdate} style={styles.updateButton}>
-                <MaterialIcons name='edit' size={20} color="#fff" />
-            </Pressable>
+                <Pressable onPress={onUpdate} style={styles.updateButton}>
+                    <MaterialIcons name='edit' size={20} color="#fff" />
+                </Pressable>
 
-            <Pressable onPress={() => setModalVisible(true)} style={styles.deleteButton}>
-                <MaterialIcons name='delete' size={20} color="#fff" />
-            </Pressable>
+                <Pressable onPress={() => setModalVisible(true)} style={styles.deleteButton}>
+                    <MaterialIcons name='delete' size={20} color="#fff" />
+                </Pressable>
             </View>
 
             <Modal
@@ -51,10 +51,10 @@ const ChallengeCard = ({ challenge, onUpdate, onDelete }) => {
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Möchten Sie diesen Benutzer wirklich löschen?</Text>
+                        <Text style={styles.modalTitle}>Möchten Sie diese Challenge wirklich löschen?</Text>
 
                         <Pressable style={styles.actionButton} onPress={() => { setModalVisible(false); onDelete?.(); }}>
-                            <Text style={styles.actionText}>Benutzer löschen</Text>
+                            <Text style={styles.actionText}>Challenge löschen</Text>
                         </Pressable>
 
                         <Pressable style={styles.cancelButton} onPress={() => { setModalVisible(false) }}>
@@ -99,11 +99,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 8,
-    },
-    buttonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
     },
     deleteButton: {
         width: 40,

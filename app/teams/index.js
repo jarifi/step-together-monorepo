@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import TeamCard from '../../components/TeamCard';
-import { getTeams } from '../../services/teamService';
+import { getTeams, deleteTeam } from '../../services/teamService';
 
 export default function TeamsScreen() {
   const [teams, setTeams] = useState([]);
@@ -75,6 +75,14 @@ export default function TeamsScreen() {
                   },
                 })
               }
+              onDelete={async () => {
+                try {
+                  await deleteTeam(item.id);
+                  setTeams((prev) => prev.filter((u) => u.id !== item.id));
+                } catch (error) {
+                  console.error('Delete failed:', error);
+                }
+              }}
             />
           )}
           onEndReached={loadTeams}

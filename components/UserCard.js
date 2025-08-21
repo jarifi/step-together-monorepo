@@ -90,11 +90,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 8,
   },
-  updateText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
   deleteButton: {
     width: 40,
     height: 40,
