@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -24,10 +24,12 @@ def create_challenge(
 
 @router.get("/", response_model=List[ChallengeResponse])
 def read_all_challenges(
+    skip: int = Query(0, ge=0, description="Number of recrods to skip"),
+    limit: int = Query(10, ge=1, le=100, description="Maximus number of records to return"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return challenge_crud.get_all_challenges(db)
+    return challenge_crud.get_all_challenges(db, skip=skip, limit=limit)
 
 @router.get("/{challenge_id}", response_model=ChallengeResponse)
 def read_challenge(

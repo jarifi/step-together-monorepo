@@ -1,9 +1,16 @@
 from sqlalchemy.orm import Session
+from typing import List
 from app.models.challenge import Challenge as ChallengeModel
 from app.schema.challenge import ChallengeCreate, ChallengeUpdate, ChallengeResponse
 
-def get_all_challenges(db: Session):
-    return db.query(ChallengeModel).all()
+def get_all_challenges(db: Session, skip: int = 0, limit: int = 10)-> List[ChallengeModel]:
+    """
+    Retrieve challenges with pagination.
+    :param db: SQLAlchemy Session
+    :param skip: Number of records to skip
+    :param limit: Number of records to return
+    """
+    return db.query(ChallengeModel).offset(skip).limit(limit).all()
 
 def get_challenge(db: Session, challenge_id: int):
     return db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id).first()
