@@ -1,5 +1,5 @@
 # # File: app/models/challenge.py
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
 from app.db.base import Base
 from datetime import datetime
 
@@ -19,3 +19,4 @@ class Challenge(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     state = Column(String(50), default="incoming")  # Possible values: incoming, open, closed
+    is_deleted = Column(Boolean, default=False)

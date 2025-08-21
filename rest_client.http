@@ -124,8 +124,12 @@ Content-Type: application/json
     "state": "incoming"  
 }
 
-### 5.1 Get All Challanges Using Access Token
+### 5.2 Get All Challanges Using Access Token
 GET {{baseUrl}}/challenges/1
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 5.3 Delete a Challenge
+DELETE {{baseUrl}}/challenges/1
 Authorization: Bearer {{login.response.body.access_token}}
 
 ### 6. Get All Challange_progresses Using Access Token

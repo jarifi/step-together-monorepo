@@ -15,7 +15,7 @@ def get_all_users(db: Session, skip: int = 0, limit: int = 10) -> List[User]:
     :param skip: Number of records to skip
     :param limit: Number of records to return
     """
-    return db.query(User).offset(skip).limit(limit).all()
+    return db.query(User).filter(User.is_deleted == False).offset(skip).limit(limit).all()
 
 
 def get_user(db: Session, user_id: int):

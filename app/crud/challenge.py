@@ -10,7 +10,7 @@ def get_all_challenges(db: Session, skip: int = 0, limit: int = 10)-> List[Chall
     :param skip: Number of records to skip
     :param limit: Number of records to return
     """
-    return db.query(ChallengeModel).offset(skip).limit(limit).all()
+    return db.query(ChallengeModel).filter(ChallengeModel.is_deleted == False).offset(skip).limit(limit).all()
 
 def get_challenge(db: Session, challenge_id: int):
     return db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id).first()
@@ -39,9 +39,11 @@ def update_challenge(db: Session, challenge_id: int, challenge_data: ChallengeUp
     return challenge_obj
 
 def delete_challenge(db: Session, challenge_id: int):
-    challenge_obj = db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id).first()
+    challenge_obj = db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id, ChallengeModel.is_deleted == False).first()
     if not challenge_obj:
-        return False
-    db.delete(challenge_obj)
+        return None
+    
+    challenge_obj.is_deleted = True
     db.commit()
-    return True
+    db.refresh(challenge_obj)
+    return challenge_obj
