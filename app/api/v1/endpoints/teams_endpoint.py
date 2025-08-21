@@ -60,7 +60,7 @@ def update_team(
     updated_team = team_crud.update_team(db, team_id, team_update)
     return updated_team
 
-@router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{team_id}", status_code=status.HTTP_200_OK)
 def delete_team(
     team_id: int,
     db: Session = Depends(get_db),

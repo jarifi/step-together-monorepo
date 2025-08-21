@@ -15,7 +15,7 @@ def get_all_teams(db: Session, skip: int = 0, limit: int = 10) -> List[Team]:
     :param skip: Number of records to skip
     :param limit: Number of records to return
     """
-    return db.query(Team).offset(skip).limit(limit).all()
+    return db.query(Team).filter(Team.is_deleted == False).offset(skip).limit(limit).all()
 
 def get_team_by_user_id(db: Session, user_id: int) -> Team | None:
     team_member = db.query(TeamMember).filter(TeamMember.user_id == user_id).first()
@@ -44,9 +44,11 @@ def update_team(db: Session, team_id: int, team_update: TeamUpdate) -> Team | No
     return db_team
 
 def delete_team(db: Session, team_id: int) -> bool:
-    db_team = get_team(db, team_id)
+    db_team = db.query(Team).filter(Team.id == team_id, Team.is_deleted == False).first()
     if not db_team:
-        return False
-    db.delete(db_team)
+        return None
+    
+    db_team.is_deleted = True
     db.commit()
-    return True
+    db.refresh(db_team)
+    return db_team
