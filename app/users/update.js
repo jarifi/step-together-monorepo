@@ -15,11 +15,6 @@ export default function UpdateUserScreen() {
     const [loading, setLoading] = useState(false);
     const { setUser } = useUser();
 
-    // Toast animations
-    const visibilityTime = 2000;
-    const animationTime = 400;
-    const totalToastTime = visibilityTime + animationTime;
-
     useEffect(() => {
         if (params) {
             setName(params.name || '');
@@ -34,10 +29,14 @@ export default function UpdateUserScreen() {
         const stepLengthErrors = validateStepLength(stepLength);
 
         if (!email || !name || !stepLength) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Alle Felder sind Pflichtfelder!',
+            setTimeout(() => {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Alle Felder sind Pflichtfelder!',
+                    position: 'top',
+                    visibilityTime: 2000,
+                });
             });
             return;
         }

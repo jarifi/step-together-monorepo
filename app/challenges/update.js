@@ -1,7 +1,9 @@
 import { Picker } from '@react-native-picker/picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { Pressable, Text, TextInput, View, StyleSheet } from 'react-native';
+import { validateChallengeName, validateDate, validateDistance, validateLocation } from '../../lib/challengeValidation';
 import { updateChallenge } from '../../services/challengeService';
 
 export default function UpdateChallengeScreen() {
@@ -18,31 +20,111 @@ export default function UpdateChallengeScreen() {
     const [loading, setLoading] = useState(false);
 
     const handleUpdate = async () => {
+        const nameErrors = validateChallengeName(name);
+        const locationErrors = validateLocation(startLocation, targetLocation);
+        const distanceErrors = validateDistance(distance);
+        const dateErrors = validateDate(startDate, endDate);
+
+
+        if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
+            setTimeout(() => {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Alle Felder sind Pflichtfelder!',
+                    position: 'top',
+                    visibilityTime: 2000,
+                });
+            });
+            return;
+        }
+
+        if (nameErrors.length > 0) {
+            nameErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+        if (locationErrors.length > 0) {
+            locationErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (distanceErrors.length > 0) {
+            distanceErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (dateErrors.length > 0) {
+            dateErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        const formattedStartDate = `${startDate} 00:00:00.000`;
+        const formattedEndDate = `${endDate} 00:00:00.000`;
+
+        const updatedChallengeData = {
+            name,
+            start_location: startLocation,
+            target_location: targetLocation,
+            distance: parseFloat(distance),
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
+            state: state,
+        };
         setLoading(true);
         try {
-            if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
-                Alert.alert('Error', 'Please fill in all fields');
-                setLoading(false);
-                return;
-            }
-
-            const formattedStartDate = `${startDate} 00:00:00.000`;
-            const formattedEndDate = `${endDate} 00:00:00.000`;
-
-            const updatedChallengeData = {
-                name,
-                start_location: startLocation,
-                target_location: targetLocation,
-                distance: parseFloat(distance),
-                start_date: formattedStartDate,
-                end_date: formattedEndDate,
-                state: state,
-            };
             await updateChallenge(Number(params.id), updatedChallengeData);
-            Alert.alert('Success', 'Challenge erfolgreich aktualisiert!');
-            router.back();
+            Toast.show({
+                type: 'success',
+                text1: 'Erfolg',
+                text2: 'Benutzer erfolgreich erstellt!',
+            });
+            router.replace('/challenges');
         } catch (error) {
-            Alert.alert('Error', 'Challenge konnte nicht aktualisiert werden');
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: error?.message || 'Challenge konnte nicht erstellt werden!'
+            });
             console.error(error);
         } finally {
             setLoading(false);

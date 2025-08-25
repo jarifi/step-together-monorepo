@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { validateChallengeName, validateDate, validateDistance, validateLocation } from '../../lib/challengeValidation';
 import { createChallenge } from '../../services/challengeService';
 
 export default function CreateChallengeScreen() {
@@ -15,36 +17,114 @@ export default function CreateChallengeScreen() {
     const [endDate, setEndDate] = useState('');
     const [state, setState] = useState('incoming');
     const [loading, setLoading] = useState(false);
-
+    
     const handleCreate = async () => {
+        const nameErrors = validateChallengeName(name);
+        const locationErrors = validateLocation(startLocation, targetLocation);
+        const distanceErrors = validateDistance(distance);
+        const dateErrors = validateDate(startDate, endDate);
+        const userId = await AsyncStorage.getItem('userId');
+        const teamId = '1';
+
+
+        if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
+            setTimeout(() => {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Alle Felder sind Pflichtfelder!',
+                    position: 'top',
+                    visibilityTime: 2000,
+                });
+            });
+            return;
+        }
+        if (nameErrors.length > 0) {
+            nameErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+        if (locationErrors.length > 0) {
+            locationErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (distanceErrors.length > 0) {
+            distanceErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        if (dateErrors.length > 0) {
+            dateErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
+
+        const newChallengeData = {
+            name,
+            start_location: startLocation,
+            target_location: targetLocation,
+            distance: parseFloat(distance),
+            start_date: `${startDate}T00:00:00.000Z`,
+            end_date: `${endDate}T00:00:00.000Z`,
+            creator_id: parseInt(userId, 10),
+            team_id: parseInt(teamId, 10),
+            state,
+        };
+
         setLoading(true);
         try {
-            const userId = await AsyncStorage.getItem('userId');
-            const teamId = '1';
-
-            if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
-                Alert.alert('Error', 'Please fill in all fields');
-                setLoading(false);
-                return;
-            }
-
-            const newChallengeData = {
-                name,
-                start_location: startLocation,
-                target_location: targetLocation,
-                distance: parseFloat(distance),
-                start_date: `${startDate}T00:00:00.000Z`,
-                end_date: `${endDate}T00:00:00.000Z`,
-                creator_id: parseInt(userId, 10),
-                team_id: parseInt(teamId, 10),
-                state,
-            };
-
             await createChallenge(newChallengeData);
-            Alert.alert('Success', 'Challenge erfolgreich erstellt!');
-            router.back();
+            Toast.show({
+                type: 'success',
+                text1: 'Erfolg',
+                text2: 'Benutzer erfolgreich erstellt!',
+            });
+            router.replace('/challenges');
         } catch (error) {
-            Alert.alert('Error', 'Challenge konnte nicht erstellt werden');
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: error?.message || 'Challenge konnte nicht erstellt werden!'
+            });
             console.error(error);
         } finally {
             setLoading(false);
@@ -63,21 +143,21 @@ export default function CreateChallengeScreen() {
             <TextInput
                 value={startLocation}
                 onChangeText={setStartLocation}
-                placeholder="Start Location"
+                placeholder="Startort"
                 style={styles.input}
                 editable={!loading}
             />
             <TextInput
                 value={targetLocation}
                 onChangeText={setTargetLocation}
-                placeholder="Target Location"
+                placeholder="Zielort"
                 style={styles.input}
                 editable={!loading}
             />
             <TextInput
                 value={distance}
                 onChangeText={setDistance}
-                placeholder="Distance"
+                placeholder="Distanz"
                 style={styles.input}
                 keyboardType="numeric"
                 editable={!loading}
@@ -85,14 +165,14 @@ export default function CreateChallengeScreen() {
             <TextInput
                 value={startDate}
                 onChangeText={setStartDate}
-                placeholder="Start Date (YYYY-MM-DD)"
+                placeholder="Start-Datum (YYYY-MM-DD)"
                 style={styles.input}
                 editable={!loading}
             />
             <TextInput
                 value={endDate}
                 onChangeText={setEndDate}
-                placeholder="End Date (YYYY-MM-DD)"
+                placeholder="End-Datum (YYYY-MM-DD)"
                 style={styles.input}
                 editable={!loading}
             />

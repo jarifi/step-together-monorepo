@@ -14,26 +14,24 @@ export default function CreateUserScreen() {
     const [stepLength, setStepLength] = useState('');
     const [loading, setLoading] = useState(false);
 
-    //Toast aniamtions 
-    const visibilityTime = 2000;
-    const animationTime = 400;
-    const totalToastTime = visibilityTime + animationTime;
-
     const handleCreate = async () => {
         const emailErrors = validateEmail(email);
         const nameErrors = validateName(name);
         const stepLengthErrors = validateStepLength(stepLength);
 
         if (!email || !password || !passwordConfirm || !name || !stepLength) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Alle Felder sind Pflichtfelder!',
+            setTimeout(() => {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Alle Felder sind Pflichtfelder!',
+                    position: 'top',
+                    visibilityTime: 2000,
+                });
             });
             return;
         }
 
-        console.log(email, email.length, emailErrors);
         if (emailErrors.length > 0) {
             emailErrors.forEach((error, index) => {
                 setTimeout(() => {
@@ -97,9 +95,9 @@ export default function CreateUserScreen() {
                         text1: "Error",
                         text2: error,
                         position: 'top',
-                        visibilityTime,
+                        visibilityTime: 2000,
                     });
-                }, index * totalToastTime);
+                }, index * 2500);
             });
             return;
         }
