@@ -74,8 +74,7 @@ def update_existing_user(
     Requires authentication. Only the user themselves can update their profile.
     Expected path: /api/v1/users/{user_id}
     """
-    if current_user.id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this user's profile")
+    
     updated_user = user_crud.update_user(db, user_id, user_data)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")

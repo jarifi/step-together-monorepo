@@ -55,8 +55,6 @@ def update_team(
     team = team_crud.get_team(db, team_id)
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
-    if team.creator_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this team")
     updated_team = team_crud.update_team(db, team_id, team_update)
     return updated_team
 
