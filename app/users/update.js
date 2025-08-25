@@ -13,7 +13,7 @@ export default function UpdateUserScreen() {
     const [email, setEmail] = useState('');
     const [stepLength, setStepLength] = useState('');
     const [loading, setLoading] = useState(false);
-    const { setUser } = useUser();
+    const { user, setUser } = useUser();
 
     useEffect(() => {
         if (params) {
@@ -89,7 +89,9 @@ export default function UpdateUserScreen() {
         setLoading(true);
         try {
             const updatedUser = await updateUser(Number(params.id), { name, email, stepLength });
+            if (Number(params.id) === user.id) {
             setUser(updatedUser);
+            }
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
