@@ -1,6 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { validateTeamName } from '../../lib/teamValidation';
 import { createTeam } from '../../services/teamService';
 
 export default function CreateTeamScreen() {
@@ -9,13 +11,49 @@ export default function CreateTeamScreen() {
     const [loading, setLoading] = useState(false);
 
     const handleCreate = async () => {
+        const nameErrors = validateTeamName(name);
+
+        if (!name.trim) {
+            setTimeout(() => {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Alle Felder sind Pflichtfelder!',
+                    position: 'top',
+                    visibilityTime: 2000,
+                });
+            });
+            return;
+        }
+        if (nameErrors.length > 0) {
+            nameErrors.forEach((error, index) => {
+                setTimeout(() => {
+                    Toast.show({
+                        type: 'error',
+                        text1: "Error",
+                        text2: error,
+                        position: 'top',
+                        visibilityTime: 2000,
+                    });
+                }, index * 2500);
+            });
+            return;
+        }
         setLoading(true);
         try {
             await createTeam({ name });
-            Alert.alert('Success', 'Team erfolgreich erstellt!');
-            router.back();
+            Toast.show({
+                type: 'success',
+                text1: 'Erfolg',
+                text2: 'Benutzer erfolgreich erstellt!',
+            });
+            router.replace('/teams');
         } catch (error) {
-            Alert.alert('Error', 'Team konnte nicht erstellt werden');
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: error?.message || 'Team konnte nicht erstellt werden!'
+            });
             console.error(error);
         } finally {
             setLoading(false);
