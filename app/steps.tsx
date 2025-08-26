@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Alert } from "react-native";
-import { useUser } from "../context/UserContext";
 import Constants from 'expo-constants';
 import { useRouter } from "expo-router"; //  Router importieren
+import { useState } from "react";
+import { ActivityIndicator, Alert, Button, StyleSheet, Text, TextInput, View } from "react-native";
+import { useUser } from "../context/UserContext";
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
@@ -67,10 +67,10 @@ export default function StepsPage() {
  //  Alert anzeigen und erst nach 3 Sekunden weiterleiten
  Alert.alert("Erfolgreich", "Die Schritte wurden gespeichert.");
  setTimeout(() => {
-   router.push("/home");
+   router.push("/dashboard");
  }, 3000);
       //  Nach erfolgreichem Speichern weiterleiten
-      router.push("/home");
+      router.push("/dashboard");
       
     } catch (err) {
       console.error("Fehler beim Speichern:", err);

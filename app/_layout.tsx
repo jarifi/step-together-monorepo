@@ -6,7 +6,6 @@ import { isLoggedIn } from '../lib/auth';
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import React from "react";
 import { UserProvider } from '../context/UserContext';
 import { useColorScheme } from '../hooks/useColorScheme';
 
@@ -40,7 +39,7 @@ export default function RootLayout() {
         {showSidebar && <Sidebar />}
         <Stack initialRouteName="login">
           <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="home" options={{ headerShown: false }} />
+          <Stack.Screen name="dashboard" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style="auto" />

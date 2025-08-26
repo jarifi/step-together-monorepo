@@ -89,10 +89,10 @@ export default function Sidebar() {
 
         <View style={styles.linkContainer}>
           <NavLink
-            href="/home"
-            label="Home"
+            href="/dashboard"
+            label="Dashboard"
             icon="home"
-            active={isActive('/home')}
+            active={isActive('/dashboard')}
             onNavigate={closeSidebar}
           />
           <NavLink

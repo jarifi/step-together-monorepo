@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import {
-  Alert,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -9,7 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
 import { router } from 'expo-router';
@@ -76,7 +75,7 @@ export default function LoginScreen() {
       setUserId(String(data.user_id));
       setUser(data.user); // falls Backend auch User-Daten zurückgibt
 
-      router.replace('/home');
+      router.replace('/dashboard');
     } catch (err: any) {
       console.error('Login-Fehler:', err.message ?? err);
       showError(err.message ?? "Unbekannter Fehler");
