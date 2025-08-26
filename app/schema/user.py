@@ -1,5 +1,5 @@
 # File: app/schema/user.py
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator, StringConstraints
 from pydantic.functional_validators import AfterValidator
 from datetime import datetime
 from typing import Optional, Annotated
@@ -27,10 +27,15 @@ PasswordString = Annotated[
 ]
 
 class UserBase(CamelCaseBaseModel):
-    name: str = Field(
-        ..., 
-        min_length=2, 
-        max_length=50, 
+    name: Annotated[ 
+        str,
+        StringConstraints(
+            min_length=2,
+            max_length=50,
+            strip_whitespace=True
+        )
+     ]= Field(
+        ...,
         pattern=r"^[a-zA-ZäöüÄÖÜß '\-]+$",
         json_schema_extra={"example": "John Doe"}
     )
@@ -70,10 +75,16 @@ class UserLogin(CamelCaseBaseModel):
     )
 
 class UserUpdate(CamelCaseBaseModel):
-    name: Optional[str] = Field(
+    name: Optional[
+        Annotated[ 
+        str,
+        StringConstraints(
+            min_length=2,
+            max_length=50,
+            strip_whitespace=True
+        )
+     ]] = Field(
         None, 
-        min_length=2, 
-        max_length=50, 
         pattern=r"^[a-zA-ZäöüÄÖÜß '\-]+$",
         json_schema_extra={"example": "New Name"}
     )

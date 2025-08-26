@@ -5,14 +5,20 @@ from datetime import datetime
 from app.models.base import CamelCaseBaseModel
 
 class TeamCreate(CamelCaseBaseModel):
-    name: Annotated[str, StringConstraints(min_length=3, max_length=255)]
+    name: Annotated[
+        str, 
+        StringConstraints(min_length=3, max_length=255, strip_whitespace=True)
+        ]
 
 class TeamResponse(CamelCaseBaseModel):
     id: int
     name: str
 
 class TeamUpdate(CamelCaseBaseModel):
-    name: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255)]] = None
+    name: Optional[
+        Annotated[
+            str, 
+            StringConstraints(min_length=3, max_length=255, strip_whitespace=True)]] = None
 
 class TeamSchema(CamelCaseBaseModel):
     id: int | None = None

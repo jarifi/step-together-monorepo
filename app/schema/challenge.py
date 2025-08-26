@@ -12,9 +12,9 @@ class ChallengeState (str, Enum):
 
 class ChallengeBase(CamelCaseBaseModel):
     """Base schema with common fields"""
-    name: Annotated[str, StringConstraints(min_length=3, max_length=255)] = Field(..., example="Berlin Marathon")
-    start_location: Annotated[str, StringConstraints(min_length=3, max_length=255)] = Field(..., max_length=255, example="Brandenburg Gate")
-    target_location: Annotated[str, StringConstraints(min_length=3, max_length=255)] = Field(..., max_length=255, example="Alexanderplatz")
+    name: Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)] = Field(..., example="Berlin Marathon")
+    start_location: Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)] = Field(..., max_length=255, example="Brandenburg Gate")
+    target_location: Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)] = Field(..., max_length=255, example="Alexanderplatz")
     distance: float = Field(..., gt=0, example=42.195)
     start_date: datetime = Field(..., example="2023-10-01T09:00:00")
     end_date: datetime = Field(..., example="2023-10-01T15:00:00")
@@ -34,9 +34,9 @@ class ChallengeCreate(ChallengeBase):
 
 class ChallengeUpdate(CamelCaseBaseModel):
     """Schema for challenge updates (PATCH/PUT requests)"""
-    name: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255)]] = None
-    start_location: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255)]] = None
-    target_location: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255)]] = None
+    name: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)]] = None
+    start_location: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)]] = None
+    target_location: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)]] = None
     distance: Optional[float] = Field(None, gt=0)
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
