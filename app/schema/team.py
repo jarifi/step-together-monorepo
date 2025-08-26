@@ -1,18 +1,18 @@
 # File: app/schema/team.py
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, StringConstraints
+from typing import Optional, Annotated
 from datetime import datetime
 from app.models.base import CamelCaseBaseModel
 
 class TeamCreate(CamelCaseBaseModel):
-    name: str
+    name: Annotated[str, StringConstraints(min_length=3, max_length=255)]
 
 class TeamResponse(CamelCaseBaseModel):
     id: int
     name: str
 
 class TeamUpdate(CamelCaseBaseModel):
-    name: Optional[str] = None
+    name: Optional[Annotated[str, StringConstraints(min_length=3, max_length=255)]] = None
 
 class TeamSchema(CamelCaseBaseModel):
     id: int | None = None
