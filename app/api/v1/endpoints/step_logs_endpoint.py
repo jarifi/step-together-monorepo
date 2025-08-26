@@ -1,10 +1,11 @@
 # file: app/api/v1/endpoints/step_logs_endpoint.py
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
+from datetime import date
 
 from app.db.session import get_db
-from app.schema.step_log import StepLogCreate, StepLogResponse, StepLogUpdate
+from app.schema.step_log import StepLogCreate, StepLogResponse, StepLogUpdate, StepWeekResponse
 from app.crud import step_log as step_log_crud
 from app.core.security import get_current_user
 from app.models.user import User
@@ -98,3 +99,23 @@ def delete_step_log(
         raise HTTPException(status_code=404, detail="Step Log not found")
     success = step_log_crud.delete_step_log(db, step_log_id)
     return {"deleted": True}
+
+@router.get("/challenge/{challenge_id}/user/{user_id}", response_model=List[StepWeekResponse])
+def read_step_logs_by_user_and_date_range(
+    challenge_id: int,
+    user_id: int,
+    from_date: date = Query(..., alias="from"),
+    to_date: date = Query(..., alias="to"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this user's steps")
+    
+    return step_log_crud.get_step_logs_by_user_and_date_range(
+        db=db,
+        user_id=user_id,
+        challenge_id=challenge_id,
+        start_date=from_date,
+        end_date=to_date
+    )

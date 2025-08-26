@@ -1,8 +1,9 @@
 #file: app/crud/step_log.py
 from sqlalchemy.orm import Session
+from datetime import date
 import calendar
 from app.models.step_log import StepLog
-from app.schema.step_log import StepLogCreate, StepLogResponse, StepDashboardResponse, StepLogUpdate # Corrected import: No StepLogSchema, use StepLogCreate for input
+from app.schema.step_log import StepLogCreate, StepLogResponse, StepDashboardResponse, StepLogUpdate, StepWeekResponse # Corrected import: No StepLogSchema, use StepLogCreate for input
 from datetime import datetime, timedelta
 from sqlalchemy import func
 def get_all_step_logs(db: Session):
@@ -83,6 +84,34 @@ def get_steps_for_current_week(db: Session, user_id: int, challenge_id: int):
             date=row.date,
             day_of_week=calendar.day_name[row.date.weekday()],
             number_of_steps=row.number_of_steps
+        )
+        for row in step_data
+    ]
+
+def get_step_logs_by_user_and_date_range(db: Session, user_id: int, challenge_id: int, start_date: date, end_date: date):
+    step_data = (
+        db.query(
+            func.date(StepLog.date).label("date"),
+            func.sum(StepLog.number_of_steps).label("number_of_steps")
+        )
+        .filter(
+            StepLog.user_id == user_id,
+            StepLog.challenge_id == challenge_id,
+            func.date(StepLog.date) >= start_date,
+            func.date(StepLog.date) <= end_date
+        )
+        .group_by(func.date(StepLog.date))
+        .order_by(func.date(StepLog.date))
+        .all()
+    )
+
+    return [
+        StepWeekResponse(
+            date=row.date,
+            day_of_week=calendar.day_name[row.date.weekday()],
+            number_of_steps=row.number_of_steps,
+            challenge_id=challenge_id,
+            user_id=user_id
         )
         for row in step_data
     ]

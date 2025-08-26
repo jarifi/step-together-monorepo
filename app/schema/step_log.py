@@ -23,6 +23,13 @@ class StepDashboardResponse(CamelCaseBaseModel):
     day_of_week: str
     number_of_steps: int
 
+class StepWeekResponse(CamelCaseBaseModel):
+    user_id: int
+    challenge_id: int
+    date: date
+    day_of_week: str
+    number_of_steps: int
+
 class StepLogUpdate(CamelCaseBaseModel):
     challenge_id: Optional[int] = None
     team_id: Optional[int] = None

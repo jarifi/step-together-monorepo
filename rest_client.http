@@ -6,7 +6,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "alice@example.com",
+    "email": "aliceup@example.com",
     "password": "StrongPassword123" 
 }
 
@@ -197,3 +197,8 @@ Authorization: Bearer {{login.response.body.access_token}}
 {
   "numberOfSteps": 20000
 }
+
+### 12. Get Step_log from Specific Week
+GET {{baseUrl}}/step_logs/challenge/1/user/1?from=2025-08-10&to=2025-08-17
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
