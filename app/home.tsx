@@ -24,7 +24,7 @@ import {
   startOfWeek,
   stripTime,
   toIsoDate as toISO,
-} from '../services/dashboard/dashboardDto';
+} from './dashboard/dashboardDto';
 
 import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboard/dashboardService';
 import { getTeamRanking } from '../services/teamService';
@@ -70,7 +70,7 @@ export type RankingItem = {
   userId: number | null;
   name: string;
   steps: number;
-  stepLength?: number | null; // m per step (neu)
+  stepLength?: number | null; // m per step
   isUser?: boolean;
   rankColor?: string | null;
 };
@@ -128,7 +128,9 @@ const Dashboard: React.FC = () => {
   const isMountedRef = useRef(true);
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Clamp displayDate wenn Bounds sich ändern
@@ -199,10 +201,11 @@ const Dashboard: React.FC = () => {
 
   // ===== Challenge-Distanz robust (distance vs distanceKm) =====
   const challengeDistanceKm = useMemo(() => {
-    const dAny = (vm as any)?.challenge;
-    const d = dAny ? (dAny.distanceKm ?? dAny.distance ?? 0) : 0;
+    const ch = vm?.challenge;
+    if (!ch) return 0;
+    const d = ch.distanceKm ?? ch.distance ?? 0;
     return Number(d || 0);
-  }, [vm?.challenge?.distanceKm, (vm as any)?.challenge?.distance]);
+  }, [vm?.challenge]);
 
   // ========= Initial load =========
   useEffect(() => {
@@ -258,9 +261,7 @@ const Dashboard: React.FC = () => {
       setWeekLoading(true);
       const [respWeek, respRank] = await Promise.all([
         getWeekSteps(vm.user.id, toISO(weekStart)),
-        (vm.team?.id && vm.challenge?.id)
-          ? getTeamRanking(vm.team.id, vm.challenge.id)
-          : Promise.resolve(null),
+        vm.team?.id && vm.challenge?.id ? getTeamRanking(vm.team.id, vm.challenge.id) : Promise.resolve(null),
       ]);
 
       if (!isMountedRef.current) return;
@@ -279,16 +280,16 @@ const Dashboard: React.FC = () => {
       // Ranking normalisieren (mit stepLength)
       if (respRank) {
         const normalized: RankingItem[] = respRank.map((r: any) => {
-          const sl = Number(
+          const slRaw =
             r?.stepLength ??
             r?.user?.stepLength ??
             r?.step_length ??
             r?.user_step_length ??
-            0
-          );
+            0;
+        const sl = Number(slRaw);
           return {
-            userId: r?.id ?? null,
-            name: String(r?.name ?? '—'),
+            userId: (r?.userId ?? r?.user?.id ?? r?.id) ?? null,
+            name: String(r?.name ?? r?.user?.name ?? '—'),
             steps: Number(r?.numberOfSteps ?? r?.steps ?? 0),
             stepLength: Number.isFinite(sl) && sl > 0 ? sl : FIX_STEP_LENGTH_M,
           };
@@ -324,16 +325,16 @@ const Dashboard: React.FC = () => {
         if (!alive) return;
 
         const normalized: RankingItem[] = raw.map((r: any) => {
-          const sl = Number(
+          const slRaw =
             r?.stepLength ??
             r?.user?.stepLength ??
             r?.step_length ??
             r?.user_step_length ??
-            0
-          );
+            0;
+          const sl = Number(slRaw);
           return {
-            userId: r?.id ?? null,
-            name: String(r?.name ?? '—'),
+            userId: (r?.userId ?? r?.user?.id ?? r?.id) ?? null,
+            name: String(r?.name ?? r?.user?.name ?? '—'),
             steps: Number(r?.numberOfSteps ?? r?.steps ?? 0),
             stepLength: Number.isFinite(sl) && sl > 0 ? sl : FIX_STEP_LENGTH_M,
           };
@@ -357,7 +358,9 @@ const Dashboard: React.FC = () => {
       }
     })();
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [vm?.team?.id, vm?.challenge?.id, vm?.user?.id]);
 
   // ========= Week change & Tageswerte =========
@@ -429,7 +432,7 @@ const Dashboard: React.FC = () => {
         next[idx],
         { challengeId: vm.challenge.id, teamId: vm.team.id }
       );
-      // <- sofortiger Re-Fetch (Server-Truth + Ranking)
+      // sofortiger Re-Fetch (Server-Truth + Ranking)
       refreshWeekAndRanking();
     } catch (e) {
       // rollback bei Fehler
@@ -452,9 +455,8 @@ const Dashboard: React.FC = () => {
   const weeklyMax = Math.max(1, ...weekSteps);
   const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
 
-  // Für Tageskarte (Heutige Distanz/Kcal) nehmen wir die **eigene** Schrittlänge,
-  // das ist okay – hat nichts mit Team-Progress zu tun.
-  const stepLengthMeters = (vm?.user?.stepLength && vm.user.stepLength > 0)
+  // eigene Schrittlänge (für Tageskacheln)
+  const stepLengthMeters = vm?.user?.stepLength && vm.user.stepLength > 0
     ? vm.user.stepLength
     : FIX_STEP_LENGTH_M;
 
@@ -484,7 +486,7 @@ const Dashboard: React.FC = () => {
     // Σ (steps_i * stepLength_i) / 1000
     const kmSum = rankings.reduce((sum, r) => {
       const steps = Number(r?.steps || 0);
-      const len   = Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
+      const len = Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
       return sum + (steps * len) / 1000;
     }, 0);
 
@@ -512,7 +514,7 @@ const Dashboard: React.FC = () => {
     if (!vm?.user?.id) return;
     const id = setInterval(() => {
       refreshWeekAndRanking();
-    }, 30000); // 30s (gern 60–120s)
+    }, 30000); // 30s
     return () => clearInterval(id);
   }, [vm?.user?.id, vm?.team?.id, vm?.challenge?.id, selectedWeekStart, refreshWeekAndRanking]);
 

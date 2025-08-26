@@ -5,13 +5,13 @@ import {
   inSameDayIso,
   toIsoDate,
   toIsoDateTimeMidnight,
-} from './dashboardDto';
+} from '../../app/dashboard/dashboardDto';
 
 const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
 const PATHS = {
   init: '/users/user/dashboard/init',
-  stepLogs: 'step_logs',
+  stepLogs: '/step_logs',
 };
 
 const joinUrl = (base, path) =>
@@ -46,15 +46,10 @@ const http = async (url, options) => {
 
 // ---------- API: Dashboard-Init ----------
 export const getHomeInit = async () => {
-  try {
-    if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
-    const headers = await authHeaders();
-    const url = joinUrl(BASE_URL, PATHS.init);
-    return await http(url, { method: 'GET', headers });
-  } catch (err) {
-    console.error('Error fetching home init:', err);
-    return null;
-  }
+  if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
+  const headers = await authHeaders();
+  const url = joinUrl(BASE_URL, PATHS.init);
+  return await http(url, { method: 'GET', headers });
 };
 
 // ---------- API: Step Logs ----------
