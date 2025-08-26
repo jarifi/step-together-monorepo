@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -8,8 +8,14 @@ from app.schema.user import UserCreate, UserUpdate
 from app.core.security import verify_password, get_password_hash  # We'll define hash_password below
 
 
-def get_all_users(db: Session):
-    return db.query(User).filter(User.is_deleted == False).all()
+def get_all_users(db: Session, skip: int = 0, limit: int = 10) -> List[User]:
+    """
+    Retrieve users with pagination.
+    :param db: SQLAlchemy Session
+    :param skip: Number of records to skip
+    :param limit: Number of records to return
+    """
+    return db.query(User).filter(User.is_deleted == False).offset(skip).limit(limit).all()
 
 
 def get_user(db: Session, user_id: int):

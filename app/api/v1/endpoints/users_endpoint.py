@@ -1,5 +1,5 @@
 from typing import List, Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 # Import your database session, security, CRUD operations, and schemas
@@ -18,13 +18,17 @@ router = APIRouter(tags=["users"])
 
 
 @router.get("/", response_model=List[UserResponse], dependencies=[Depends(get_current_user)])
-def read_users(db: Session = Depends(get_db)):
+def read_users(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
+    db: Session = Depends(get_db)
+):
     """
     Retrieve a list of all users.
     Requires authentication.
     Expected path: /api/v1/users/
     """
-    return user_crud.get_all_users(db)
+    return user_crud.get_all_users(db, skip=skip, limit=limit)
 
 
 @router.get("/me", response_model=CurrentUser)
@@ -70,8 +74,7 @@ def update_existing_user(
     Requires authentication. Only the user themselves can update their profile.
     Expected path: /api/v1/users/{user_id}
     """
-    if current_user.id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this user's profile")
+    
     updated_user = user_crud.update_user(db, user_id, user_data)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")

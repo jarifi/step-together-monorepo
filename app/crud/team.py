@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.team import Team
+from typing import List
 from app.schema.team import TeamCreate, TeamUpdate
 
 from app.models.team_member import TeamMember
@@ -7,8 +8,14 @@ from app.models.team_member import TeamMember
 def get_team(db: Session, team_id: int) -> Team | None:
     return db.query(Team).filter(Team.id == team_id).first()
 
-def get_all_teams(db: Session) -> list[Team]:
-    return db.query(Team).all()
+def get_all_teams(db: Session, skip: int = 0, limit: int = 10) -> List[Team]:
+    """
+    Retrieve users with pagination.
+    :param db: SQLAlchemy Session
+    :param skip: Number of records to skip
+    :param limit: Number of records to return
+    """
+    return db.query(Team).filter(Team.is_deleted == False).offset(skip).limit(limit).all()
 
 def get_team_by_user_id(db: Session, user_id: int) -> Team | None:
     team_member = db.query(TeamMember).filter(TeamMember.user_id == user_id).first()
@@ -37,9 +44,11 @@ def update_team(db: Session, team_id: int, team_update: TeamUpdate) -> Team | No
     return db_team
 
 def delete_team(db: Session, team_id: int) -> bool:
-    db_team = get_team(db, team_id)
+    db_team = db.query(Team).filter(Team.id == team_id, Team.is_deleted == False).first()
     if not db_team:
-        return False
-    db.delete(db_team)
+        return None
+    
+    db_team.is_deleted = True
     db.commit()
-    return True
+    db.refresh(db_team)
+    return db_team

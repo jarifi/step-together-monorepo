@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy import and_
@@ -27,10 +27,12 @@ def create_team(
 
 @router.get("/", response_model=List[TeamSchema])
 def read_teams(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),  # Auth required
 ):
-    return team_crud.get_all_teams(db)
+    return team_crud.get_all_teams(db, skip=skip, limit=limit)
 
 @router.get("/{team_id}", response_model=TeamSchema)
 def read_team(
@@ -53,12 +55,10 @@ def update_team(
     team = team_crud.get_team(db, team_id)
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
-    if team.creator_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this team")
     updated_team = team_crud.update_team(db, team_id, team_update)
     return updated_team
 
-@router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{team_id}", status_code=status.HTTP_200_OK)
 def delete_team(
     team_id: int,
     db: Session = Depends(get_db),
