@@ -51,10 +51,13 @@ export default function LoginScreen() {
 
         if (Array.isArray(data.detail)) {
         message = data.detail.map((d: any) => {
-        if (typeof d.msg === 'string' && d.msg.toLowerCase().includes('email')) { 
-          return 'Bitte gib eine gültige E-Mail-Adresse ein';
+        if (typeof d.msg === 'string') { 
+          const field = d.loc?.[1];
+          if (field === 'email') return 'Bitte geben Sie eine gültige E-Mail-Adresse ein!';
+          if (field === 'password') return 'Bitte geben Sie ein gültige Passwort ein!';
+          return d.msg;
         }
-        return typeof d.msg === 'string' ? d.msg : JSON.stringify(d);
+        return JSON.stringify(d);
         }).join('\n');
       } else if (data.detail) {
         message = data.detail;
