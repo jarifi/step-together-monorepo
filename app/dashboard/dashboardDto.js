@@ -2,7 +2,7 @@
 // Helpers
 // ======================
 
-export const MS_PER_DAY = 86_400_000;
+export const MS_PER_DAY = 86400000;
 
 export const stripTime = (d) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());

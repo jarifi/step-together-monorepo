@@ -5,13 +5,13 @@ import {
   inSameDayIso,
   toIsoDate,
   toIsoDateTimeMidnight,
-} from '../../app/dashboard/dashboardDto';
+} from '../app/dashboard/dashboardDto';
 
 const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
 const PATHS = {
   init: '/users/user/dashboard/init',
-  stepLogs: '/step_logs',
+  stepLogs: 'step_logs', 
 };
 
 const joinUrl = (base, path) =>
@@ -46,13 +46,65 @@ const http = async (url, options) => {
 
 // ---------- API: Dashboard-Init ----------
 export const getHomeInit = async () => {
+  try {
+    if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
+    const headers = await authHeaders();
+    const url = joinUrl(BASE_URL, PATHS.init);
+    return await http(url, { method: 'GET', headers });
+  } catch (err) {
+    console.error('Error fetching home init:', err);
+    return null;
+  }
+};
+
+// ---------- API: Step Logs ) ----------
+
+export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) => {
   if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
+  if (!Number.isFinite(+challengeId)) throw new Error('challengeId required');
+  if (!Number.isFinite(+userId)) throw new Error('userId required');
+  if (!fromISO || !toISO) throw new Error('from/to required');
+
   const headers = await authHeaders();
-  const url = joinUrl(BASE_URL, PATHS.init);
+  const base = joinUrl(BASE_URL, PATHS.stepLogs);
+  const url = joinUrl(
+    base,
+    `challenge/${encodeURIComponent(challengeId)}/user/${encodeURIComponent(userId)}?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`
+  );
   return await http(url, { method: 'GET', headers });
 };
 
-// ---------- API: Step Logs ----------
+// Wrapper, den dein Screen nutzt (Signatur: challengeId, userId, weekStartISO)
+export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
+  if (!Number.isFinite(+challengeId)) throw new Error('challengeId required');
+  if (!Number.isFinite(+userId)) throw new Error('userId required');
+  if (!weekStartISO) throw new Error('weekStartISO required');
+
+  const weekStart = fromIsoLocal(weekStartISO);
+  if (!weekStart) return [];
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const all = await getUserWeekStepLogs(
+    challengeId,
+    userId,
+    toIsoDate(weekStart),
+    toIsoDate(weekEnd)
+  );
+
+  return (all ?? []).map((x) => {
+    const d = fromIsoLocal(x.date);
+    return {
+      date: toIsoDate(d),
+      dayOfWeek: x.dayOfWeek || d.toLocaleDateString('en-US', { weekday: 'long' }),
+      numberOfSteps: Number.isFinite(+x?.numberOfSteps) ? +x.numberOfSteps : 0,
+      step_log_id: x?.id ?? null,
+    };
+  });
+};
+
+// Optional: komplette Liste (falls sonst wo gebraucht)
 export const listUserStepLogs = async (userId) => {
   if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
   if (userId === undefined || userId === null) throw new Error('userId required');
@@ -63,45 +115,12 @@ export const listUserStepLogs = async (userId) => {
   return await http(url, { method: 'GET', headers });
 };
 
-// Hole eine bestimmte Woche (Mo..So) für einen User, clientseitig gefiltert
-export const getWeekSteps = async (userId, weekStartISO) => {
-  if (userId === undefined || userId === null) throw new Error('userId required');
-  if (!weekStartISO) throw new Error('weekStartISO required');
-
-  const all = await listUserStepLogs(userId); // Array von StepLogResponse
-  const weekStart = fromIsoLocal(weekStartISO);
-  if (!weekStart) return [];
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-
-  const withinWeek = (dateStr) => {
-    const d = fromIsoLocal(dateStr || '');
-    return d && d >= weekStart && d <= weekEnd;
-  };
-
-  // Mappe auf Format, das parseStepsThisWeek versteht
-  return (all ?? [])
-    .filter((x) => x?.date && withinWeek(x.date))
-    .map((x) => {
-      const d = fromIsoLocal(x.date);
-      return {
-        date: toIsoDate(d),
-        dayOfWeek: d.toLocaleDateString('en-US', { weekday: 'long' }),
-        numberOfSteps:
-          Number.isFinite(+x?.numberOfSteps) ? +x.numberOfSteps :
-          Number.isFinite(+x?.steps) ? +x.steps : 0,
-        step_log_id: x?.id, // nützlich fürs Update
-      };
-    });
-};
-
-// Upsert: existiert ein Log für dateISO → update, sonst create
+// ---------- Upsert (Update via step_log_id oder Create) ----------
 export const upsertStepsForDate = async (
   userId,
   dateISO,
   absoluteSteps,
-  context 
+  context // { challengeId: number; teamId: number }
 ) => {
   if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
   if (userId === undefined || userId === null) throw new Error('userId required');
@@ -116,9 +135,8 @@ export const upsertStepsForDate = async (
 
   if (existing?.id != null) {
     const id = String(existing.id);
-    const url = joinUrl(base, id);
-
-    const body = JSON.stringify({ numberOfSteps: Number(absoluteSteps) });
+    const url = `${base}?step_log_id=${encodeURIComponent(id)}`;
+    const body = JSON.stringify({ numberOfSteps: Number.isFinite(+absoluteSteps) ? Math.abs(+absoluteSteps) : 0 });
     return await http(url, { method: 'PUT', headers, body });
   }
 
@@ -132,9 +150,8 @@ export const upsertStepsForDate = async (
     challengeId: context.challengeId,
     teamId: context.teamId,
     date: toIsoDateTimeMidnight(dateISO),
-    numberOfSteps: Number(absoluteSteps),
+    numberOfSteps: Number.isFinite(+absoluteSteps) ? Math.abs(+absoluteSteps) : 0,
   });
+
   return await http(url, { method: 'POST', headers, body });
 };
-
-
