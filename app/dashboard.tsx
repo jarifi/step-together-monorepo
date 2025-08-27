@@ -439,7 +439,6 @@ const Dashboard: React.FC = () => {
   }, [stepsToday]);
 
   const timeProgressRaw = vm?.challenge?.timeProgress ?? 0;
-  const timeProgressPct = Math.round(Math.max(0, Math.min(1, timeProgressRaw)) * 100);
   const daysLeft = vm?.challenge?.daysLeft;
 
   // ===== Team-Progress =====
@@ -581,7 +580,7 @@ const Dashboard: React.FC = () => {
 
           {/* METRICS */}
           <View style={styles.metricsRow}>
-            <View className={styles.metricSide}>
+            <View style={styles.metricSide}>
               <Ionicons name="flame" size={24} color="#E25822" style={{ marginBottom: 4 }} />
               <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
               <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
