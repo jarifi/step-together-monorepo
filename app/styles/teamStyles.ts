@@ -1,0 +1,262 @@
+import { StyleSheet } from 'react-native';
+
+
+const colors = {
+    bg: '#F3F7F4',
+    card: '#FBFDFC',
+    ink: '#2F3E34',
+    sub: '#6F877A',
+    primary: '#4E705F',
+    primary700: '#3D5B4D',
+    primarySoft: '#E6F0EA',
+    border: '#E4EDE7',
+    white: '#FFFFFF',
+};
+
+export default StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    container: { paddingBottom: 40 },
+
+    header: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    backBtn: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 16,
+    },
+    headerTitle: {
+        flex: 1,
+        textAlign: 'center',
+        fontSize: 20,
+        fontWeight: '800',
+        color: colors.ink,
+    },
+
+    topCard: {
+        marginHorizontal: 16,
+        backgroundColor: colors.card,
+        borderRadius: 28,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    topTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
+    topSub: { marginTop: 4, color: colors.sub, fontSize: 14 },
+
+    topActions: { marginTop: 16, flexDirection: 'row', gap: 12 },
+    primaryBtn: {
+        flex: 1,
+        backgroundColor: colors.primary,
+        paddingVertical: 14,
+        borderRadius: 16,
+        alignItems: 'center',
+    },
+    primaryBtnText: { color: colors.white, fontWeight: '800', fontSize: 15 },
+    secondaryBtn: {
+        flex: 1,
+        backgroundColor: colors.white,
+        paddingVertical: 14,
+        borderRadius: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    secondaryBtnText: { color: colors.primary700, fontWeight: '800', fontSize: 15 },
+
+    searchWrap: {
+        marginTop: 14,
+        backgroundColor: colors.white,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: 14,
+        height: 50,
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 10,
+    },
+    searchInput: { flex: 1, fontSize: 16, color: colors.ink },
+
+    selectorCard: {
+        marginTop: 14,
+        marginHorizontal: 16,
+        backgroundColor: colors.white,
+        borderRadius: 22,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    selectorHeader: {
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    selectorTitle: { fontSize: 14, color: colors.sub },
+    selectorAction: { color: colors.primary700, fontWeight: '800', fontSize: 14 },
+
+    personRow: {
+        paddingHorizontal: 18,
+        paddingVertical: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    avatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+        backgroundColor: colors.primarySoft,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarText: { color: colors.primary700, fontWeight: '900', fontSize: 16 },
+
+    personInfo: { flex: 1, marginLeft: 14 },
+    personName: { color: colors.ink, fontWeight: '800', fontSize: 16 },
+
+    badgeWrap: { marginTop: 6, flexDirection: 'row' },
+    badge: {
+        backgroundColor: colors.primarySoft,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    badgeText: { fontSize: 12, color: colors.primary700, fontWeight: '800' },
+
+    badgeMuted: {
+        backgroundColor: '#F1F6F3',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    badgeMutedText: { fontSize: 12, color: colors.sub, fontWeight: '700' },
+
+    checkboxTouch: { padding: 8 },
+    checkbox: {
+        width: 26,
+        height: 26,
+        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: colors.primary700,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+    },
+    checkboxChecked: {
+        backgroundColor: colors.primary700,
+        borderColor: colors.primary700,
+    },
+
+    separator: { height: 1, backgroundColor: colors.border, marginLeft: 80 },
+
+    footerBar: {
+        marginTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingHorizontal: 18,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    footerText: { flex: 1, color: colors.sub, fontSize: 13 },
+    continueBtn: {
+        backgroundColor: colors.primary,
+        paddingHorizontal: 22,
+        paddingVertical: 12,
+        borderRadius: 16,
+    },
+    continueBtnDisabled: { opacity: 0.4 },
+    continueText: { color: colors.white, fontWeight: '900', fontSize: 15 },
+
+    membersBlock: {
+        marginTop: 18,
+        marginHorizontal: 16,
+        backgroundColor: colors.card,
+        borderRadius: 22,
+        paddingVertical: 10,
+    },
+    blockHeading: {
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        fontWeight: '900',
+        color: colors.primary700,
+        fontSize: 16,
+    },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.25)',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+    },
+    modalCard: {
+        width: '100%',
+        backgroundColor: colors.white,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        padding: 20,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '900', color: colors.ink },
+    modalHint: { color: colors.sub, marginTop: 4, fontSize: 14 },
+
+    modalCardShadow: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+
+    codePill: {
+        marginTop: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    codeText: { fontWeight: '900', letterSpacing: 1, color: colors.primary700, fontSize: 16 },
+    copyBtn: { padding: 8, borderRadius: 10 },
+
+    shareBtn: {
+        marginTop: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        backgroundColor: colors.primary,
+        paddingVertical: 14,
+        borderRadius: 16,
+    },
+    shareBtnText: { color: colors.white, fontWeight: '900', fontSize: 15 },
+
+    modalClose: {
+        marginTop: 12,
+        alignSelf: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 22,
+    },
+    modalCloseText: { color: colors.primary700, fontWeight: '800', fontSize: 15 },
+});
