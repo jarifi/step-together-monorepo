@@ -1,5 +1,6 @@
 # 08.09.2025 Rebuild Project
 
+npm install
 npx expo install expo-clipboard
 npx expo start -c
 npm run start:dev
@@ -59,3 +60,7 @@ Join our community of developers creating universal apps.
 
 passwort ist "string"
 useres:alice@example.com;bob@example.com;user@example.com
+
+## Chrome without CORS
+
+chrome.exe --disable-web-security --disable-gpu --user-data-dir=%LOCALAPPDATA%\Google\chromeTemp
