@@ -1,3 +1,9 @@
+# 08.09.2025 Rebuild Project
+
+npx expo install expo-clipboard
+npx expo start -c
+npm run start:dev
+
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
@@ -50,5 +56,6 @@ Join our community of developers creating universal apps.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
 
 ## user daten
+
 passwort ist "string"
 useres:alice@example.com;bob@example.com;user@example.com
