@@ -153,5 +153,7 @@ export const upsertStepsForDate = async (
     numberOfSteps: Number.isFinite(+absoluteSteps) ? Math.abs(+absoluteSteps) : 0,
   });
 
+  console.log('Creating new step log:', { url, body });
+
   return await http(url, { method: 'POST', headers, body });
 };
