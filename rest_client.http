@@ -1,4 +1,7 @@
-@baseUrl = http://127.0.0.1:3000/api/v1
+@baseUrl = http://91.99.231.235:3000/api/v1
+#@baseUrl = http://localhost:3000/api/v1
+
+
 
 ### 1. Login to Get Access Token
 # @name login
@@ -6,7 +9,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "aliceup@example.com",
+    "email": "alice@example.com",
     "password": "StrongPassword123" 
 }
 
