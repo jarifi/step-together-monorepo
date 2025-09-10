@@ -32,11 +32,20 @@
   - Send there a Request (= Send Request) to see if you'll get a response
 
 
+
+
 7. open a new terminal and write/copy these following steps:
    1. py -m venv venv
    2. (Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
    3. .\venv\Scripts\Activate.ps1
    4. pip install -r requirements.txt
+      (use these steps just for once then follow number 5.)
+
+
+   Later, when you need to start the project again, you can do so using just the following steps:
+     1. (Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
+     2. .\venv\Scripts\Activate.ps1
+     (then follow number 5.)
 
    and then open the project (if you want to start the project with VSC) with:
    5. uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
