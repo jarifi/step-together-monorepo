@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.models.challenge import Challenge as ChallengeModel
 from app.schema.challenge import ChallengeCreate, ChallengeUpdate, ChallengeResponse
+from app.models.challenge_team import ChallengeTeam
 
 def get_all_challenges(db: Session, skip: int = 0, limit: int = 10)-> List[ChallengeModel]:
     """
@@ -16,10 +17,16 @@ def get_challenge(db: Session, challenge_id: int):
     return db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id).first()
 
 def get_active_challenge(db: Session, team_id: int) -> ChallengeModel | None:
-    return db.query(ChallengeModel).filter(
-        ChallengeModel.team_id == team_id,
-        ChallengeModel.state == "open"
-    ).first()
+    return (
+        db.query(ChallengeModel)
+        .join(ChallengeTeam, ChallengeModel.id == ChallengeTeam.challenge_id)
+        .filter(
+            ChallengeTeam.team_id == team_id,
+            ChallengeModel.state == "open"
+        )
+        .order_by(ChallengeTeam.created_at.desc())
+        .first()
+    )
 
 def create_challenge(db: Session, challenge_data: ChallengeCreate):
     db_challenge = ChallengeModel(**challenge_data.model_dump())

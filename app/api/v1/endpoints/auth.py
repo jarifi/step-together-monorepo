@@ -40,6 +40,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
   team = get_team_by_user_id(db, db_user.id)
   team_id = team.id if team else None
 
+#ToDo challenge_id null for user  with id 3 (Charlie) - why?
   challenge_id = None
   if team_id:
     active_challenge = get_active_challenge(db, team_id)

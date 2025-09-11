@@ -3,10 +3,10 @@
 - Öffne das Terminal und führe die unten aufgeführten Befehle in der angegebenen Reihenfolge aus.
 
   ```
-  python -m venv venv 
-    
-    ODER 
-  
+  python -m venv venv
+
+    ODER
+
   py -m venv venv
   ```
 
@@ -33,7 +33,7 @@
 
 4.  - **Option 4.1: Direkt mit Uvicorn im Terminal (z.B. in VS Code)**
     ```bash
-    uvicorn app.main:app --reload
+    - uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
     ```
 5.  **Verfügbare Endpoints mit test.http testen:**
     Öffne die Datei test.http, suche den Abschnitt Test2 und klicke auf Send Request, um das JWT-Token zu erhalten. Anschließend kannst du die unten aufgeführten Endpoints - - mit diesem Token aufrufen.
@@ -47,8 +47,6 @@
   - `http://127.0.0.1:8000/step_length`
 
 ## START PROJECT ON ANOTHER PORT
-
-- uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
 
 ### Send Request using keyboard
 
