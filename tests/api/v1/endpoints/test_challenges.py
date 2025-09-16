@@ -199,7 +199,8 @@ def test_delete_challenge_success(client, test_user):
         "startDate": datetime.now().isoformat(),
         "endDate": (datetime.now() + timedelta(days=30)).isoformat(),
         "creatorId": test_user.id,
-        "teamId": 1
+        "teamId": 1,
+        "state": "incoming"
     }
 
     create_response = client.post(

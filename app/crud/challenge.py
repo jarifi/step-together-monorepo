@@ -14,7 +14,7 @@ def get_all_challenges(db: Session, skip: int = 0, limit: int = 10)-> List[Chall
     return db.query(ChallengeModel).filter(ChallengeModel.is_deleted == False).offset(skip).limit(limit).all()
 
 def get_challenge(db: Session, challenge_id: int):
-    return db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id).first()
+    return db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id, ChallengeModel.is_deleted == False).first()
 
 def get_active_challenge(db: Session, team_id: int) -> ChallengeModel | None:
     return (

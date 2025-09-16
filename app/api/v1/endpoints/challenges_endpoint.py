@@ -54,7 +54,7 @@ def update_challenge(
         raise HTTPException(status_code=404, detail="Challenge not found")
     return updated_challenge
 
-@router.delete("/{challenge_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{challenge_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_challenge(
     challenge_id: int,
     db: Session = Depends(get_db),
