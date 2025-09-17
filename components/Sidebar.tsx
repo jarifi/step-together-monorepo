@@ -95,27 +95,7 @@ export default function Sidebar() {
             active={isActive('/dashboard')}
             onNavigate={closeSidebar}
           />
-          <NavLink
-            href="/progress"
-            label="Mein Fortschritt"
-            icon="bar-chart-2"
-            active={isActive('/progress')}
-            onNavigate={closeSidebar}
-          />
-          <NavLink
-            href="/steps"
-            label="Meine Schritte"
-            icon="activity"
-            active={isActive('/steps')}
-            onNavigate={closeSidebar}
-          />
-          <NavLink
-            href="/team"
-            label="Mein Team"
-            icon="users"
-            active={isActive('/team')}
-            onNavigate={closeSidebar}
-          />
+
 
           <View style={styles.separator} />
 
