@@ -26,6 +26,12 @@
     - npx expo start -c
     - npm run start:dev
 
+
+ !!! Making changes can cause cache problems
+    To avoid this use:
+     - npx expo start -c 
+    
+
 6. to start it you can also use:
    - npm run start:dev
 
