@@ -183,3 +183,17 @@ export const mapHomeInitToDashboard = (data, pivotMonday) => {
     steps_this_week: parseStepsThisWeek(data.steps_this_week, pivotMonday),
   };
 };
+
+// ======================
+// Default Export (to satisfy Expo Router)
+// ======================
+import React from 'react';
+import { Text, View } from 'react-native';
+
+export default function DashboardDtoPlaceholder() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text>Utility functions loaded</Text>
+    </View>
+  );
+}
