@@ -1,4 +1,6 @@
-import { StyleSheet } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
 
@@ -69,53 +71,55 @@ const styles = StyleSheet.create({
         marginTop: 6,
         marginBottom: 20,
         justifyContent: 'space-between',
+        paddingHorizontal: screenWidth < 380 ? 0 : 10, // Weniger Padding auf kleinen Bildschirmen
     },
     metricSide: {
-        width: 70,
+        width: screenWidth < 380 ? 60 : 70, // Kleinere Breite auf kleinen Bildschirmen
         alignItems: 'center',
+        justifyContent: 'center',
     },
     metricSideValue: {
-        fontSize: 16,
+        fontSize: screenWidth < 380 ? 14 : 16, // Kleinere Schrift auf kleinen Bildschirmen
         fontWeight: '700',
         color: '#2F3E34',
         lineHeight: 18,
-        marginHorizontal: 18,
+        textAlign: 'center',
     },
     metricSideLabel: {
-        fontSize: 12,
+        fontSize: screenWidth < 380 ? 11 : 12, // Kleinere Schrift auf kleinen Bildschirmen
         color: '#6B7280',
-        marginHorizontal: 24,
+        textAlign: 'center',
+        marginTop: 2,
     },
-
-
 
     // ---------- circle steps styles ----------
     stepCircleWrapper: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        minWidth: screenWidth < 380 ? 140 : 170, // Kleinere Mindestbreite
     },
     stepCircleOuter: {
-        width: 170,
-        height: 170,
+        width: screenWidth < 380 ? 140 : 170, // Responsive Größe
+        height: screenWidth < 380 ? 140 : 170,
         borderRadius: 999,
         backgroundColor: '#C5DECD',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 12,
+        borderWidth: screenWidth < 380 ? 10 : 12, // Dünnere Border auf kleinen Bildschirmen
         borderColor: '#DFEBE2',
     },
     stepCircleInnerRing: {
         position: 'absolute',
-        width: 134,
-        height: 134,
+        width: screenWidth < 380 ? 110 : 134, // Responsive Größe
+        height: screenWidth < 380 ? 110 : 134,
         borderRadius: 999,
-        borderWidth: 6,
+        borderWidth: screenWidth < 380 ? 4 : 6, // Dünnere Border
         borderColor: '#E8EFEA',
     },
     stepCircle: {
-        width: 135,
-        height: 135,
+        width: screenWidth < 380 ? 112 : 135, // Responsive Größe
+        height: screenWidth < 380 ? 112 : 135,
         borderRadius: 999,
         backgroundColor: '#FFFFFF',
         borderWidth: 2,
@@ -124,15 +128,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     stepValue: {
-        fontSize: 28,
+        fontSize: screenWidth < 380 ? 24 : 28, // Kleinere Schrift
         fontWeight: '800',
         color: '#2F3E34',
+        textAlign: 'center',
     },
     stepLabel: {
         marginTop: 2,
-        fontSize: 11,
+        fontSize: screenWidth < 380 ? 10 : 11, // Kleinere Schrift
         letterSpacing: 1.2,
         color: '#6B7280',
+        textAlign: 'center',
     },
 
 

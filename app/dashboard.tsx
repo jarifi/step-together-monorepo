@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   AppState,
+  Dimensions,
   Modal,
   ScrollView,
   Text,
@@ -30,6 +31,7 @@ import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashb
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
 
+const { width: screenWidth } = Dimensions.get('window');
 // ======================
 // Types (lokal)
 // ======================
@@ -580,11 +582,14 @@ const Dashboard: React.FC = () => {
           </Text>
 
           {/* METRICS */}
+          {/* METRICS */}
           <View style={styles.metricsRow}>
             <View style={styles.metricSide}>
-              <Ionicons name="flame" size={24} color="#E25822" style={{ marginBottom: 4 }} />
-              <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
-              <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
+              <View style={{ alignItems: 'center' }}>
+                <Ionicons name="flame" size={screenWidth < 380 ? 22 : 24} color="#E25822" style={{ marginBottom: 4 }} />
+                <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
+                <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
+              </View>
             </View>
 
             <View style={styles.stepCircleWrapper}>
@@ -597,10 +602,17 @@ const Dashboard: React.FC = () => {
               </View>
             </View>
 
-            <View style={[styles.metricSide, { alignItems: 'flex-start' }]}>
-              <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4, alignSelf: 'center' }} />
-              <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : distanceKm}</Text>
-              <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
+            <View style={styles.metricSide}>
+              <View style={{ alignItems: 'center' }}>
+                <MaterialIcons
+                  name="place"
+                  size={screenWidth < 380 ? 22 : 24}
+                  color="#F54927"
+                  style={{ marginBottom: 4 }}
+                />
+                <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : distanceKm}</Text>
+                <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
+              </View>
             </View>
           </View>
 
