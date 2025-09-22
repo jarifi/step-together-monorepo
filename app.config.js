@@ -8,6 +8,7 @@ export default ({ config }) => ({
     name: 'step-together',
     slug: 'step-together',
     version: '1.0.0',
+    scheme: 'steptogether',
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,
       appEnv: process.env.APP_ENV,
