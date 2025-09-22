@@ -580,290 +580,319 @@ const Dashboard: React.FC = () => {
           </Text>
 
           {/* METRICS */}
-          <View style={styles.metricsRow}>
-            <View style={styles.metricSide}>
+          <View
+            style={[
+              styles.metricsRow,
+              {
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              },
+            ]}
+          >
+            {/* Kcal */}
+            <View style={[styles.metricSide, { flex: 1, alignItems: "center", flexShrink: 1 }]}>
               <Ionicons name="flame" size={24} color="#E25822" style={{ marginBottom: 4 }} />
-              <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
+              <Text style={[styles.metricSideValue, styles.font]}>
+                {weekLoading ? "…" : kcal}
+              </Text>
               <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
             </View>
 
-            <View style={styles.stepCircleWrapper}>
+            {/* Schritte Circle */}
+            <View
+              style={[
+                styles.stepCircleWrapper,
+                {
+                  flexBasis: "30%",   // Kreis nimmt ca. 30% des verfügbaren Platzes
+                  aspectRatio: 1,     // Höhe = Breite, bleibt also rund
+                  marginHorizontal: 8,
+                },
+              ]}
+            >
               <View style={styles.stepCircleOuter}>
                 <View style={styles.stepCircleInnerRing} />
                 <View style={styles.stepCircle}>
-                  <Text style={[styles.stepValue, styles.font]}>{weekLoading ? '…' : stepsToday}</Text>
+                  <Text style={[styles.stepValue, styles.font]}>
+                    {weekLoading ? "…" : stepsToday}
+                  </Text>
                   <Text style={[styles.stepLabel, styles.font]}>SCHRITTE</Text>
                 </View>
               </View>
             </View>
 
-            <View style={[styles.metricSide, { alignItems: 'flex-start' }]}>
-              <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4, alignSelf: 'center' }} />
-              <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : distanceKm}</Text>
+            {/* km */}
+            <View style={[styles.metricSide, { flex: 1, alignItems: "center", flexShrink: 1 }]}>
+              <MaterialIcons name="place" size={24} color="#F54927" style={{ marginBottom: 4 }} />
+              <Text style={[styles.metricSideValue, styles.font]}>
+                {weekLoading ? "…" : distanceKm}
+              </Text>
               <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.editBtn, isFutureSelected && { opacity: 0.5 }]}
-            disabled={isFutureSelected}
-            onPress={() => setModalVisible(true)}
-          >
-            <Text style={[styles.editBtnText, styles.font]}>
-              {isFutureSelected ? 'Zukunft nicht bearbeitbar' : 'Schritte bearbeiten'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={[styles.weeklyTitle, styles.font]}>
-            Diese Woche: <Text style={{ color: '#5F764E' }}>{weeklyTotal} Schritte</Text>
-          </Text>
-
-          <View style={styles.weekChart}>
-            {weekSteps.map((value, i) => {
-              const height = (value / weeklyMax) * 120;
-              return (
-                <View key={i} style={styles.barCol}>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { height }]} />
-                  </View>
-                  <Text style={[styles.dayLabel, styles.font]}>{dayLabelDe[i]}</Text>
-                </View>
-              );
-            })}
-          </View>
         </View>
 
-        {/* CHALLENGE PROGRESS */}
-        <View style={styles.progressCard}>
-          <Text style={[styles.progressTitle, styles.font]}>
-            <Text style={{ color: '#5F764E', fontWeight: '700' }}>Challenge </Text>Fortschritte
-          </Text>
+      <TouchableOpacity
+        style={[styles.editBtn, isFutureSelected && { opacity: 0.5 }]}
+        disabled={isFutureSelected}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text style={[styles.editBtnText, styles.font]}>
+          {isFutureSelected ? 'Zukunft nicht bearbeitbar' : 'Schritte bearbeiten'}
+        </Text>
+      </TouchableOpacity>
 
-          <View style={styles.topScaleRow}>
-            <Text style={[styles.scaleTick, styles.font]}>Start </Text>
-            <Text style={[styles.scaleTick, styles.font]}>Ziel: {challengeDistanceKm} km</Text>
-          </View>
+      <Text style={[styles.weeklyTitle, styles.font]}>
+        Diese Woche: <Text style={{ color: '#5F764E' }}>{weeklyTotal} Schritte</Text>
+      </Text>
 
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${distancePct}%` }]} />
-          </View>
-          <Text style={[styles.progressNote, styles.font]}>
-            <Text style={{ color: '#5F764E', fontWeight: '800' }}>{distancePct}%</Text> der Strecke geschafft.
-            {' '}({fmt1.format(distanceKmDone)} / {challengeDistanceKm} km){'\n'}
-            {typeof daysLeft === 'number' ? <>Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.</> : null}
-          </Text>
-
-          {/* TEAM INFOS */}
-          <View style={styles.teamSectionHeader}>
-            <Text style={[styles.teamTitle, styles.font]}>Team Infos</Text>
-          </View>
-
-          <Text style={[styles.teamSubtitle, styles.font]}>
-            <Text style={{ color: '#7FA58C', fontWeight: '700' }}>Ranking </Text>
-            der Challenge
-          </Text>
-
-          {rankingLoading && (
-            <View style={{ paddingVertical: 8 }}>
-              <ActivityIndicator />
-            </View>
-          )}
-
-          {rankingError && !rankingLoading && (
-            <Text style={[styles.font, { color: '#B91C1C', marginVertical: 6 }]}>
-              {rankingError}
-            </Text>
-          )}
-
-          {!rankingLoading && !rankingError && rankings.length === 0 && (
-            <Text style={[styles.font, { color: '#6B7280', marginVertical: 6 }]}>
-              Noch keine Ranking-Daten vorhanden.
-            </Text>
-          )}
-
-          {!rankingLoading && !rankingError && rankings.length > 0 && rankings.map((u, idx) => (
-            <View key={`${u.userId ?? 'x'}-${idx}`} style={[styles.rankRow, u.isUser && styles.rankRowMe]}>
-              <Text style={[styles.rankBadge, styles.font, u.rankColor ? { color: u.rankColor } : null]}>
-                {idx + 1}#
-              </Text>
-              <View style={styles.avatar} />
-              <View style={{ flex: 1 }}>
-                <View style={styles.rowBetween}>
-                  <Text style={[styles.userName, styles.font]} numberOfLines={1}>{u.name}</Text>
-                  {u.isUser ? <Text style={[styles.youNote, styles.font]}>(Du)</Text> : null}
-                </View>
-                <Text style={[styles.userSteps, styles.font]}>{fmt.format(u.steps)}</Text>
+      <View style={styles.weekChart}>
+        {weekSteps.map((value, i) => {
+          const height = (value / weeklyMax) * 120;
+          return (
+            <View key={i} style={styles.barCol}>
+              <View style={styles.barTrack}>
+                <View style={[styles.barFill, { height }]} />
               </View>
+              <Text style={[styles.dayLabel, styles.font]}>{dayLabelDe[i]}</Text>
             </View>
-          ))}
+          );
+        })}
+      </View>
+
+
+      {/* CHALLENGE PROGRESS */}
+      <View style={styles.progressCard}>
+        <Text style={[styles.progressTitle, styles.font]}>
+          <Text style={{ color: '#5F764E', fontWeight: '700' }}>Challenge </Text>Fortschritte
+        </Text>
+
+        <View style={styles.topScaleRow}>
+          <Text style={[styles.scaleTick, styles.font]}>Start </Text>
+          <Text style={[styles.scaleTick, styles.font]}>Ziel: {challengeDistanceKm} km</Text>
         </View>
 
-        {/* MODAL: Schritte verwalten */}
-        <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.stepsCard}>
-              <View style={styles.cardHeader}>
-                <Text style={[styles.font, styles.cardTitle]}>Schritte verwalten</Text>
-                <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.headerX}>
-                  <Ionicons name="close" size={18} />
-                </TouchableOpacity>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${distancePct}%` }]} />
+        </View>
+        <Text style={[styles.progressNote, styles.font]}>
+          <Text style={{ color: '#5F764E', fontWeight: '800' }}>{distancePct}%</Text> der Strecke geschafft.
+          {' '}({fmt1.format(distanceKmDone)} / {challengeDistanceKm} km){'\n'}
+          {typeof daysLeft === 'number' ? <>Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.</> : null}
+        </Text>
+
+        {/* TEAM INFOS */}
+        <View style={styles.teamSectionHeader}>
+          <Text style={[styles.teamTitle, styles.font]}>Team Infos</Text>
+        </View>
+
+        <Text style={[styles.teamSubtitle, styles.font]}>
+          <Text style={{ color: '#7FA58C', fontWeight: '700' }}>Ranking </Text>
+          der Challenge
+        </Text>
+
+        {rankingLoading && (
+          <View style={{ paddingVertical: 8 }}>
+            <ActivityIndicator />
+          </View>
+        )}
+
+        {rankingError && !rankingLoading && (
+          <Text style={[styles.font, { color: '#B91C1C', marginVertical: 6 }]}>
+            {rankingError}
+          </Text>
+        )}
+
+        {!rankingLoading && !rankingError && rankings.length === 0 && (
+          <Text style={[styles.font, { color: '#6B7280', marginVertical: 6 }]}>
+            Noch keine Ranking-Daten vorhanden.
+          </Text>
+        )}
+
+        {!rankingLoading && !rankingError && rankings.length > 0 && rankings.map((u, idx) => (
+          <View key={`${u.userId ?? 'x'}-${idx}`} style={[styles.rankRow, u.isUser && styles.rankRowMe]}>
+            <Text style={[styles.rankBadge, styles.font, u.rankColor ? { color: u.rankColor } : null]}>
+              {idx + 1}#
+            </Text>
+            <View style={styles.avatar} />
+            <View style={{ flex: 1 }}>
+              <View style={styles.rowBetween}>
+                <Text style={[styles.userName, styles.font]} numberOfLines={1}>{u.name}</Text>
+                {u.isUser ? <Text style={[styles.youNote, styles.font]}>(Du)</Text> : null}
               </View>
+              <Text style={[styles.userSteps, styles.font]}>{fmt.format(u.steps)}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
 
-              <View style={styles.fieldWrap}>
-                <Text style={[styles.font, styles.fieldLabel]}>Anzahl Schritte</Text>
-                <View style={styles.inputWrap}>
-                  <Ionicons name="walk-outline" size={18} style={{ marginRight: 8, opacity: 0.6 }} />
-                  <TextInput
-                    style={[styles.inputBare, styles.font]}
-                    placeholder="z. B. 1200"
-                    placeholderTextColor="#9AA7A0"
-                    keyboardType="number-pad"
-                    value={stepInput}
-                    onChangeText={setStepInput}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={[styles.primaryBtn, isFutureSelected && { opacity: 0.5 }]}
-                  disabled={isFutureSelected}
-                  onPress={async () => {
-                    const num = parseInt(stepInput, 10);
-                    if (!isNaN(num) && num > 0 && num <= MAX_STEP_DELTA) {
-                      setModalError(null);
-                      await applyStepDelta(num);
-                      setModalVisible(false);
-                      setStepInput('');
-                    } else if (num > MAX_STEP_DELTA) {
-                      setModalError(`Maximal ${MAX_STEP_DELTA} Schritte pro Vorgang erlaubt.`);
-                    } else {
-                      setModalError('Bitte eine gültige Schrittzahl eingeben.');
-                    }
-                  }}
-                >
-                  <Text style={[styles.font, styles.primaryBtnText]}>Hinzufügen</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.secondaryBtn, isFutureSelected && { opacity: 0.5 }]}
-                  disabled={isFutureSelected}
-                  onPress={async () => {
-                    const num = parseInt(stepInput, 10);
-                    const dateSafe = clampDate(displayDate, minDate, maxDate);
-                    const idx = (dateSafe.getDay() + 6) % 7;
-                    const current = weekSteps[idx] ?? 0;
-                    if (!isNaN(num) && num > 0 && num <= current) {
-                      setModalError(null);
-                      await applyStepDelta(-num);
-                      setModalVisible(false);
-                      setStepInput('');
-                    } else if (num > current) {
-                      setModalError('Du kannst nicht mehr Schritte entfernen als vorhanden.');
-                    } else {
-                      setModalError('Bitte eine gültige Schrittzahl eingeben.');
-                    }
-                  }}
-                >
-                  <Text style={[styles.font, styles.secondaryBtnText]}>Entfernen</Text>
-                </TouchableOpacity>
-              </View>
-
-              {modalError ? (
-                <Text style={[styles.font, { color: '#B91C1C', textAlign: 'center', marginTop: 8 }]}>
-                  {modalError}
-                </Text>
-              ) : null}
-
-              {isFutureSelected ? (
-                <Text style={[styles.font, { color: '#6B7280', textAlign: 'center', marginTop: 8 }]}>
-                  Zukünftige Tage können nicht bearbeitet werden.
-                </Text>
-              ) : null}
-
-              <TouchableOpacity style={styles.cancelGhost} onPress={() => { setModalVisible(false); setModalError(null); }}>
-                <Text style={[styles.font, styles.cancelGhostText]}>Abbrechen</Text>
+      {/* MODAL: Schritte verwalten */}
+      <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.stepsCard}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.font, styles.cardTitle]}>Schritte verwalten</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.headerX}>
+                <Ionicons name="close" size={18} />
               </TouchableOpacity>
             </View>
-          </View>
-        </Modal>
 
-        {/* MODAL: Calendar */}
-        <Modal animationType="fade" transparent visible={calendarOpen} onRequestClose={() => setCalendarOpen(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.calendarCard}>
-              <View style={styles.calHeader}>
-                <TouchableOpacity onPress={goPrevMonth} style={[styles.navPill, !canGoPrevMonth && { opacity: 0.35 }]} disabled={!canGoPrevMonth}>
-                  <Ionicons name="chevron-back" size={18} />
-                </TouchableOpacity>
-                <Text style={[styles.font, styles.calHeaderTitle]}>{calendarHeader}</Text>
-                <TouchableOpacity onPress={goNextMonth} style={[styles.navPill, !canGoNextMonth && { opacity: 0.35 }]} disabled={!canGoNextMonth}>
-                  <Ionicons name="chevron-forward" size={18} />
-                </TouchableOpacity>
+            <View style={styles.fieldWrap}>
+              <Text style={[styles.font, styles.fieldLabel]}>Anzahl Schritte</Text>
+              <View style={styles.inputWrap}>
+                <Ionicons name="walk-outline" size={18} style={{ marginRight: 8, opacity: 0.6 }} />
+                <TextInput
+                  style={[styles.inputBare, styles.font]}
+                  placeholder="z. B. 1200"
+                  placeholderTextColor="#9AA7A0"
+                  keyboardType="number-pad"
+                  value={stepInput}
+                  onChangeText={setStepInput}
+                />
               </View>
+            </View>
 
-              <View style={styles.weekRow}>
-                {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
-                  <Text key={d} style={[styles.font, styles.weekCell]}>
-                    {d}
-                  </Text>
-                ))}
-              </View>
-
-              <View style={styles.grid}>
-                {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
-                  const isSame = sameDay(date, calendarPick);
-                  const disabled = !inMonth || !selectable;
-
-                  const isPast = stripTime(date) < today;
-                  const isToday = sameDay(date, today);
-
-                  return (
-                    <TouchableOpacity
-                      key={`${date.toISOString()}-${idx}`}
-                      style={[
-                        styles.dayCellWrap,
-                        isPast && inMonth && selectable && styles.dayPastWrap,
-                        isToday && styles.dayTodayWrap,
-                        isSame && !disabled && styles.daySelectedWrap,
-                        disabled && { opacity: 0.35 },
-                      ]}
-                      onPress={() => !disabled && setCalendarPick(date)}
-                      disabled={disabled}
-                    >
-                      <Text
-                        style={[
-                          styles.font,
-                          styles.dayCellText,
-                          !inMonth && styles.dayOutText,
-                          isSame && !disabled && styles.daySelectedText,
-                        ]}
-                      >
-                        {date.getDate()}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
+            <View style={styles.actionsRow}>
               <TouchableOpacity
-                style={styles.applyBtn}
-                onPress={() => {
-                  const safe = clampDate(calendarPick, minDate, maxDate);
-                  setDisplayDate(safe);
-                  setCalendarOpen(false);
+                style={[styles.primaryBtn, isFutureSelected && { opacity: 0.5 }]}
+                disabled={isFutureSelected}
+                onPress={async () => {
+                  const num = parseInt(stepInput, 10);
+                  if (!isNaN(num) && num > 0 && num <= MAX_STEP_DELTA) {
+                    setModalError(null);
+                    await applyStepDelta(num);
+                    setModalVisible(false);
+                    setStepInput('');
+                  } else if (num > MAX_STEP_DELTA) {
+                    setModalError(`Maximal ${MAX_STEP_DELTA} Schritte pro Vorgang erlaubt.`);
+                  } else {
+                    setModalError('Bitte eine gültige Schrittzahl eingeben.');
+                  }
                 }}
               >
-                <Text style={[styles.font, styles.applyBtnText]}>Übernehmen</Text>
+                <Text style={[styles.font, styles.primaryBtnText]}>Hinzufügen</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setCalendarOpen(false)}>
-                <Text style={[styles.font, styles.cancelBtnText]}>Abbrechen</Text>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, isFutureSelected && { opacity: 0.5 }]}
+                disabled={isFutureSelected}
+                onPress={async () => {
+                  const num = parseInt(stepInput, 10);
+                  const dateSafe = clampDate(displayDate, minDate, maxDate);
+                  const idx = (dateSafe.getDay() + 6) % 7;
+                  const current = weekSteps[idx] ?? 0;
+                  if (!isNaN(num) && num > 0 && num <= current) {
+                    setModalError(null);
+                    await applyStepDelta(-num);
+                    setModalVisible(false);
+                    setStepInput('');
+                  } else if (num > current) {
+                    setModalError('Du kannst nicht mehr Schritte entfernen als vorhanden.');
+                  } else {
+                    setModalError('Bitte eine gültige Schrittzahl eingeben.');
+                  }
+                }}
+              >
+                <Text style={[styles.font, styles.secondaryBtnText]}>Entfernen</Text>
               </TouchableOpacity>
             </View>
+
+            {modalError ? (
+              <Text style={[styles.font, { color: '#B91C1C', textAlign: 'center', marginTop: 8 }]}>
+                {modalError}
+              </Text>
+            ) : null}
+
+            {isFutureSelected ? (
+              <Text style={[styles.font, { color: '#6B7280', textAlign: 'center', marginTop: 8 }]}>
+                Zukünftige Tage können nicht bearbeitet werden.
+              </Text>
+            ) : null}
+
+            <TouchableOpacity style={styles.cancelGhost} onPress={() => { setModalVisible(false); setModalError(null); }}>
+              <Text style={[styles.font, styles.cancelGhostText]}>Abbrechen</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      </ScrollView>
+        </View>
+      </Modal>
+
+      {/* MODAL: Calendar */}
+      <Modal animationType="fade" transparent visible={calendarOpen} onRequestClose={() => setCalendarOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarCard}>
+            <View style={styles.calHeader}>
+              <TouchableOpacity onPress={goPrevMonth} style={[styles.navPill, !canGoPrevMonth && { opacity: 0.35 }]} disabled={!canGoPrevMonth}>
+                <Ionicons name="chevron-back" size={18} />
+              </TouchableOpacity>
+              <Text style={[styles.font, styles.calHeaderTitle]}>{calendarHeader}</Text>
+              <TouchableOpacity onPress={goNextMonth} style={[styles.navPill, !canGoNextMonth && { opacity: 0.35 }]} disabled={!canGoNextMonth}>
+                <Ionicons name="chevron-forward" size={18} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.weekRow}>
+              {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
+                <Text key={d} style={[styles.font, styles.weekCell]}>
+                  {d}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.grid}>
+              {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
+                const isSame = sameDay(date, calendarPick);
+                const disabled = !inMonth || !selectable;
+
+                const isPast = stripTime(date) < today;
+                const isToday = sameDay(date, today);
+
+                return (
+                  <TouchableOpacity
+                    key={`${date.toISOString()}-${idx}`}
+                    style={[
+                      styles.dayCellWrap,
+                      isPast && inMonth && selectable && styles.dayPastWrap,
+                      isToday && styles.dayTodayWrap,
+                      isSame && !disabled && styles.daySelectedWrap,
+                      disabled && { opacity: 0.35 },
+                    ]}
+                    onPress={() => !disabled && setCalendarPick(date)}
+                    disabled={disabled}
+                  >
+                    <Text
+                      style={[
+                        styles.font,
+                        styles.dayCellText,
+                        !inMonth && styles.dayOutText,
+                        isSame && !disabled && styles.daySelectedText,
+                      ]}
+                    >
+                      {date.getDate()}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={styles.applyBtn}
+              onPress={() => {
+                const safe = clampDate(calendarPick, minDate, maxDate);
+                setDisplayDate(safe);
+                setCalendarOpen(false);
+              }}
+            >
+              <Text style={[styles.font, styles.applyBtnText]}>Übernehmen</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setCalendarOpen(false)}>
+              <Text style={[styles.font, styles.cancelBtnText]}>Abbrechen</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView >
     </>
   );
 };
