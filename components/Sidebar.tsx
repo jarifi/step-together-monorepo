@@ -5,9 +5,13 @@ import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-n
 import { useUser } from '../context/UserContext';
 import { removeToken } from '../lib/auth';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 const screenWidth = Dimensions.get('window').width;
 
 export default function Sidebar() {
+  const insets = useSafeAreaInsets();
+
   const [isOpen, setIsOpen] = useState(false);
   const [slideAnim] = useState(new Animated.Value(-screenWidth));
 
@@ -58,11 +62,11 @@ export default function Sidebar() {
 
   return (
     <>
-      <View style={styles.headerContainer}>
-        <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
-          <Text style={{ color: 'white', fontSize: 22 }}>☰</Text>
-        </Pressable>
-      </View>
+    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
+        <Text style={{ color: 'white', fontSize: 22 }}>☰</Text>
+      </Pressable>
+    </View>
 
       {isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
@@ -196,7 +200,6 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 10,
     paddingHorizontal: 16,
     paddingBottom: 10,
     backgroundColor: '#6B8F71',
