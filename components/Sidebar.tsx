@@ -64,7 +64,7 @@ export default function Sidebar() {
     <>
     <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
       <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
-        <Text style={{ color: 'white', fontSize: 22 }}>☰</Text>
+        <Text style={{ color: 'white', fontSize: 35 }}>☰</Text>
       </Pressable>
     </View>
 
