@@ -62,15 +62,20 @@ export default function Sidebar() {
 
   return (
     <>
-    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
-      <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
-        <Text style={{ color: 'white', fontSize: 35 }}>☰</Text>
-      </Pressable>
-    </View>
+      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+        <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
+          <Text style={{ color: 'white', fontSize: 35 }}>☰</Text>
+        </Pressable>
+      </View>
 
       {isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
-      <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
+      <Animated.View
+        style={[
+          styles.sidebar,
+          { left: slideAnim, paddingTop: insets.top + 20 }, 
+        ]}
+      >
         {user ? (
           <Pressable
             style={styles.profileContainer}
@@ -99,7 +104,6 @@ export default function Sidebar() {
             active={isActive('/dashboard')}
             onNavigate={closeSidebar}
           />
-
 
           <View style={styles.separator} />
 
@@ -205,7 +209,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B8F71',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-
   },
   burgerBtn: {
     backgroundColor: '#6B8F71',
@@ -233,7 +236,6 @@ const styles = StyleSheet.create({
     zIndex: 40,
     borderTopRightRadius: 28,
     borderBottomRightRadius: 28,
-
 
     // depth for the curved look
     shadowColor: '#000',
@@ -295,8 +297,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
   },
-  navLinkInactive: {
-  },
+  navLinkInactive: {},
   navLinkActive: {
     backgroundColor: '#6B8F71', // darker sage for selection (e.g., /teams)
   },
@@ -308,7 +309,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.2,
-
   },
   navLinkTextActive: {
     color: '#F7F8F5',
