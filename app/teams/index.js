@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import TeamCard from '../../components/TeamCard';
-import { getTeams, deleteTeam } from '../../services/teamService';
+import { deleteTeam, getTeams } from '../../services/teamService';
 
 export default function TeamsScreen() {
   const [teams, setTeams] = useState([]);
@@ -107,6 +107,7 @@ const styles = StyleSheet.create({
   createButton: {
     backgroundColor: '#6B8F71',
     padding: 12,
+    marginTop: 16,
     marginBottom: 16,
     borderRadius: 8,
     alignItems: 'center',
