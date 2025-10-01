@@ -545,7 +545,7 @@ const Dashboard: React.FC = () => {
   // ========= Render =========
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 100 }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 80 }}>
         {/* DATE + USER + CHALLENGE */}
         <View style={styles.topSection}>
           <View style={styles.dateRow}>
