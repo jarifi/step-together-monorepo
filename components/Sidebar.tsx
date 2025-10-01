@@ -202,6 +202,12 @@ function NavLink({ href, label, icon, style, active, onNavigate }: NavLinkProps)
 const styles = StyleSheet.create({
   // HEADER
   headerContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+  
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -233,7 +239,7 @@ const styles = StyleSheet.create({
     width: screenWidth * 0.75,          // keep at 75%
     backgroundColor: '#F7F8F5',         // off-white canvas
     padding: 20,
-    zIndex: 40,
+    zIndex: 999, 
     borderTopRightRadius: 28,
     borderBottomRightRadius: 28,
 
