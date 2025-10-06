@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     // ---------- modal styles for Edit Steps----------
     editBtn: {
         alignSelf: 'center',
-        backgroundColor: '#86AD8E',   // darker, matches calendar "Übernehmen"
+        backgroundColor: '#86AD8E',   // darker, matches y "Übernehmen"
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 18,
@@ -342,10 +342,10 @@ const styles = StyleSheet.create({
     /* modal (shared overlay) */
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        padding: 16,
     },
 
     /* steps modal */
@@ -482,6 +482,8 @@ const styles = StyleSheet.create({
 
     // ---------- calendar card ----------
     calendarCard: {
+        maxWidth: 400,
+        maxHeight: 600,
         width: '100%',
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
@@ -531,6 +533,7 @@ const styles = StyleSheet.create({
     },
 
     // ---------- calendar grid ----------
+    // ---------- calendar grid ----------
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -541,18 +544,29 @@ const styles = StyleSheet.create({
     dayCellWrap: {
         width: `${100 / 7}%`,
         aspectRatio: 1,
-        alignItems: 'center',
         justifyContent: 'center',
+        alignItems: 'center',
         borderRadius: 12,
     },
 
-    daySelectedWrap: {
-        backgroundColor: '#D7E3DA',
+    dayCellInner: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     dayCellText: {
         fontSize: 16,
         color: '#2F3E34',
+        textAlign: 'center',
+        textAlignVertical: 'center',
+        includeFontPadding: false,
+        lineHeight: 16, // Gleiche Höhe wie Font-Size für perfekte Zentrierung
+    },
+
+    daySelectedWrap: {
+        backgroundColor: '#D7E3DA',
     },
 
     dayOutText: {
@@ -562,7 +576,6 @@ const styles = StyleSheet.create({
     daySelectedText: {
         fontWeight: '800',
     },
-
     applyBtn: {
         backgroundColor: '#415949',
         paddingVertical: 12,
@@ -589,12 +602,12 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     dayPastWrap: {
-    backgroundColor: '#EEF3EF',
+        backgroundColor: '#EEF3EF',
     },
     dayTodayWrap: {
-    borderWidth: 2,
-    borderColor: '#BFD4C5',
-    borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#BFD4C5',
+        borderRadius: 12,
     },
 });
 
