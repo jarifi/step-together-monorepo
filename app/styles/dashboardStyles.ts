@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     // ---------- modal styles for Edit Steps----------
     editBtn: {
         alignSelf: 'center',
-        backgroundColor: '#86AD8E',   // darker, matches calendar "Übernehmen"
+        backgroundColor: '#86AD8E',   // darker, matches y "Übernehmen"
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 18,

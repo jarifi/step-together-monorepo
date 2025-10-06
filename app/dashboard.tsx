@@ -867,7 +867,7 @@ const Dashboard: React.FC = () => {
                   setCalendarOpen(false);
                 }}
               >
-                <Text style={[styles.font, styles.applyBtnText]}>Übernehmen</Text>
+                <Text style={[styles.font, styles.applyBtnText]}>Übernehmen </Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setCalendarOpen(false)}>
