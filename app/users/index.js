@@ -91,6 +91,7 @@ export default function UsersScreen() {
           onEndReached={loadUsers}
           onEndReachedThreshold={0.5}
           ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 16 }} /> : null}
+          style={styles.flatList}
         />
       )}
     </View>
@@ -101,10 +102,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: '#ffffff', // Weißer Hintergrund für den Container
   },
   loader: {
     flex: 1,
     justifyContent: 'center',
+    backgroundColor: '#ffffff', // Weißer Hintergrund für den Loader
+  },
+  flatList: {
+    backgroundColor: '#ffffff', // Weißer Hintergrund für die FlatList
   },
   createButton: {
     backgroundColor: '#6B8F71',
