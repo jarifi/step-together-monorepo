@@ -582,7 +582,6 @@ const Dashboard: React.FC = () => {
           </Text>
 
           {/* METRICS */}
-          {/* METRICS */}
           <View style={styles.metricsRow}>
             <View style={styles.metricSide}>
               <View style={{ alignItems: 'center' }}>
@@ -802,7 +801,7 @@ const Dashboard: React.FC = () => {
 
         {/* MODAL: Calendar */}
         <Modal animationType="fade" transparent visible={calendarOpen} onRequestClose={() => setCalendarOpen(false)}>
-          <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setCalendarOpen(false)}>
             <View style={styles.calendarCard}>
               <View style={styles.calHeader}>
                 <TouchableOpacity onPress={goPrevMonth} style={[styles.navPill, !canGoPrevMonth && { opacity: 0.35 }]} disabled={!canGoPrevMonth}>
@@ -843,16 +842,18 @@ const Dashboard: React.FC = () => {
                       onPress={() => !disabled && setCalendarPick(date)}
                       disabled={disabled}
                     >
-                      <Text
-                        style={[
-                          styles.font,
-                          styles.dayCellText,
-                          !inMonth && styles.dayOutText,
-                          isSame && !disabled && styles.daySelectedText,
-                        ]}
-                      >
-                        {date.getDate()}
-                      </Text>
+                      <View style={styles.dayCellInner}>
+                        <Text
+                          style={[
+                            styles.dayCellText,
+                            styles.font,
+                            !inMonth && styles.dayOutText,
+                            isSame && !disabled && styles.daySelectedText,
+                          ]}
+                        >
+                          {date.getDate()}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -873,7 +874,7 @@ const Dashboard: React.FC = () => {
                 <Text style={[styles.font, styles.cancelBtnText]}>Abbrechen</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         </Modal>
       </ScrollView>
     </>
