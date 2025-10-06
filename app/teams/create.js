@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { validateTeamName } from '../../lib/teamValidation';
 import { createTeam } from '../../services/teamService';
@@ -21,6 +21,7 @@ export default function CreateTeamScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
+                    topOffset: 100, // Unter dem Header anzeigen
                 });
             });
             return;
@@ -34,6 +35,7 @@ export default function CreateTeamScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -45,14 +47,18 @@ export default function CreateTeamScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich erstellt!',
+                text2: 'Team erfolgreich erstellt!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             router.replace('/teams');
         } catch (error) {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: error?.message || 'Team konnte nicht erstellt werden!'
+                text2: error?.message || 'Team konnte nicht erstellt werden!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             console.error(error);
         } finally {

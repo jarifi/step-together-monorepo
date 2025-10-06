@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import Toast, { ErrorToast } from "react-native-toast-message";
+import Toast from "react-native-toast-message";
 import { useUser } from "../../context/UserContext";
 import { validateEmail, validateName, validateStepLength } from "../../lib/userValidation";
 import { updateUser } from "../../services/userService";
@@ -36,6 +36,7 @@ export default function UpdateUserScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
+                    topOffset: 100, // Unter dem Header anzeigen
                 });
             });
             return;
@@ -50,6 +51,7 @@ export default function UpdateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -65,6 +67,7 @@ export default function UpdateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -80,6 +83,7 @@ export default function UpdateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -95,15 +99,19 @@ export default function UpdateUserScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich aktualisiert!'
+                text2: 'Benutzer erfolgreich aktualisiert!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             router.back();
         } catch (error) {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: ErrorToast.message || 'Benutzer konnte nicht aktualisiert werden'
-            })
+                text2: error?.message || 'Benutzer konnte nicht aktualisiert werden',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
+            });
             console.error(error);
         } finally {
             setLoading(false);

@@ -1,8 +1,8 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { useTeam } from "../../context/TeamContext";
 import Toast from 'react-native-toast-message';
+import { useTeam } from "../../context/TeamContext";
 import { validateTeamName } from '../../lib/teamValidation';
 import { updateTeam } from "../../services/teamService";
 
@@ -31,6 +31,7 @@ export default function UpdateTeamScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
+                    topOffset: 100, // Unter dem Header anzeigen
                 });
             });
             return;
@@ -44,6 +45,7 @@ export default function UpdateTeamScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -55,14 +57,18 @@ export default function UpdateTeamScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich erstellt!',
+                text2: 'Team erfolgreich aktualisiert!', // Korrigierte Nachricht
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             router.replace('/teams');
         } catch (error) {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: error?.message || 'Team konnte nicht erstellt werden!'
+                text2: error?.message || 'Team konnte nicht aktualisiert werden!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             console.error(error);
         } finally {

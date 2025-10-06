@@ -27,6 +27,7 @@ export default function CreateUserScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
+                    topOffset: 100, // Unter dem Header anzeigen
                 });
             });
             return;
@@ -41,6 +42,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -56,6 +58,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -71,6 +74,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -82,6 +86,8 @@ export default function CreateUserScreen() {
                 type: 'error',
                 text1: 'Error',
                 text2: 'Passwörter stimmen nicht überein!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             return;
         }
@@ -96,6 +102,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -109,6 +116,8 @@ export default function CreateUserScreen() {
                 type: 'success',
                 text1: 'Erfolg',
                 text2: 'Benutzer erfolgreich erstellt!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             router.replace('/users');
         } catch (error) {
@@ -116,6 +125,8 @@ export default function CreateUserScreen() {
                 type: 'error',
                 text1: 'Error',
                 text2: error?.message || 'Benutzer konnte nicht erstellt werden!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             console.error(error);
         } finally {

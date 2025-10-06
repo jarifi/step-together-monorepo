@@ -35,6 +35,7 @@ export default function CreateChallengeScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
+                    topOffset: 100, // Unter dem Header anzeigen
                 });
             });
             return;
@@ -48,6 +49,7 @@ export default function CreateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -62,6 +64,7 @@ export default function CreateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -77,6 +80,7 @@ export default function CreateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -92,6 +96,7 @@ export default function CreateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -116,14 +121,18 @@ export default function CreateChallengeScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich erstellt!',
+                text2: 'Challenge erfolgreich erstellt!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             router.replace('/challenges');
         } catch (error) {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: error?.message || 'Challenge konnte nicht erstellt werden!'
+                text2: error?.message || 'Challenge konnte nicht erstellt werden!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             console.error(error);
         } finally {

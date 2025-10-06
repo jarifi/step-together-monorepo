@@ -1,8 +1,8 @@
 import { Picker } from '@react-native-picker/picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { Pressable, Text, TextInput, View, StyleSheet } from 'react-native';
 import { validateChallengeName, validateDate, validateDistance, validateLocation } from '../../lib/challengeValidation';
 import { updateChallenge } from '../../services/challengeService';
 
@@ -34,6 +34,7 @@ export default function UpdateChallengeScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
+                    topOffset: 100, // Unter dem Header anzeigen
                 });
             });
             return;
@@ -48,6 +49,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -62,6 +64,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -77,6 +80,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -92,6 +96,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
+                        topOffset: 100, // Unter dem Header anzeigen
                     });
                 }, index * 2500);
             });
@@ -116,14 +121,18 @@ export default function UpdateChallengeScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich erstellt!',
+                text2: 'Challenge erfolgreich aktualisiert!', // Korrigierte Nachricht
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             router.replace('/challenges');
         } catch (error) {
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: error?.message || 'Challenge konnte nicht erstellt werden!'
+                text2: error?.message || 'Challenge konnte nicht aktualisiert werden!',
+                position: 'top',
+                topOffset: 100, // Unter dem Header anzeigen
             });
             console.error(error);
         } finally {
