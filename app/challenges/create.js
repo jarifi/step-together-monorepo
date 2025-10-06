@@ -121,7 +121,7 @@ export default function CreateChallengeScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Challenge erfolgreich erstellt!',
+                text2: 'Challenge erfolgreich erstellt! ',
                 position: 'top',
                 topOffset: 100, //Unter dem Header anzeigen
             });

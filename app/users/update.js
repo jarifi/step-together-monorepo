@@ -99,7 +99,7 @@ export default function UpdateUserScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich aktualisiert!',
+                text2: 'Benutzer erfolgreich aktualisiert! ',
                 position: 'top',
                 topOffset: 100, //Unter dem Header anzeigen
             });

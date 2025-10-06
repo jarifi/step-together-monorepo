@@ -47,7 +47,7 @@ export default function CreateTeamScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Team erfolgreich erstellt!',
+                text2: 'Team erfolgreich erstellt! ',
                 position: 'top',
                 topOffset: 100, //Unter dem Header anzeigen
             });

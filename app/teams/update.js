@@ -57,7 +57,7 @@ export default function UpdateTeamScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Team erfolgreich aktualisiert!', //Korrigierte Nachricht
+                text2: 'Team erfolgreich aktualisiert! ', //Korrigierte Nachricht
                 position: 'top',
                 topOffset: 100, // Unter dem Header anzeigen
             });

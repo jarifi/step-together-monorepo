@@ -115,9 +115,9 @@ export default function CreateUserScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich erstellt!',
+                text2: 'Benutzer erfolgreich erstellt! ',
                 position: 'top',
-                topOffset: 100, //Unter dem Header anzeigen
+                topOffset: 100, // Unter dem Header anzeigen
             });
             router.replace('/users');
         } catch (error) {
