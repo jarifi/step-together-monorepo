@@ -101,7 +101,7 @@ export default function UpdateUserScreen() {
                 text1: 'Erfolg',
                 text2: 'Benutzer erfolgreich aktualisiert!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100, //Unter dem Header anzeigen
             });
             router.back();
         } catch (error) {

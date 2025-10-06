@@ -121,7 +121,7 @@ export default function UpdateChallengeScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Challenge erfolgreich aktualisiert!', // Korrigierte Nachricht
+                text2: 'Challenge erfolgreich aktualisiert!', //Korrigierte Nachricht
                 position: 'top',
                 topOffset: 100, // Unter dem Header anzeigen
             });

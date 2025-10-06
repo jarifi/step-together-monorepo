@@ -123,7 +123,7 @@ export default function CreateChallengeScreen() {
                 text1: 'Erfolg',
                 text2: 'Challenge erfolgreich erstellt!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100, //Unter dem Header anzeigen
             });
             router.replace('/challenges');
         } catch (error) {

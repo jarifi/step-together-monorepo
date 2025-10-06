@@ -49,7 +49,7 @@ export default function CreateTeamScreen() {
                 text1: 'Erfolg',
                 text2: 'Team erfolgreich erstellt!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100, //Unter dem Header anzeigen
             });
             router.replace('/teams');
         } catch (error) {
