@@ -24,6 +24,9 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
   if not db_user:
     raise HTTPException(status_code=400, detail="Benutzer nicht gefunden.")
   
+  if db_user.is_deleted:
+        raise HTTPException(status_code=403, detail="Konto deaktiviert.")
+  
   if db_user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
     raise HTTPException(status_code=403, detail="Konto gesperrt wegen zu vieler fehlgeschlagener Anmeldeversuche.")
   
