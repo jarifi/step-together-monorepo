@@ -7,6 +7,7 @@ class Token(BaseModel):
     user_id: int
     team_id: Optional[int] = None
     active_challenge_id: Optional[int] = None
+    role: str
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -15,6 +16,7 @@ class TokenData(BaseModel):
     step_length: Optional[float] = None # Include if you expect 'step_length' in payload
     team_id: Optional[int] = None
     challenge_id: Optional[int] = None
+    role: Optional[str] = None
 
 
     model_config = {

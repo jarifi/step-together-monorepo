@@ -51,7 +51,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
   # Generate access token
   access_token = create_access_token(
-    data={"sub": user.email, "user_id": db_user.id, "team_id": team_id, "challenge_id": challenge_id},
+    data={"sub": user.email, "user_id": db_user.id, "team_id": team_id, "challenge_id": challenge_id, "role": db_user.role},
     expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
   )
 
@@ -61,4 +61,5 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     "user_id": db_user.id,
     "team_id": team_id,
     "active_challenge_id": challenge_id,
+    "role": db_user.role,
   }
