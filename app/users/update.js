@@ -36,7 +36,7 @@ export default function UpdateUserScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
-                    topOffset: 100, // Unter dem Header anzeigen
+                    topOffset: 100,
                 });
             });
             return;
@@ -51,7 +51,7 @@ export default function UpdateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -67,7 +67,7 @@ export default function UpdateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -83,7 +83,7 @@ export default function UpdateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -94,14 +94,14 @@ export default function UpdateUserScreen() {
         try {
             const updatedUser = await updateUser(Number(params.id), { name, email, stepLength });
             if (Number(params.id) === user.id) {
-            setUser(updatedUser);
+                setUser(updatedUser);
             }
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich aktualisiert! ',
+                text2: 'Benutzer erfolgreich aktualisiert!',
                 position: 'top',
-                topOffset: 100, //Unter dem Header anzeigen
+                topOffset: 100,
             });
             router.back();
         } catch (error) {
@@ -110,7 +110,7 @@ export default function UpdateUserScreen() {
                 text1: 'Error',
                 text2: error?.message || 'Benutzer konnte nicht aktualisiert werden',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             console.error(error);
         } finally {
@@ -118,41 +118,58 @@ export default function UpdateUserScreen() {
         }
     };
 
+    const handleCancel = () => {
+        router.back();
+    };
+
     return (
         <View style={styles.container}>
-            <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Vor- und Nachname"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="E-Mail"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={stepLength}
-                onChangeText={setStepLength}
-                placeholder="Schrittlänge"
-                style={styles.input}
-                editable={!loading}
-            />
-            <Pressable
-                onPress={handleUpdate}
-                disabled={loading}
-                style={[
-                    styles.updateButton,
-                    loading && styles.disabledButton,
-                ]}
-            >
-                <Text style={styles.updateText}>
-                    {loading ? 'Aktualisierung...' : 'Benutzer aktualisieren'}
-                </Text>
-            </Pressable>
+            <View style={styles.formContainer}>
+                {/* Titel "Benutzer bearbeiten" über den Eingabefeldern */}
+                <Text style={styles.title}>Benutzer bearbeiten</Text>
+                
+                <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Vor- und Nachname"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="E-Mail"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <TextInput
+                    value={stepLength}
+                    onChangeText={setStepLength}
+                    placeholder="Schrittlänge"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                
+                <View style={styles.buttonContainer}>
+                    <Pressable
+                        onPress={handleCancel}
+                        disabled={loading}
+                        style={[styles.cancelButton, loading && styles.disabledButton]}
+                    >
+                        <Text style={styles.cancelButtonText}>Abbrechen</Text>
+                    </Pressable>
+                    
+                    <Pressable
+                        onPress={handleUpdate}
+                        disabled={loading}
+                        style={[styles.updateButton, loading && styles.disabledButton]}
+                    >
+                        <Text style={styles.buttonText}>
+                            {loading ? 'Aktualisierung...' : 'Aktualisieren'}
+                        </Text>
+                    </Pressable>
+                </View>
+            </View>
         </View>
     );
 }
@@ -162,25 +179,59 @@ const styles = StyleSheet.create({
         padding: 16,
         flex: 1,
         backgroundColor: '#fff',
+        paddingTop: 40,
+    },
+    formContainer: {
+        flex: 1,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'left',
+        marginBottom: 20,
+        color: '#333',
     },
     input: {
         borderWidth: 1,
         borderColor: '#ddd',
-        padding: 12,
-        marginBottom: 12,
+        padding: 14,
+        marginBottom: 16,
         borderRadius: 6,
+        fontSize: 16,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 16,
     },
     updateButton: {
-        padding: 12,
+        flex: 1,
+        padding: 14,
         backgroundColor: '#6B8F71',
         borderRadius: 6,
         alignItems: 'center',
     },
-    updateText: {
+    cancelButton: {
+        flex: 1,
+        padding: 14,
+        backgroundColor: '#f0f0f0',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 6,
+        alignItems: 'center',
+    },
+    buttonText: {
         color: '#fff',
         fontWeight: 'bold',
+        fontSize: 16,
+    },
+    cancelButtonText: {
+        color: '#333',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
     disabledButton: {
         backgroundColor: '#aaa',
+        borderColor: '#aaa',
     },
 });

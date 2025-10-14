@@ -25,7 +25,6 @@ export default function UpdateChallengeScreen() {
         const distanceErrors = validateDistance(distance);
         const dateErrors = validateDate(startDate, endDate);
 
-
         if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
             setTimeout(() => {
                 Toast.show({
@@ -34,7 +33,7 @@ export default function UpdateChallengeScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
-                    topOffset: 100, // Unter dem Header anzeigen
+                    topOffset: 100,
                 });
             });
             return;
@@ -49,7 +48,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -64,7 +63,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -80,7 +79,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -96,7 +95,7 @@ export default function UpdateChallengeScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -121,9 +120,9 @@ export default function UpdateChallengeScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Challenge erfolgreich aktualisiert! ', //Korrigierte Nachricht
+                text2: 'Challenge erfolgreich aktualisiert!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             router.replace('/challenges');
         } catch (error) {
@@ -132,7 +131,7 @@ export default function UpdateChallengeScreen() {
                 text1: 'Error',
                 text2: error?.message || 'Challenge konnte nicht aktualisiert werden!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             console.error(error);
         } finally {
@@ -140,75 +139,92 @@ export default function UpdateChallengeScreen() {
         }
     };
 
+    const handleCancel = () => {
+        router.back();
+    };
+
     return (
         <View style={styles.container}>
-            <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Challenge Name"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={startLocation}
-                onChangeText={setStartLocation}
-                placeholder="Start Location"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={targetLocation}
-                onChangeText={setTargetLocation}
-                placeholder="Target Location"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={distance}
-                onChangeText={setDistance}
-                placeholder="Distance"
-                style={styles.input}
-                keyboardType="numeric"
-                editable={!loading}
-            />
-            <TextInput
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="Start Date (YYYY-MM-DD)"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="End Date (YYYY-MM-DD)"
-                style={styles.input}
-                editable={!loading}
-            />
-            <View style={styles.pickerContainer}>
-                <Picker
-                    selectedValue={state}
-                    onValueChange={(itemValue, itemIndex) => setState(itemValue)}
-                    style={styles.picker}
-                    enabled={!loading}
-                >
-                    <Picker.Item label="incoming" value="incoming" />
-                    <Picker.Item label="open" value="open" />
-                    <Picker.Item label="closed" value="closed" />
-                </Picker>
+            <View style={styles.formContainer}>
+                {/* Titel "Challenge bearbeiten" über den Eingabefeldern */}
+                <Text style={styles.title}>Challenge bearbeiten</Text>
+                
+                <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Challenge Name"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <TextInput
+                    value={startLocation}
+                    onChangeText={setStartLocation}
+                    placeholder="Start Location"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <TextInput
+                    value={targetLocation}
+                    onChangeText={setTargetLocation}
+                    placeholder="Target Location"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <TextInput
+                    value={distance}
+                    onChangeText={setDistance}
+                    placeholder="Distance"
+                    style={styles.input}
+                    keyboardType="numeric"
+                    editable={!loading}
+                />
+                <TextInput
+                    value={startDate}
+                    onChangeText={setStartDate}
+                    placeholder="Start Date (YYYY-MM-DD)"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <TextInput
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    placeholder="End Date (YYYY-MM-DD)"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <View style={styles.pickerContainer}>
+                    <Picker
+                        selectedValue={state}
+                        onValueChange={(itemValue, itemIndex) => setState(itemValue)}
+                        style={styles.picker}
+                        enabled={!loading}
+                    >
+                        <Picker.Item label="incoming" value="incoming" />
+                        <Picker.Item label="open" value="open" />
+                        <Picker.Item label="closed" value="closed" />
+                    </Picker>
+                </View>
+                
+                <View style={styles.buttonContainer}>
+                    <Pressable
+                        onPress={handleCancel}
+                        disabled={loading}
+                        style={[styles.cancelButton, loading && styles.disabledButton]}
+                    >
+                        <Text style={styles.cancelButtonText}>Abbrechen</Text>
+                    </Pressable>
+                    
+                    <Pressable
+                        onPress={handleUpdate}
+                        disabled={loading}
+                        style={[styles.updateButton, loading && styles.disabledButton]}
+                    >
+                        <Text style={styles.buttonText}>
+                            {loading ? 'Aktualisierung...' : 'Aktualisieren'}
+                        </Text>
+                    </Pressable>
+                </View>
             </View>
-            <Pressable
-                onPress={handleUpdate}
-                disabled={loading}
-                style={[
-                    styles.updateButton,
-                    loading && styles.disabledButton,
-                ]}
-            >
-                <Text style={styles.updateText}>
-                    {loading ? 'Aktualisierung...' : 'Challenge aktualisieren'}
-                </Text>
-            </Pressable>
         </View>
     );
 }
@@ -218,34 +234,68 @@ const styles = StyleSheet.create({
         padding: 16,
         flex: 1,
         backgroundColor: '#fff',
+        paddingTop: 40,
+    },
+    formContainer: {
+        flex: 1,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'left',
+        marginBottom: 20,
+        color: '#333',
     },
     input: {
         borderWidth: 1,
         borderColor: '#ddd',
-        padding: 12,
-        marginBottom: 12,
+        padding: 14,
+        marginBottom: 16,
         borderRadius: 6,
+        fontSize: 16,
     },
     pickerContainer: {
         borderWidth: 1,
         borderColor: '#ddd',
         borderRadius: 6,
-        marginBottom: 12,
+        marginBottom: 16,
     },
     picker: {
         height: 50,
     },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 16,
+    },
     updateButton: {
-        padding: 12,
+        flex: 1,
+        padding: 14,
         backgroundColor: '#6B8F71',
         borderRadius: 6,
         alignItems: 'center',
     },
-    updateText: {
+    cancelButton: {
+        flex: 1,
+        padding: 14,
+        backgroundColor: '#f0f0f0',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 6,
+        alignItems: 'center',
+    },
+    buttonText: {
         color: '#fff',
         fontWeight: 'bold',
+        fontSize: 16,
+    },
+    cancelButtonText: {
+        color: '#333',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
     disabledButton: {
         backgroundColor: '#aaa',
+        borderColor: '#aaa',
     },
 });

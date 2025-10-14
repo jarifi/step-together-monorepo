@@ -27,7 +27,7 @@ export default function CreateUserScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
-                    topOffset: 100, // Unter dem Header anzeigen
+                    topOffset: 100,
                 });
             });
             return;
@@ -42,7 +42,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -58,7 +58,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -74,7 +74,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -87,7 +87,7 @@ export default function CreateUserScreen() {
                 text1: 'Error',
                 text2: 'Passwörter stimmen nicht überein!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             return;
         }
@@ -102,7 +102,7 @@ export default function CreateUserScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -117,7 +117,7 @@ export default function CreateUserScreen() {
                 text1: 'Erfolg',
                 text2: 'Benutzer erfolgreich erstellt! ',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             router.replace('/users');
         } catch (error) {
@@ -126,7 +126,7 @@ export default function CreateUserScreen() {
                 text1: 'Error',
                 text2: error?.message || 'Benutzer konnte nicht erstellt werden!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             console.error(error);
         } finally {
@@ -136,56 +136,70 @@ export default function CreateUserScreen() {
 
     return (
         <View style={styles.container}>
-            <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Vor- und Nachname"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="E-Mail"
-                style={styles.input}
-                keyboardType="email-address"
-                editable={!loading}
-            />
-            <TextInput
-                value={stepLength}
-                onChangeText={setStepLength}
-                placeholder="Schrittlänge"
-                style={styles.input}
-                editable={!loading}
-            />
-            <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Passwort"
-                style={styles.input}
-                secureTextEntry
-                editable={!loading}
-            />
-            <TextInput
-                value={passwordConfirm}
-                onChangeText={setPasswordConfirm}
-                placeholder="Passwort bestätigen"
-                style={styles.input}
-                secureTextEntry
-                editable={!loading}
-            />
-            <Pressable
-                onPress={handleCreate}
-                disabled={loading}
-                style={[
-                    styles.createButton,
-                    loading && styles.disabledButton,
-                ]}
-            >
-                <Text style={styles.createText}>
-                    {loading ? 'Erstellen...' : 'Benutzer erstellen'}
-                </Text>
-            </Pressable>
+            <View style={styles.formContainer}>
+                {/* Titel "Benutzer erstellen" über den Eingabefeldern */}
+                <Text style={styles.title}>Benutzer erstellen</Text>
+                
+                <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Vor- und Nachname"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="E-Mail"
+                    style={styles.input}
+                    keyboardType="email-address"
+                    editable={!loading}
+                />
+                <TextInput
+                    value={stepLength}
+                    onChangeText={setStepLength}
+                    placeholder="Schrittlänge (in cm)"
+                    style={styles.input}
+                    keyboardType="numeric"
+                    editable={!loading}
+                />
+                <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Passwort"
+                    style={styles.input}
+                    secureTextEntry
+                    editable={!loading}
+                />
+                <TextInput
+                    value={passwordConfirm}
+                    onChangeText={setPasswordConfirm}
+                    placeholder="Passwort bestätigen"
+                    style={styles.input}
+                    secureTextEntry
+                    editable={!loading}
+                />
+                
+                <View style={styles.buttonContainer}>
+                    <Pressable
+                        onPress={() => router.back()}
+                        disabled={loading}
+                        style={[styles.cancelButton, loading && styles.disabledButton]}
+                    >
+                        <Text style={styles.cancelButtonText}>Abbrechen</Text>
+                    </Pressable>
+                    
+                    <Pressable
+                        onPress={handleCreate}
+                        disabled={loading}
+                        style={[styles.createButton, loading && styles.disabledButton]}
+                    >
+                        <Text style={styles.createText}>
+                            {loading ? 'Erstellen...' : 'Erstellen'}
+                        </Text>
+                    </Pressable>
+                </View>
+            </View>
         </View>
     );
 }
@@ -195,25 +209,59 @@ const styles = StyleSheet.create({
         padding: 16,
         flex: 1,
         backgroundColor: '#fff',
+        paddingTop: 60, // Abstand oben
+    },
+    formContainer: {
+        flex: 1,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'left',
+        marginBottom: 30,
+        color: '#333',
     },
     input: {
         borderWidth: 1,
         borderColor: '#ddd',
-        padding: 12,
-        marginBottom: 12,
+        padding: 16,
+        marginBottom: 20,
         borderRadius: 6,
+        fontSize: 16,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 20,
     },
     createButton: {
-        padding: 12,
+        flex: 1,
+        padding: 16,
         backgroundColor: '#6B8F71',
+        borderRadius: 6,
+        alignItems: 'center',
+    },
+    cancelButton: {
+        flex: 1,
+        padding: 16,
+        backgroundColor: '#f0f0f0',
+        borderWidth: 1,
+        borderColor: '#ddd',
         borderRadius: 6,
         alignItems: 'center',
     },
     createText: {
         color: '#fff',
         fontWeight: 'bold',
+        fontSize: 16,
+    },
+    cancelButtonText: {
+        color: '#333',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
     disabledButton: {
         backgroundColor: '#aaa',
+        borderColor: '#aaa',
     },
 });

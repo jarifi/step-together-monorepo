@@ -23,7 +23,7 @@ export default function UpdateTeamScreen() {
     const handleUpdate = async () => {
         const nameErrors = validateTeamName(name);
 
-        if (!name.trim) {
+        if (!name.trim()) {
             setTimeout(() => {
                 Toast.show({
                     type: 'error',
@@ -31,7 +31,7 @@ export default function UpdateTeamScreen() {
                     text2: 'Alle Felder sind Pflichtfelder!',
                     position: 'top',
                     visibilityTime: 2000,
-                    topOffset: 100, // Unter dem Header anzeigen
+                    topOffset: 100,
                 });
             });
             return;
@@ -45,7 +45,7 @@ export default function UpdateTeamScreen() {
                         text2: error,
                         position: 'top',
                         visibilityTime: 2000,
-                        topOffset: 100, // Unter dem Header anzeigen
+                        topOffset: 100,
                     });
                 }, index * 2500);
             });
@@ -57,9 +57,9 @@ export default function UpdateTeamScreen() {
             Toast.show({
                 type: 'success',
                 text1: 'Erfolg',
-                text2: 'Team erfolgreich aktualisiert! ', //Korrigierte Nachricht
+                text2: 'Team erfolgreich aktualisiert!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             router.replace('/teams');
         } catch (error) {
@@ -68,7 +68,7 @@ export default function UpdateTeamScreen() {
                 text1: 'Error',
                 text2: error?.message || 'Team konnte nicht aktualisiert werden!',
                 position: 'top',
-                topOffset: 100, // Unter dem Header anzeigen
+                topOffset: 100,
             });
             console.error(error);
         } finally {
@@ -76,27 +76,52 @@ export default function UpdateTeamScreen() {
         }
     };
 
+    const handleCancel = () => {
+        router.back();
+    };
+
     return (
         <View style={styles.container}>
-            <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Name"
-                style={styles.input}
-                editable={!loading}
-            />
-            <Pressable
-                onPress={handleUpdate}
-                disabled={loading}
-                style={[
-                    styles.updateButton,
-                    loading && styles.disabledButton,
-                ]}
-            >
-                <Text style={styles.updateText}>
-                    {loading ? 'Aktualisierung...' : 'Team aktualisieren'}
-                </Text>
-            </Pressable>
+            <View style={styles.formContainer}>
+                {/* Titel "Team bearbeiten" über dem Eingabefeld */}
+                <Text style={styles.title}>Team bearbeiten</Text>
+                
+                <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Team Name"
+                    style={styles.input}
+                    editable={!loading}
+                />
+                
+                <View style={styles.buttonContainer}>
+                    <Pressable
+                        onPress={handleCancel}
+                        disabled={loading}
+                        style={[
+                            styles.cancelButton,
+                            loading && styles.disabledButton,
+                        ]}
+                    >
+                        <Text style={styles.cancelButtonText}>
+                            Abbrechen
+                        </Text>
+                    </Pressable>
+                    
+                    <Pressable
+                        onPress={handleUpdate}
+                        disabled={loading}
+                        style={[
+                            styles.updateButton,
+                            loading && styles.disabledButton,
+                        ]}
+                    >
+                        <Text style={styles.buttonText}>
+                            {loading ? 'Aktualisierung...' : 'Aktualisieren'}
+                        </Text>
+                    </Pressable>
+                </View>
+            </View>
         </View>
     );
 }
@@ -106,25 +131,59 @@ const styles = StyleSheet.create({
         padding: 16,
         flex: 1,
         backgroundColor: '#fff',
+        paddingTop: 40, // Verkleinert von 60 auf 40
+    },
+    formContainer: {
+        flex: 1,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'left',
+        marginBottom: 20, // Verkleinert von 30 auf 20
+        color: '#333',
     },
     input: {
         borderWidth: 1,
         borderColor: '#ddd',
-        padding: 12,
-        marginBottom: 12,
+        padding: 14, // Verkleinert von 16 auf 14
+        marginBottom: 16, // Verkleinert von 20 auf 16
         borderRadius: 6,
+        fontSize: 16,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 10, // Verkleinert von 12 auf 10
+        marginTop: 16, // Verkleinert von 20 auf 16
     },
     updateButton: {
-        padding: 12,
+        flex: 1,
+        padding: 14, // Verkleinert von 16 auf 14
         backgroundColor: '#6B8F71',
         borderRadius: 6,
         alignItems: 'center',
     },
-    updateText: {
+    cancelButton: {
+        flex: 1,
+        padding: 14, // Verkleinert von 16 auf 14
+        backgroundColor: '#f0f0f0',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 6,
+        alignItems: 'center',
+    },
+    buttonText: {
         color: '#fff',
         fontWeight: 'bold',
+        fontSize: 16,
+    },
+    cancelButtonText: {
+        color: '#333',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
     disabledButton: {
         backgroundColor: '#aaa',
+        borderColor: '#aaa',
     },
 });
