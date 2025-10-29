@@ -69,7 +69,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
   }
 
 @router.post(
-    "/change-password",
+    "/change_password",
     status_code=status.HTTP_204_NO_CONTENT, # No content on success
     summary="Change the current user's password"
 )
