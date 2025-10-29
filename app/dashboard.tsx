@@ -862,7 +862,6 @@ const Dashboard: React.FC = () => {
                 {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
                   const isSame = sameDay(date, calendarPick);
                   const disabled = !inMonth || !selectable;
-
                   const isPast = stripTime(date) < today;
                   const isToday = sameDay(date, today);
 
