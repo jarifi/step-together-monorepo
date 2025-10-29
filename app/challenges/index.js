@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import ChallengeCard from '../../components/ChallengeCard';
 import { deleteChallenge, getChallenges } from '../../services/challengeService';
 
@@ -12,7 +12,25 @@ export default function ChallengesScreen() {
     const [loadingInital, setLoadingInitial] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
+
+    // Gefilterte Challenges basierend auf Suchanfrage
+    const filteredChallenges = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return challenges;
+        }
+        
+        const query = searchQuery.toLowerCase().trim();
+        return challenges.filter(challenge => 
+            challenge.name?.toLowerCase().includes(query) ||
+            challenge.id?.toString().includes(query) ||
+            challenge.startLocation?.toLowerCase().includes(query) ||
+            challenge.targetLocation?.toLowerCase().includes(query) ||
+            challenge.state?.toLowerCase().includes(query) ||
+            challenge.teamId?.toString().includes(query)
+        );
+    }, [searchQuery, challenges]);
 
     const loadChallenges = async () => {
         if (loadingMore || !hasMore) return;
@@ -43,16 +61,46 @@ export default function ChallengesScreen() {
             setSkip(0);
             setChallenges([]);
             setHasMore(true);
+            setSearchQuery('');
             loadChallenges();
         }, [])
     );
 
-    if (loadingInital) {
+    if (loadingInital && challenges.length === 0) {
         return <ActivityIndicator style={styles.loader} size="large" />;
     }
 
     return (
         <View style={styles.container}>
+            {/* Suchleiste */}
+            <View style={styles.searchContainer}>
+                <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Challenges suchen..."
+                    style={styles.searchInput}
+                    clearButtonMode="while-editing"
+                />
+                {searchQuery.length > 0 && (
+                    <Pressable 
+                        onPress={() => setSearchQuery('')}
+                        style={styles.clearButton}
+                    >
+                        <Text style={styles.clearButtonText}>✕</Text>
+                    </Pressable>
+                )}
+            </View>
+
+            {/* Such-Info */}
+            {searchQuery.trim() && (
+                <View style={styles.searchInfo}>
+                    <Text style={styles.searchInfoText}>
+                        {filteredChallenges.length} von {challenges.length} Challenges gefunden
+                        {searchQuery.trim() && ` für "${searchQuery}"`}
+                    </Text>
+                </View>
+            )}
+
             <Pressable onPress={() => router.push('/challenges/create')} style={styles.createButton}>
                 <Text style={styles.createButtonText}>Neue Challenge erstellen</Text>
             </Pressable>
@@ -61,7 +109,7 @@ export default function ChallengesScreen() {
                 <ActivityIndicator style={styles.loader} size="large" />
             ) : (
                 <FlatList
-                    data={challenges}
+                    data={filteredChallenges}
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={({ item }) => (
                         <ChallengeCard
@@ -93,9 +141,23 @@ export default function ChallengesScreen() {
                             }}
                         />
                     )}
-                    onEndReached={loadChallenges}
+                    onEndReached={searchQuery.trim() ? null : loadChallenges}
                     onEndReachedThreshold={0.5}
-                    ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 16 }} /> : null}
+                    ListEmptyComponent={
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>
+                                {searchQuery.trim() 
+                                    ? `Keine Challenges gefunden für "${searchQuery}"`
+                                    : 'Keine Challenges vorhanden'
+                                }
+                            </Text>
+                        </View>
+                    }
+                    ListFooterComponent={
+                        loadingMore && !searchQuery.trim() ? (
+                            <ActivityIndicator style={{ margin: 16 }} />
+                        ) : null
+                    }
                 />
             )}
         </View>
@@ -107,10 +169,67 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 16,
         backgroundColor: '#f5f5f5',
+        paddingTop: 60,
     },
     loader: {
         flex: 1,
         justifyContent: 'center',
+    },
+    // Suchleiste Styles
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        position: 'relative',
+    },
+    searchInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        padding: 16,
+        borderRadius: 8,
+        fontSize: 16,
+        backgroundColor: '#fff',
+        paddingRight: 45,
+    },
+    clearButton: {
+        position: 'absolute',
+        right: 12,
+        backgroundColor: '#ccc',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    clearButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    // Such-Info Styles
+    searchInfo: {
+        backgroundColor: '#f0f8ff',
+        padding: 8,
+        borderRadius: 6,
+        marginBottom: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: '#6B8F71',
+    },
+    searchInfoText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+    },
+    // Empty State
+    emptyContainer: {
+        padding: 40,
+        alignItems: 'center',
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#999',
+        textAlign: 'center',
     },
     createButton: {
         backgroundColor: '#6B8F71',
