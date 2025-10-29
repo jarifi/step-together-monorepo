@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import TeamCard from '../../components/TeamCard';
 import { deleteTeam, getTeams } from '../../services/teamService';
 
@@ -12,7 +12,22 @@ export default function TeamsScreen() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+
+  // Gefilterte Teams basierend auf Suchanfrage
+  const filteredTeams = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return teams;
+    }
+    
+    const query = searchQuery.toLowerCase().trim();
+    return teams.filter(team => 
+      team.name?.toLowerCase().includes(query) ||
+      team.id?.toString().includes(query) ||
+      team.description?.toLowerCase().includes(query)
+    );
+  }, [searchQuery, teams]);
 
   const loadTeams = async () => {
     if (loadingMore || !hasMore) return;
@@ -31,7 +46,7 @@ export default function TeamsScreen() {
       }
 
     } catch (err) {
-      console.error(('Failed to load teams:', err));
+      console.error('Failed to load teams:', err);
     } finally {
       if (isInitial) setLoadingInitial(false);
       else setLoadingMore(false);
@@ -43,16 +58,46 @@ export default function TeamsScreen() {
       setSkip(0);
       setTeams([]);
       setHasMore(true);
+      setSearchQuery('');
       loadTeams();
     }, [])
   );
 
-  if (loadingInitial) {
+  if (loadingInitial && teams.length === 0) {
     return <ActivityIndicator style={styles.loader} size="large" />;
   }
 
   return (
     <View style={styles.container}>
+      {/* Suchleiste */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Teams suchen..."
+          style={styles.searchInput}
+          clearButtonMode="while-editing"
+        />
+        {searchQuery.length > 0 && (
+          <Pressable 
+            onPress={() => setSearchQuery('')}
+            style={styles.clearButton}
+          >
+            <Text style={styles.clearButtonText}>✕</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Such-Info */}
+      {searchQuery.trim() && (
+        <View style={styles.searchInfo}>
+          <Text style={styles.searchInfoText}>
+            {filteredTeams.length} von {teams.length} Teams gefunden
+            {searchQuery.trim() && ` für "${searchQuery}"`}
+          </Text>
+        </View>
+      )}
+
       <Pressable onPress={() => router.push('/teams/create')} style={styles.createButton}>
         <Text style={styles.createButtonText}>Neues Team erstellen</Text>
       </Pressable>
@@ -61,7 +106,7 @@ export default function TeamsScreen() {
         <ActivityIndicator style={styles.loader} size="large" />
       ) : (
         <FlatList
-          data={teams}
+          data={filteredTeams}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <TeamCard
@@ -85,9 +130,23 @@ export default function TeamsScreen() {
               }}
             />
           )}
-          onEndReached={loadTeams}
+          onEndReached={searchQuery.trim() ? null : loadTeams}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 16 }} /> : null}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim() 
+                  ? `Keine Teams gefunden für "${searchQuery}"`
+                  : 'Keine Teams vorhanden'
+                }
+              </Text>
+            </View>
+          }
+          ListFooterComponent={
+            loadingMore && !searchQuery.trim() ? (
+              <ActivityIndicator style={{ margin: 16 }} />
+            ) : null
+          }
         />
       )}
     </View>
@@ -99,10 +158,67 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#f5f5f5',
+    paddingTop: 60,
   },
   loader: {
     flex: 1,
     justifyContent: 'center',
+  },
+  // Suchleiste Styles
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 16,
+    borderRadius: 8,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    paddingRight: 45,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 12,
+    backgroundColor: '#ccc',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // Such-Info Styles
+  searchInfo: {
+    backgroundColor: '#f0f8ff',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#6B8F71',
+  },
+  searchInfoText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  // Empty State
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
   },
   createButton: {
     backgroundColor: '#6B8F71',

@@ -14,7 +14,16 @@
 
 3. chrome.exe --disable-web-security --disable-gpu --user-data-dir=%LOCALAPPDATA%\Google\chromeTemp
 
+### Some helper commands
 
-## Some helper commands
+# Clear Expo + Metro cache
 
-   npx expo start -c
+npx expo start -c
+
+# Optionally clear npm cache (sometimes needed on Windows)
+
+npm cache clean --force
+
+## APK For Android
+
+https://mandalorian.at/st/step.apk
