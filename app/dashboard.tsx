@@ -79,7 +79,6 @@ export type RankingItem = {
 
 const Dashboard: React.FC = () => {
   // Core VM
-
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -100,6 +99,9 @@ const Dashboard: React.FC = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [calendarPick, setCalendarPick] = useState<Date>(new Date());
+
+  // Warning state
+  const [showExpiredWarning, setShowExpiredWarning] = useState(true);
 
   // ===== Challenge bounds =====
   const minDate = useMemo(
@@ -130,6 +132,12 @@ const Dashboard: React.FC = () => {
     isMountedRef.current = true;
     return () => { isMountedRef.current = false; };
   }, []);
+
+  // ===== Challenge Status =====
+  const isChallengeExpired = useMemo(() => {
+    if (!maxDate) return false;
+    return today > maxDate;
+  }, [maxDate, today]);
 
   // Clamp displayDate wenn Bounds sich ändern
   useEffect(() => {
@@ -545,7 +553,29 @@ const Dashboard: React.FC = () => {
   // ========= Render =========
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 80 }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
+        {/* SOFORTIGE WARNMELDUNG - Immer sichtbar wenn Challenge abgelaufen */}
+        {isChallengeExpired && showExpiredWarning && (
+          <View style={styles.expiredWarningContainer}>
+            <Ionicons name="information-circle" size={22} color="#DC2626" style={styles.expiredWarningIcon} />
+            <View style={styles.expiredWarningContent}>
+              <Text style={[styles.font, styles.expiredWarningTitle]}>
+                Challenge beendet 
+              </Text>
+              <Text style={[styles.font, styles.expiredWarningText]}>
+                Diese Challenge ist bereits abgelaufen. Du kannst keine Schritte mehr hinzufügen oder entfernen, 
+                aber du kannst weiterhin die Statistiken und das Ranking einsehen.
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => setShowExpiredWarning(false)}
+              style={styles.closeWarningButton}
+            >
+              <Ionicons name="close" size={18} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* DATE + USER + CHALLENGE */}
         <View style={styles.topSection}>
           <View style={styles.dateRow}>
@@ -568,7 +598,7 @@ const Dashboard: React.FC = () => {
 
           {/* Username */}
           {vm.user?.name ? (
-            <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 6 }]}>
+            <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 8 }]}>
               Willkommen, <Text style={{ color: '#2F3E34', fontWeight: '700' }}>{vm.user.name}</Text> 👋
             </Text>
           ) : null}
@@ -616,12 +646,12 @@ const Dashboard: React.FC = () => {
           </View>
 
           <TouchableOpacity
-            style={[styles.editBtn, isFutureSelected && { opacity: 0.5 }]}
-            disabled={isFutureSelected}
+            style={[styles.editBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
+            disabled={isFutureSelected || isChallengeExpired}
             onPress={() => setModalVisible(true)}
           >
             <Text style={[styles.editBtnText, styles.font]}>
-              {isFutureSelected ? 'Zukunft nicht bearbeitbar' : 'Schritte bearbeiten'}
+              {isChallengeExpired ? 'Challenge abgelaufen - Keine Bearbeitung möglich' : isFutureSelected ? 'Zukunft nicht bearbeitbar' : 'Schritte bearbeiten'}
             </Text>
           </TouchableOpacity>
 
@@ -737,8 +767,8 @@ const Dashboard: React.FC = () => {
 
               <View style={styles.actionsRow}>
                 <TouchableOpacity
-                  style={[styles.primaryBtn, isFutureSelected && { opacity: 0.5 }]}
-                  disabled={isFutureSelected}
+                  style={[styles.primaryBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
+                  disabled={isFutureSelected || isChallengeExpired}
                   onPress={async () => {
                     const num = parseInt(stepInput, 10);
                     if (!isNaN(num) && num > 0 && num <= MAX_STEP_DELTA) {
@@ -757,8 +787,8 @@ const Dashboard: React.FC = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.secondaryBtn, isFutureSelected && { opacity: 0.5 }]}
-                  disabled={isFutureSelected}
+                  style={[styles.secondaryBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
+                  disabled={isFutureSelected || isChallengeExpired}
                   onPress={async () => {
                     const num = parseInt(stepInput, 10);
                     const dateSafe = clampDate(displayDate, minDate, maxDate);
@@ -786,7 +816,14 @@ const Dashboard: React.FC = () => {
                 </Text>
               ) : null}
 
-              {isFutureSelected ? (
+              {isChallengeExpired ? (
+                <View style={styles.expiredModalWarning}>
+                  <Ionicons name="information-circle" size={18} color="#B91C1C" />
+                  <Text style={[styles.font, styles.expiredModalWarningText]}>
+                    Diese Challenge ist bereits beendet. Das Hinzufügen oder Entfernen von Schritten ist nicht mehr möglich.
+                  </Text>
+                </View>
+              ) : isFutureSelected ? (
                 <Text style={[styles.font, { color: '#6B7280', textAlign: 'center', marginTop: 8 }]}>
                   Zukünftige Tage können nicht bearbeitet werden.
                 </Text>
