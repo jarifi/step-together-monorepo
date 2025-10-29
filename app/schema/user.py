@@ -115,3 +115,7 @@ class PasswordResetConfirm(CamelCaseBaseModel):
         if self.new_password != self.password_confirm:
             raise ValueError('Passwords do not match')
         return self
+    
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str

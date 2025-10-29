@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
+from typing import Annotated
 
-from app.core.security import create_access_token, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.core.security import create_access_token, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash, get_current_user
 from app.db.session import get_db
 from app.schema.token import Token
 from app.schema.user import UserLogin
@@ -10,6 +11,9 @@ from app.crud.user import get_user_by_email
 
 from app.crud.team import get_team_by_user_id
 from app.crud.challenge import get_active_challenge
+
+from app.models.user import User
+from app.schema.user import UserLogin, PasswordChange
 
 
 router = APIRouter()
@@ -63,3 +67,38 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     "active_challenge_id": challenge_id,
     "role": db_user.role,
   }
+
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_204_NO_CONTENT, # No content on success
+    summary="Change the current user's password"
+)
+def change_password(
+    passwords: PasswordChange,
+    # This dependency handles token validation and fetches the user object
+    current_user: Annotated[User, Depends(get_current_user)], 
+    db: Session = Depends(get_db)
+):
+  
+    if not verify_password(passwords.old_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Altes Passwort ist inkorrekt."
+        )
+    
+    if passwords.old_password == passwords.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Das neue Passwort muss sich vom alten unterscheiden."
+        )
+    
+    new_hashed_password = get_password_hash(passwords.new_password)
+    
+    current_user.hashed_password = new_hashed_password
+    #current_user.failed_login_attempts = 0 
+    
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    
+    return
