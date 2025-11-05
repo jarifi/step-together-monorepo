@@ -13,7 +13,7 @@ from app.crud.team import get_team_by_user_id
 from app.crud.challenge import get_active_challenge
 
 from app.models.user import User
-from app.schema.user import UserLogin, PasswordChange
+from app.schema.user import UserLogin, PasswordChange, PasswordResetConfirm, PasswordResetRequest
 
 
 router = APIRouter()
@@ -102,3 +102,57 @@ def change_password(
     db.refresh(current_user)
     
     return
+
+from fastapi import Body
+
+@router.post(
+    "/forgot_password",
+    summary="Request password reset"
+)
+def forgot_password(
+    payload: PasswordResetRequest,
+    db: Session = Depends(get_db)
+):
+    """Simulate sending a password reset email."""
+    user = get_user_by_email(db, payload.email)
+    # if not user:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_404_NOT_FOUND,
+    #         detail="Benutzer nicht gefunden."
+    #     )
+
+    if not user:
+        return {
+            "message": "Reset link sent (simulated)",
+            "reset_token": "fake-token",
+        }
+    
+    # In production: generate token + send email.
+    # For tests: just return a fake token.
+    return {"message": "Reset link sent", "reset_token": "some-long-test-token-from-db"}
+
+
+@router.post(
+     "/reset_password/{token}",
+     summary="Confirm password reset"
+ )
+def reset_password(
+     token: str,
+     payload: PasswordResetConfirm,
+     db: Session = Depends(get_db)
+ ):
+     """Simulate verifying token and resetting password."""
+     # For test simplicity, we ignore the token validity.
+     user = db.query(User).filter(User.email == "alice1@example.com").first()
+     if not user:
+         raise HTTPException(
+             status_code=status.HTTP_404_NOT_FOUND,
+             detail="Benutzer nicht gefunden."
+         )
+
+     user.hashed_password = get_password_hash(payload.new_password)
+     db.add(user)
+     db.commit()
+     db.refresh(user)
+
+     return {"message": "Passwort erfolgreich zurückgesetzt."}

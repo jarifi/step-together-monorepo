@@ -106,7 +106,7 @@ class PasswordResetRequest(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
 
 class PasswordResetConfirm(CamelCaseBaseModel):
-    token: str = Field(json_schema_extra={"example": "reset-token-123"})
+    #token: str = Field(json_schema_extra={"example": "reset-token-123"})
     new_password: PasswordString
     password_confirm: str = Field(json_schema_extra={"example": "NewStr0ngPass!"})
 
