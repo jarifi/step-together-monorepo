@@ -13,10 +13,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#F5F7F4',
         flex: 1,
         paddingHorizontal: 18,
-        paddingTop: 35,
+        paddingTop: 20,
     },
     topSection: {
-        paddingTop: 100,
+        //paddingTop: 100,
         backgroundColor: 'transparent',
         padding: 0,
     },
