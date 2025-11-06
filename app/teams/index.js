@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -14,6 +15,7 @@ export default function TeamsScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('teams');
 
   // Gefilterte Teams basierend auf Suchanfrage
   const filteredTeams = useMemo(() => {
@@ -63,95 +65,229 @@ export default function TeamsScreen() {
     }, [])
   );
 
+  // Bottom Navigation Component
+  const BottomNavigation = ({ activeTab, onTabChange }) => {
+    return (
+      <View style={bottomNavStyles.container}>
+        <TouchableOpacity
+          style={bottomNavStyles.tab}
+          onPress={() => onTabChange('dashboard')}
+        >
+          <Ionicons
+            name={activeTab === 'dashboard' ? 'home' : 'home-outline'}
+            size={22}
+            color={activeTab === 'dashboard' ? '#7FA58C' : '#6B7280'}
+          />
+          <Text style={[
+            bottomNavStyles.tabText,
+            { color: activeTab === 'dashboard' ? '#7FA58C' : '#6B7280' }
+          ]}>
+            Home
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={bottomNavStyles.tab}
+          onPress={() => onTabChange('ranking')}
+        >
+          <Ionicons
+            name={activeTab === 'ranking' ? 'trophy' : 'trophy-outline'}
+            size={22}
+            color={activeTab === 'ranking' ? '#7FA58C' : '#6B7280'}
+          />
+          <Text style={[
+            bottomNavStyles.tabText,
+            { color: activeTab === 'ranking' ? '#7FA58C' : '#6B7280' }
+          ]}>
+            Ranking
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={bottomNavStyles.tab}
+          onPress={() => onTabChange('challenges')}
+        >
+          <Ionicons
+            name={activeTab === 'challenges' ? 'flag' : 'flag-outline'}
+            size={22}
+            color={activeTab === 'challenges' ? '#7FA58C' : '#6B7280'}
+          />
+          <Text style={[
+            bottomNavStyles.tabText,
+            { color: activeTab === 'challenges' ? '#7FA58C' : '#6B7280' }
+          ]}>
+            Challenges
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={bottomNavStyles.tab}
+          onPress={() => onTabChange('teams')}
+        >
+          <Ionicons
+            name={activeTab === 'teams' ? 'people' : 'people-outline'}
+            size={22}
+            color={activeTab === 'teams' ? '#7FA58C' : '#6B7280'}
+          />
+          <Text style={[
+            bottomNavStyles.tabText,
+            { color: activeTab === 'teams' ? '#7FA58C' : '#6B7280' }
+          ]}>
+            Teams
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={bottomNavStyles.tab}
+          onPress={() => onTabChange('more')}
+        >
+          <Ionicons
+            name={activeTab === 'more' ? 'ellipsis-horizontal' : 'ellipsis-horizontal-outline'}
+            size={22}
+            color={activeTab === 'more' ? '#7FA58C' : '#6B7280'}
+          />
+          <Text style={[
+            bottomNavStyles.tabText,
+            { color: activeTab === 'more' ? '#7FA58C' : '#6B7280' }
+          ]}>
+            Mehr
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  // Navigation Handler
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    switch (tab) {
+      case 'dashboard':
+        router.push('/dashboard');
+        break;
+      case 'ranking':
+        router.push('/ranking');
+        break;
+      case 'challenges':
+        router.push('/challenges');
+        break;
+      case 'teams':
+        // Bleibt auf aktueller Seite
+        break;
+      case 'more':
+        router.push('/more');
+        break;
+      default:
+        break;
+    }
+  };
+
   if (loadingInitial && teams.length === 0) {
-    return <ActivityIndicator style={styles.loader} size="large" />;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+        <ActivityIndicator style={styles.loader} size="large" />
+        <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} />
+      </View>
+    );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Suchleiste */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Teams suchen..."
-          style={styles.searchInput}
-          clearButtonMode="while-editing"
-        />
-        {searchQuery.length > 0 && (
-          <Pressable 
-            onPress={() => setSearchQuery('')}
-            style={styles.clearButton}
-          >
-            <Text style={styles.clearButtonText}>✕</Text>
-          </Pressable>
+    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      <View style={styles.container}>
+        {/* Suchleiste */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Teams suchen..."
+            style={styles.searchInput}
+            clearButtonMode="while-editing"
+          />
+          {searchQuery.length > 0 && (
+            <Pressable 
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
+              <Text style={styles.clearButtonText}>✕</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Such-Info */}
+        {searchQuery.trim() && (
+          <View style={styles.searchInfo}>
+            <Text style={styles.searchInfoText}>
+              {filteredTeams.length} von {teams.length} Teams gefunden
+              {searchQuery.trim() && ` für "${searchQuery}"`}
+            </Text>
+          </View>
+        )}
+
+        <Pressable onPress={() => router.push('/teams/create')} style={styles.createButton}>
+          <Text style={styles.createButtonText}>Neues Team erstellen</Text>
+        </Pressable>
+
+        {loadingInitial && teams.length === 0 ? (
+          <ActivityIndicator style={styles.loader} size="large" />
+        ) : (
+          <FlatList
+            data={filteredTeams}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <TeamCard
+                team={item}
+                onUpdate={() =>
+                  router.push({
+                    pathname: '/teams/update',
+                    params: {
+                      id: item.id,
+                      name: item.name,
+                    },
+                  })
+                }
+                onDelete={async () => {
+                  try {
+                    await deleteTeam(item.id);
+                    setTeams((prev) => prev.filter((u) => u.id !== item.id));
+                  } catch (error) {
+                    console.error('Delete failed:', error);
+                  }
+                }}
+              />
+            )}
+            onEndReached={searchQuery.trim() ? null : loadTeams}
+            onEndReachedThreshold={0.5}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  {searchQuery.trim() 
+                    ? `Keine Teams gefunden für "${searchQuery}"`
+                    : 'Keine Teams vorhanden'
+                  }
+                </Text>
+              </View>
+            }
+            ListFooterComponent={
+              loadingMore && !searchQuery.trim() ? (
+                <ActivityIndicator style={{ margin: 16 }} />
+              ) : null
+            }
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
         )}
       </View>
-
-      {/* Such-Info */}
-      {searchQuery.trim() && (
-        <View style={styles.searchInfo}>
-          <Text style={styles.searchInfoText}>
-            {filteredTeams.length} von {teams.length} Teams gefunden
-            {searchQuery.trim() && ` für "${searchQuery}"`}
-          </Text>
-        </View>
-      )}
-
-      <Pressable onPress={() => router.push('/teams/create')} style={styles.createButton}>
-        <Text style={styles.createButtonText}>Neues Team erstellen</Text>
-      </Pressable>
-
-      {loadingInitial && teams.length === 0 ? (
-        <ActivityIndicator style={styles.loader} size="large" />
-      ) : (
-        <FlatList
-          data={filteredTeams}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <TeamCard
-              team={item}
-              onUpdate={() =>
-                router.push({
-                  pathname: '/teams/update',
-                  params: {
-                    id: item.id,
-                    name: item.name,
-                  },
-                })
-              }
-              onDelete={async () => {
-                try {
-                  await deleteTeam(item.id);
-                  setTeams((prev) => prev.filter((u) => u.id !== item.id));
-                } catch (error) {
-                  console.error('Delete failed:', error);
-                }
-              }}
-            />
-          )}
-          onEndReached={searchQuery.trim() ? null : loadTeams}
-          onEndReachedThreshold={0.5}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {searchQuery.trim() 
-                  ? `Keine Teams gefunden für "${searchQuery}"`
-                  : 'Keine Teams vorhanden'
-                }
-              </Text>
-            </View>
-          }
-          ListFooterComponent={
-            loadingMore && !searchQuery.trim() ? (
-              <ActivityIndicator style={{ margin: 16 }} />
-            ) : null
-          }
-        />
-      )}
+      
+      {/* Bottom Navigation */}
+      <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} />
     </View>
   );
 }
+
+// TouchableOpacity für Bottom Navigation
+const TouchableOpacity = ({ style, onPress, children }) => (
+  <Pressable style={style} onPress={onPress}>
+    {children}
+  </Pressable>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -234,3 +370,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+const bottomNavStyles = {
+  container: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingBottom: 8,
+    paddingTop: 8,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  tabText: {
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+};
