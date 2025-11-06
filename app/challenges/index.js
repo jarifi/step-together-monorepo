@@ -1,9 +1,105 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ChallengeCard from '../../components/ChallengeCard';
 import { deleteChallenge, getChallenges } from '../../services/challengeService';
+
+const { height: screenHeight } = Dimensions.get('window');
+
+// Bottom Navigation Component
+const BottomNavigation = ({ activeTab, onTabChange }) => {
+  return (
+    <View style={bottomNavStyles.container}>
+      <TouchableOpacity style={bottomNavStyles.tab} onPress={() => onTabChange('dashboard')}>
+        <Ionicons
+          name={activeTab === 'dashboard' ? 'home' : 'home-outline'}
+          size={22}
+          color={activeTab === 'dashboard' ? '#7FA58C' : '#6B7280'}
+        />
+        <Text style={[bottomNavStyles.tabText, { color: activeTab === 'dashboard' ? '#7FA58C' : '#6B7280' }]}>
+          Home
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={bottomNavStyles.tab} onPress={() => onTabChange('ranking')}>
+        <Ionicons
+          name={activeTab === 'ranking' ? 'trophy' : 'trophy-outline'}
+          size={22}
+          color={activeTab === 'ranking' ? '#7FA58C' : '#6B7280'}
+        />
+        <Text style={[bottomNavStyles.tabText, { color: activeTab === 'ranking' ? '#7FA58C' : '#6B7280' }]}>
+          Ranking
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={bottomNavStyles.tab} onPress={() => onTabChange('challenges')}>
+        <Ionicons
+          name={activeTab === 'challenges' ? 'flag' : 'flag-outline'}
+          size={22}
+          color={activeTab === 'challenges' ? '#7FA58C' : '#6B7280'}
+        />
+        <Text style={[bottomNavStyles.tabText, { color: activeTab === 'challenges' ? '#7FA58C' : '#6B7280' }]}>
+          Challenges
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={bottomNavStyles.tab} onPress={() => onTabChange('teams')}>
+        <Ionicons
+          name={activeTab === 'teams' ? 'people' : 'people-outline'}
+          size={22}
+          color={activeTab === 'teams' ? '#7FA58C' : '#6B7280'}
+        />
+        <Text style={[bottomNavStyles.tabText, { color: activeTab === 'teams' ? '#7FA58C' : '#6B7280' }]}>
+          Teams
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={bottomNavStyles.tab} onPress={() => onTabChange('more')}>
+        <Ionicons
+          name={activeTab === 'more' ? 'ellipsis-horizontal' : 'ellipsis-horizontal-outline'}
+          size={22}
+          color={activeTab === 'more' ? '#7FA58C' : '#6B7280'}
+        />
+        <Text style={[bottomNavStyles.tabText, { color: activeTab === 'more' ? '#7FA58C' : '#6B7280' }]}>
+          Mehr
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const bottomNavStyles = {
+  container: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingBottom: 8,
+    paddingTop: 8,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  tabText: {
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+};
 
 export default function ChallengesScreen() {
     const [challenges, setChallenges] = useState([]);
@@ -14,8 +110,32 @@ export default function ChallengesScreen() {
     const [hasMore, setHasMore] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
+    
+    // Bottom Navigation State
+    const [activeTab, setActiveTab] = useState('challenges');
 
-    // Gefilterte Challenges basierend auf Suchanfrage
+    const handleTabChange = (tab: string) => {
+      setActiveTab(tab);
+      if (tab !== 'challenges') {
+        switch (tab) {
+          case 'dashboard':
+            router.push('/dashboard');
+            break;
+          case 'ranking':
+            router.push('/dashboard');
+            break;
+          case 'teams':
+            router.push('/teams');
+            break;
+          case 'more':
+            router.push('/dashboard');
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
     const filteredChallenges = useMemo(() => {
         if (!searchQuery.trim()) {
             return challenges;
@@ -71,95 +191,101 @@ export default function ChallengesScreen() {
     }
 
     return (
-        <View style={styles.container}>
-            {/* Suchleiste */}
-            <View style={styles.searchContainer}>
-                <TextInput
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Challenges suchen..."
-                    style={styles.searchInput}
-                    clearButtonMode="while-editing"
-                />
-                {searchQuery.length > 0 && (
-                    <Pressable 
-                        onPress={() => setSearchQuery('')}
-                        style={styles.clearButton}
-                    >
-                        <Text style={styles.clearButtonText}>✕</Text>
-                    </Pressable>
+        <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
+            <View style={[styles.container, { paddingBottom: 80 }]}>
+                {/* Suchleiste */}
+                <View style={styles.searchContainer}>
+                    <TextInput
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Challenges suchen..."
+                        style={styles.searchInput}
+                        clearButtonMode="while-editing"
+                    />
+                    {searchQuery.length > 0 && (
+                        <Pressable 
+                            onPress={() => setSearchQuery('')}
+                            style={styles.clearButton}
+                        >
+                            <Text style={styles.clearButtonText}>✕</Text>
+                        </Pressable>
+                    )}
+                </View>
+
+                {/* Such-Info */}
+                {searchQuery.trim() && (
+                    <View style={styles.searchInfo}>
+                        <Text style={styles.searchInfoText}>
+                            {filteredChallenges.length} von {challenges.length} Challenges gefunden
+                            {searchQuery.trim() && ` für "${searchQuery}"`}
+                        </Text>
+                    </View>
+                )}
+
+                <Pressable onPress={() => router.push('/challenges/create')} style={styles.createButton}>
+                    <Text style={styles.createButtonText}>Neue Challenge erstellen</Text>
+                </Pressable>
+
+                {loadingInital && challenges.length === 0 ? (
+                    <ActivityIndicator style={styles.loader} size="large" />
+                ) : (
+                    <FlatList
+                        data={filteredChallenges}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={({ item }) => (
+                            <ChallengeCard
+                                challenge={item}
+                                onUpdate={() =>
+                                    router.push({
+                                        pathname: '/challenges/update',
+                                        params: {
+                                            id: item.id,
+                                            name: item.name,
+                                            startLocation: item.startLocation,
+                                            targetLocation: item.targetLocation,
+                                            distance: item.distance?.toString(),
+                                            startDate: item.startDate,
+                                            endDate: item.endDate,
+                                            creatorId: item.creatorId,
+                                            teamId: item.teamId,
+                                            state: item.state,
+                                        },
+                                    })
+                                }
+                                onDelete={async () => {
+                                    try {
+                                        await deleteChallenge(item.id);
+                                        setChallenges((prev) => prev.filter((u) => u.id !== item.id));
+                                    } catch (error) {
+                                        console.error('Delete failed:', error);
+                                    }
+                                }}
+                            />
+                        )}
+                        onEndReached={searchQuery.trim() ? null : loadChallenges}
+                        onEndReachedThreshold={0.5}
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <Text style={styles.emptyText}>
+                                    {searchQuery.trim() 
+                                        ? `Keine Challenges gefunden für "${searchQuery}"`
+                                        : 'Keine Challenges vorhanden'
+                                    }
+                                </Text>
+                            </View>
+                        }
+                        ListFooterComponent={
+                            loadingMore && !searchQuery.trim() ? (
+                                <ActivityIndicator style={{ margin: 16 }} />
+                            ) : null
+                        }
+                        contentContainerStyle={{ flexGrow: 1, minHeight: screenHeight - 180 }}
+                    />
                 )}
             </View>
 
-            {/* Such-Info */}
-            {searchQuery.trim() && (
-                <View style={styles.searchInfo}>
-                    <Text style={styles.searchInfoText}>
-                        {filteredChallenges.length} von {challenges.length} Challenges gefunden
-                        {searchQuery.trim() && ` für "${searchQuery}"`}
-                    </Text>
-                </View>
-            )}
-
-            <Pressable onPress={() => router.push('/challenges/create')} style={styles.createButton}>
-                <Text style={styles.createButtonText}>Neue Challenge erstellen</Text>
-            </Pressable>
-
-            {loadingInital && challenges.length === 0 ? (
-                <ActivityIndicator style={styles.loader} size="large" />
-            ) : (
-                <FlatList
-                    data={filteredChallenges}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
-                        <ChallengeCard
-                            challenge={item}
-                            onUpdate={() =>
-                                router.push({
-                                    pathname: '/challenges/update',
-                                    params: {
-                                        id: item.id,
-                                        name: item.name,
-                                        startLocation: item.startLocation,
-                                        targetLocation: item.targetLocation,
-                                        distance: item.distance?.toString(),
-                                        startDate: item.startDate,
-                                        endDate: item.endDate,
-                                        creatorId: item.creatorId,
-                                        teamId: item.teamId,
-                                        state: item.state,
-                                    },
-                                })
-                            }
-                            onDelete={async () => {
-                                try {
-                                    await deleteChallenge(item.id);
-                                    setChallenges((prev) => prev.filter((u) => u.id !== item.id));
-                                } catch (error) {
-                                    console.error('Delete failed:', error);
-                                }
-                            }}
-                        />
-                    )}
-                    onEndReached={searchQuery.trim() ? null : loadChallenges}
-                    onEndReachedThreshold={0.5}
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <Text style={styles.emptyText}>
-                                {searchQuery.trim() 
-                                    ? `Keine Challenges gefunden für "${searchQuery}"`
-                                    : 'Keine Challenges vorhanden'
-                                }
-                            </Text>
-                        </View>
-                    }
-                    ListFooterComponent={
-                        loadingMore && !searchQuery.trim() ? (
-                            <ActivityIndicator style={{ margin: 16 }} />
-                        ) : null
-                    }
-                />
-            )}
+            {/* Bottom Navigation */}
+            <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         </View>
     );
 }
@@ -175,7 +301,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
     },
-    // Suchleiste Styles
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -207,7 +332,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
     },
-    // Such-Info Styles
     searchInfo: {
         backgroundColor: '#f0f8ff',
         padding: 8,
@@ -221,7 +345,6 @@ const styles = StyleSheet.create({
         color: '#666',
         textAlign: 'center',
     },
-    // Empty State
     emptyContainer: {
         padding: 40,
         alignItems: 'center',
