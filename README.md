@@ -27,3 +27,6 @@ npm cache clean --force
 ## APK For Android
 
 https://mandalorian.at/st/step.apk
+
+
+npx expo install expo-image@~3.0.10 expo-system-ui@~6.0.8 expo-web-browser@~15.0.8 react-native@0.81.5
