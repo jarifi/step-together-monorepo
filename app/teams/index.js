@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -65,98 +64,6 @@ export default function TeamsScreen() {
     }, [])
   );
 
-  // Bottom Navigation Component
-  const BottomNavigation = ({ activeTab, onTabChange }) => {
-    return (
-      <View style={bottomNavStyles.container}>
-        <TouchableOpacity
-          style={bottomNavStyles.tab}
-          onPress={() => onTabChange('dashboard')}
-        >
-          <Ionicons
-            name={activeTab === 'dashboard' ? 'home' : 'home-outline'}
-            size={22}
-            color={activeTab === 'dashboard' ? '#7FA58C' : '#6B7280'}
-          />
-          <Text style={[
-            bottomNavStyles.tabText,
-            { color: activeTab === 'dashboard' ? '#7FA58C' : '#6B7280' }
-          ]}>
-            Home
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={bottomNavStyles.tab}
-          onPress={() => onTabChange('ranking')}
-        >
-          <Ionicons
-            name={activeTab === 'ranking' ? 'trophy' : 'trophy-outline'}
-            size={22}
-            color={activeTab === 'ranking' ? '#7FA58C' : '#6B7280'}
-          />
-          <Text style={[
-            bottomNavStyles.tabText,
-            { color: activeTab === 'ranking' ? '#7FA58C' : '#6B7280' }
-          ]}>
-            Ranking
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={bottomNavStyles.tab}
-          onPress={() => onTabChange('challenges')}
-        >
-          <Ionicons
-            name={activeTab === 'challenges' ? 'flag' : 'flag-outline'}
-            size={22}
-            color={activeTab === 'challenges' ? '#7FA58C' : '#6B7280'}
-          />
-          <Text style={[
-            bottomNavStyles.tabText,
-            { color: activeTab === 'challenges' ? '#7FA58C' : '#6B7280' }
-          ]}>
-            Challenges
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={bottomNavStyles.tab}
-          onPress={() => onTabChange('teams')}
-        >
-          <Ionicons
-            name={activeTab === 'teams' ? 'people' : 'people-outline'}
-            size={22}
-            color={activeTab === 'teams' ? '#7FA58C' : '#6B7280'}
-          />
-          <Text style={[
-            bottomNavStyles.tabText,
-            { color: activeTab === 'teams' ? '#7FA58C' : '#6B7280' }
-          ]}>
-            Teams
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={bottomNavStyles.tab}
-          onPress={() => onTabChange('more')}
-        >
-          <Ionicons
-            name={activeTab === 'more' ? 'ellipsis-horizontal' : 'ellipsis-horizontal-outline'}
-            size={22}
-            color={activeTab === 'more' ? '#7FA58C' : '#6B7280'}
-          />
-          <Text style={[
-            bottomNavStyles.tabText,
-            { color: activeTab === 'more' ? '#7FA58C' : '#6B7280' }
-          ]}>
-            Mehr
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   // Navigation Handler
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -185,7 +92,6 @@ export default function TeamsScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
         <ActivityIndicator style={styles.loader} size="large" />
-        <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} />
       </View>
     );
   }
@@ -275,19 +181,9 @@ export default function TeamsScreen() {
           />
         )}
       </View>
-      
-      {/* Bottom Navigation */}
-      <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} />
     </View>
   );
 }
-
-// TouchableOpacity für Bottom Navigation
-const TouchableOpacity = ({ style, onPress, children }) => (
-  <Pressable style={style} onPress={onPress}>
-    {children}
-  </Pressable>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -370,34 +266,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
-const bottomNavStyles = {
-  container: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingBottom: 8,
-    paddingTop: 8,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  tabText: {
-    fontSize: 11,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-};

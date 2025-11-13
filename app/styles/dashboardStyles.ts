@@ -19,6 +19,7 @@ const styles = StyleSheet.create({
         //paddingTop: 100,
         backgroundColor: 'transparent',
         padding: 0,
+        marginTop: 60
     },
 
     // ---------- expired challenge warning banner ----------

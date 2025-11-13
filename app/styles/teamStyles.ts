@@ -19,8 +19,8 @@ export default StyleSheet.create({
 
     header: {
         paddingHorizontal: 20,
-        paddingTop: 12,
-        paddingBottom: 12,
+        paddingTop: 30,
+        paddingBottom: 30,
         flexDirection: 'row',
         alignItems: 'center',
     },

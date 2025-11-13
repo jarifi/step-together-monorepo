@@ -106,6 +106,16 @@ export default function Sidebar() {
           />
 
           <View style={styles.separator} />
+  
+          <NavLink
+            href="/team"
+            label="Mein Team"
+            icon="users"
+            active={isActive('/users')}
+            onNavigate={closeSidebar}
+          />
+
+          <View style={styles.separator} />
 
           <NavLink
             href="/teams"
