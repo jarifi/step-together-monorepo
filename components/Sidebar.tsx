@@ -50,9 +50,20 @@ export default function Sidebar() {
     closeSidebar();
   };
 
-  const initials = user?.name
-    ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
-    : 'U';
+  // direkt unter: const { user } = useUser();
+const initials = user?.name
+  ? user.name
+      .split(' ')
+      .filter(Boolean)
+      .map((n: string) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase()
+  : 'U';
+
+const displayName = user?.name || 'Nutzer nicht gefunden';
+const displayEmail = user?.email || 'Profil bearbeiten';
+
 
   // Helper to decide active state
   const isActive = (href: string) => {
@@ -77,21 +88,22 @@ export default function Sidebar() {
         ]}
       >
         {user ? (
-          <Pressable
-            style={styles.profileContainer}
-            onPress={() => {
-              closeSidebar();
-              router.push('/profile/update');
-            }}
-          >
-            <View style={styles.profileCircle}>
-              <Text style={styles.profileInitials}>{initials}</Text>
-            </View>
-            <View style={{ marginLeft: 12 }}>
-              <Text style={styles.profileName}>{user.name}</Text>
-              <Text style={styles.profileEmail}>{user.email}</Text>
-            </View>
-          </Pressable>
+         <Pressable
+  style={styles.profileContainer}
+  onPress={() => {
+    closeSidebar();
+    router.push('/profile/update');
+  }}
+>
+  <View style={styles.profileCircle}>
+    <Text style={styles.profileInitials}>{initials}</Text>
+  </View>
+  <View style={{ marginLeft: 12 }}>
+    <Text style={styles.profileName}>{displayName}</Text>
+    <Text style={styles.profileEmail}>{displayEmail}</Text>
+  </View>
+</Pressable>
+
         ) : (
           <Text style={{ color: '#2F3E34', marginBottom: 20 }}>Kein User geladen</Text>
         )}
