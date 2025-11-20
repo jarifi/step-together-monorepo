@@ -120,8 +120,16 @@ const displayEmail = user?.email || 'Profil bearbeiten';
           <View style={styles.separator} />
   
           <NavLink
-            href="/team"
+            href="/myTeam"
             label="Mein Team"
+            icon="users"
+            active={isActive('/users')}
+            onNavigate={closeSidebar}
+          />
+
+          <NavLink
+            href="/myChallenge"
+            label="Meine Challenge"
             icon="users"
             active={isActive('/users')}
             onNavigate={closeSidebar}

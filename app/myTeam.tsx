@@ -1,6 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 
 import {
@@ -14,7 +14,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import styles from '../app/styles/teamStyles';
+import styles from './styles/teamStyles';
 
 
 
