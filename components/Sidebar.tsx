@@ -138,30 +138,6 @@ const displayEmail = user?.email || 'Profil bearbeiten';
           <View style={styles.separator} />
 
           <NavLink
-            href="/teams"
-            label="Alle Teams"
-            icon="users"
-            active={isActive('/teams')}
-            onNavigate={closeSidebar}
-          />
-          <NavLink
-            href="/challenges"
-            label="Alle Challenges"
-            icon="flag"
-            active={isActive('/challenges')}
-            onNavigate={closeSidebar}
-          />
-          <NavLink
-            href="/users"
-            label="Alle Benutzer"
-            icon="user"
-            active={isActive('/users')}
-            onNavigate={closeSidebar}
-          />
-
-          <View style={styles.separator} />
-
-          <NavLink
             href="/settings"
             label="Einstellungen"
             icon="settings"
@@ -176,13 +152,42 @@ const displayEmail = user?.email || 'Profil bearbeiten';
             </View>
           </Pressable>
 
+          <View style={styles.separator} />
+
+          <Text style={{ 
+            fontSize: 16, 
+            fontWeight: '600', 
+            color: '#5F764E', 
+            marginBottom: 10, 
+            marginLeft: 12 
+          }}>
+            Admin Bereich
+          </Text>
+
           <NavLink
-            href="/admin"
-            label="Admin-Bereich"
-            icon="shield"
-            active={isActive('/admin')}
+            href="/teams"
+            label="Alle Teams"
+            icon="users"
+            active={isActive('/teams')}
             onNavigate={closeSidebar}
           />
+
+          <NavLink
+            href="/challenges"
+            label="Alle Challenges"
+            icon="flag"
+            active={isActive('/challenges')}
+            onNavigate={closeSidebar}
+          />
+
+          <NavLink
+            href="/users"
+            label="Alle Benutzer"
+            icon="user"
+            active={isActive('/users')}
+            onNavigate={closeSidebar}
+          />
+
         </View>
       </Animated.View>
     </>
