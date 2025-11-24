@@ -138,6 +138,16 @@ const displayEmail = user?.email || 'Profil bearbeiten';
           <View style={styles.separator} />
 
           <NavLink
+            href="/userHistory"
+            label="Meine Historie"
+            icon="users"
+            active={isActive('/users')}
+            onNavigate={closeSidebar}
+          />
+
+          <View style={styles.separator} />
+
+          <NavLink
             href="/settings"
             label="Einstellungen"
             icon="settings"
@@ -151,6 +161,14 @@ const displayEmail = user?.email || 'Profil bearbeiten';
               <Text style={styles.navDangerText}>Logout</Text>
             </View>
           </Pressable>
+
+          <NavLink
+            href="/challenges"
+            label="Alle Challenges"
+            icon="flag"
+            active={isActive('/challenges')}
+            onNavigate={closeSidebar}
+          />
 
           <View style={styles.separator} />
 
@@ -169,14 +187,6 @@ const displayEmail = user?.email || 'Profil bearbeiten';
             label="Alle Teams"
             icon="users"
             active={isActive('/teams')}
-            onNavigate={closeSidebar}
-          />
-
-          <NavLink
-            href="/challenges"
-            label="Alle Challenges"
-            icon="flag"
-            active={isActive('/challenges')}
             onNavigate={closeSidebar}
           />
 
