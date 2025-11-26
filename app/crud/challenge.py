@@ -3,6 +3,7 @@ from typing import List
 from app.models.challenge import Challenge as ChallengeModel
 from app.schema.challenge import ChallengeCreate, ChallengeUpdate, ChallengeResponse
 from app.models.challenge_team import ChallengeTeam
+from datetime import datetime
 
 def get_all_challenges(db: Session, skip: int = 0, limit: int = 10)-> List[ChallengeModel]:
     """
@@ -17,12 +18,15 @@ def get_challenge(db: Session, challenge_id: int):
     return db.query(ChallengeModel).filter(ChallengeModel.id == challenge_id, ChallengeModel.is_deleted == False).first()
 
 def get_active_challenge(db: Session, team_id: int) -> ChallengeModel | None:
+    now = datetime.utcnow()
     return (
         db.query(ChallengeModel)
         .join(ChallengeTeam, ChallengeModel.id == ChallengeTeam.challenge_id)
         .filter(
             ChallengeTeam.team_id == team_id,
-            ChallengeModel.state == "open"
+            ChallengeModel.start_date <= now,
+            ChallengeModel.end_date >= now,
+            ChallengeModel.is_deleted == False
         )
         .order_by(ChallengeTeam.created_at.desc())
         .first()
