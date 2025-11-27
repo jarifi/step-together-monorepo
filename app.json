@@ -13,7 +13,11 @@
       "bundleIdentifier": "com.jear77.steptogether",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "This app needs access to devices on your local network.",
-        "NSBonjourServices": ["_http._tcp", "_https._tcp"]
+        "NSBonjourServices": ["_http._tcp", "_https._tcp"],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
