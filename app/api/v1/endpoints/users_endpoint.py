@@ -71,14 +71,26 @@ def update_existing_user(
 ):
     """
     Update an existing user's information.
-    Requires authentication. Only the user themselves can update their profile.
-    Expected path: /api/v1/users/{user_id}
+    - Regular users: can update ONLY their own profile
+    - Admins: can update ANY user
     """
-    
+
+    print("Current User ID:", current_user.id, "Role:", current_user.role)
+
+    # Check permission
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this user's profile"
+        )
+
+    # Update user
     updated_user = user_crud.update_user(db, user_id, user_data)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")
+
     return updated_user
+
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)
