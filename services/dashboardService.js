@@ -11,7 +11,7 @@ const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
 const PATHS = {
   init: '/users/user/dashboard/init',
-  stepLogs: 'step_logs', 
+  stepLogs: '/step_logs', // always start with a slash
 };
 
 const joinUrl = (base, path) =>
@@ -115,7 +115,9 @@ export const listUserStepLogs = async (userId) => {
   return await http(url, { method: 'GET', headers });
 };
 
-// ---------- Upsert (Update via step_log_id oder Create) ----------
+// Ensure BASE_URL does not end with a slash
+const normalizeBaseUrl = (url) => url?.endsWith('/') ? url.slice(0, -1) : url;
+
 export const upsertStepsForDate = async (
   userId,
   dateISO,
@@ -127,9 +129,9 @@ export const upsertStepsForDate = async (
   if (!dateISO) throw new Error('dateISO required');
 
   const headers = await authHeaders();
-  const base = joinUrl(BASE_URL, PATHS.stepLogs);
+  const base = `${normalizeBaseUrl(BASE_URL)}${PATHS.stepLogs}/`; // ensure trailing slash
 
-  // existierendes StepLog für das Datum finden
+  // Find existing StepLog for the date
   const all = await listUserStepLogs(userId);
   const existing = (all ?? []).find((log) => log?.date && inSameDayIso(log.date, dateISO));
 
@@ -145,7 +147,7 @@ export const upsertStepsForDate = async (
     throw new Error('challengeId/teamId required for create');
   }
 
-  const url = base;
+  const url = base; // already ends with '/'
   const body = JSON.stringify({
     challengeId: context.challengeId,
     teamId: context.teamId,
