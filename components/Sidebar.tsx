@@ -148,6 +148,16 @@ const displayEmail = user?.email || 'Profil bearbeiten';
           <View style={styles.separator} />
 
           <NavLink
+            href="/openChallenges"
+            label="Laufende Challenges"
+            icon="flag"
+            active={isActive('/challenges')}
+            onNavigate={closeSidebar}
+          />
+
+          <View style={styles.separator} />
+
+          <NavLink
             href="/settings"
             label="Einstellungen"
             icon="settings"
@@ -162,14 +172,6 @@ const displayEmail = user?.email || 'Profil bearbeiten';
             </View>
           </Pressable>
 
-          <NavLink
-            href="/challenges"
-            label="Alle Challenges"
-            icon="flag"
-            active={isActive('/challenges')}
-            onNavigate={closeSidebar}
-          />
-
           <View style={styles.separator} />
 
           <Text style={{ 
@@ -181,6 +183,14 @@ const displayEmail = user?.email || 'Profil bearbeiten';
           }}>
             Admin Bereich
           </Text>
+
+          <NavLink
+            href="/challenges"
+            label="Alle Challenges"
+            icon="flag"
+            active={isActive('/challenges')}
+            onNavigate={closeSidebar}
+          />
 
           <NavLink
             href="/teams"

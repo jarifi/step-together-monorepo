@@ -17,7 +17,7 @@ export default function ChallengeDetailsScreen() {
   const [challenge, setChallenge] = useState(null);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
-
+    
   useEffect(() => {
     if (!id) return;
 
@@ -50,7 +50,7 @@ export default function ChallengeDetailsScreen() {
     return teams.reduce(
       (max, t) =>
         (t.totalSteps ?? 0) > (max?.totalSteps ?? 0) ? t : max,
-      null,
+      null
     );
   }, [teams]);
 

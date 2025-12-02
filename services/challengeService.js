@@ -53,6 +53,31 @@ export const getChallengeById = async (id) => {
   }
 };
 
+export const getChallengeTeams = async (id) => {
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+
+    const res = await fetch(`${BASE_URL}/challenges/${id}/teams`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const teams = await res.json();
+
+    if (!res.ok) {
+      throw new Error(teams.message || 'Failed to fetch challenge teams');
+    }
+
+    return teams;
+  } catch (err) {
+    console.error('Error fetching challenge teams:', err);
+    throw err;
+  }
+};
+
 export const updateChallenge = async (id, data) => {
   try {
     const token = await AsyncStorage.getItem('userToken');
