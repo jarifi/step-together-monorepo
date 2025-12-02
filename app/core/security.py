@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.schema.token import TokenData
-
+import secrets
 # --- Load environment variables from .env file ---
 # This ensures SECRET_KEY is loaded consistently
 from dotenv import load_dotenv
@@ -81,25 +81,19 @@ def decode_access_token(token: str) -> TokenData:
         email = payload.get("sub")
         user_id_from_payload = payload.get("user_id")
 
-        if email is None:
+        if email is None or user_id_from_payload is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload: 'sub' (email) claim is missing.",
+                detail="Invalid token payload: missing 'sub' or 'user_id'",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        if user_id_from_payload is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload: 'user_id' claim is missing.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
         try:
             user_id_int = int(user_id_from_payload)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload: 'user_id' claim is not a valid integer.",
+                detail="Invalid token payload: 'user_id' is not a valid integer",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
@@ -108,19 +102,18 @@ def decode_access_token(token: str) -> TokenData:
             user_id=user_id_int,
             name=payload.get("name"),
             step_length=payload.get("step_length"),
+            team_id=payload.get("team_id"),
+            challenge_id=payload.get("challenge_id"),
+            role=payload.get("role")
         )
+
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid or expired token: {e}",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token processing error: {e}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+
 
 # --- Get Current User Dependency ---
 async def get_current_user(
@@ -131,8 +124,6 @@ async def get_current_user(
     Dependency to get the current authenticated user from a JWT token.
     """
     token_data = decode_access_token(token)
-    # --- ADDED DEBUG PRINT HERE ---
-    # --- END DEBUG PRINT ---
 
     user = db.query(User).filter(User.id == token_data.user_id).first()
 
@@ -142,4 +133,39 @@ async def get_current_user(
             detail="User not found in database.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Attach additional token info
+    user.team_id = token_data.team_id
+    user.active_challenge_id = token_data.challenge_id
+    user.role = token_data.role
+
     return user
+
+
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
+def create_refresh_token() -> str:
+    """Creates a secure random refresh token."""
+    return secrets.token_urlsafe(64)
+
+def get_refresh_token_expiry() -> datetime:
+    """Returns the expiry datetime for refresh tokens."""
+    return datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+from app.models.refresh_token import RefreshToken
+from sqlalchemy.orm import Session
+
+def create_db_refresh_token(db: Session, user_id: int, expire_days: int = 30) -> str:
+    """Generates a new refresh token, stores it in DB, and returns the token string."""
+    token_str = secrets.token_urlsafe(64)
+    now = datetime.now(timezone.utc)
+    refresh_token = RefreshToken(
+        token=token_str,
+        user_id=user_id,
+        expires_at=now + timedelta(days=expire_days),
+        created_at=now,
+        revoked=False
+    )
+    db.add(refresh_token)
+    db.commit()
+    db.refresh(refresh_token)
+    return token_str

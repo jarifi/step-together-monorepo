@@ -20,53 +20,67 @@ router = APIRouter()
 
 MAX_FAILED_ATTEMPTS = 3
 
+from datetime import datetime, timezone
+from app.core.security import create_refresh_token, get_refresh_token_expiry, create_db_refresh_token
+
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
-  # Verify user
-  db_user = get_user_by_email(db, user.email)
+    # Verify user
+    db_user = get_user_by_email(db, user.email)
 
-  if not db_user:
-    raise HTTPException(status_code=400, detail="Benutzer nicht gefunden.")
-  
-  if db_user.is_deleted:
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Benutzer nicht gefunden.")
+    
+    if db_user.is_deleted:
         raise HTTPException(status_code=403, detail="Konto deaktiviert.")
-  
-  if db_user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-    raise HTTPException(status_code=403, detail="Konto gesperrt wegen zu vieler fehlgeschlagener Anmeldeversuche.")
-  
-  if not verify_password(user.password, db_user.hashed_password):
-    db_user.failed_login_attempts += 1
-    db.commit()
-    db.refresh(db_user)
-    raise HTTPException(status_code=400, detail="Ungültige Anmeldedaten.")
-  
-  if db_user.failed_login_attempts > 0:
-    db_user.failed_login_attempts = 0
-    db.commit()
+    
+    if db_user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+        raise HTTPException(status_code=403, detail="Konto gesperrt wegen zu vieler fehlgeschlagener Anmeldeversuche.")
+    
+    if not verify_password(user.password, db_user.hashed_password):
+        db_user.failed_login_attempts += 1
+        db.commit()
+        db.refresh(db_user)
+        raise HTTPException(status_code=400, detail="Ungültige Anmeldedaten.")
+    
+    if db_user.failed_login_attempts > 0:
+        db_user.failed_login_attempts = 0
+        db.commit()
 
-  team = get_team_by_user_id(db, db_user.id)
-  team_id = team.id if team else None
+    team = get_team_by_user_id(db, db_user.id)
+    team_id = team.id if team else None
 
-#ToDo challenge_id null for user  with id 3 (Charlie) - why?
-  challenge_id = None
-  if team_id:
-    active_challenge = get_active_challenge(db, team_id)
-    challenge_id = active_challenge.id if active_challenge else None
+    challenge_id = None
+    if team_id:
+        active_challenge = get_active_challenge(db, team_id)
+        challenge_id = active_challenge.id if active_challenge else None
 
-  # Generate access token
-  access_token = create_access_token(
-    data={"sub": user.email, "user_id": db_user.id, "team_id": team_id, "challenge_id": challenge_id, "role": db_user.role},
-    expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-  )
+    # Generate access token
+    access_token = create_access_token(
+        data={
+            "sub": user.email,
+            "user_id": db_user.id,
+            "team_id": team_id,
+            "challenge_id": challenge_id,
+            "role": db_user.role
+        },
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
 
-  return {
-    "access_token": access_token,
-    "token_type": "bearer",
-    "user_id": db_user.id,
-    "team_id": team_id,
-    "active_challenge_id": challenge_id,
-    "role": db_user.role,
-  }
+    # Generate refresh token and store in DB
+    refresh_token = create_db_refresh_token(db, db_user.id)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user_id": db_user.id,
+        "team_id": team_id,
+        "active_challenge_id": challenge_id,
+        "role": db_user.role,
+    }
+
+
 
 @router.post(
     "/change_password",
@@ -156,3 +170,50 @@ def reset_password(
      db.refresh(user)
 
      return {"message": "Passwort erfolgreich zurückgesetzt."}
+from app.schema.token import RefreshTokenRequest, RefreshTokenResponse
+from app.crud.refresh_token import validate_refresh_token
+@router.post("/refresh", response_model=RefreshTokenResponse)
+def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    # Validate refresh token
+    db_token = validate_refresh_token(db, request.refresh_token)
+    user = db_token.user
+
+    team = get_team_by_user_id(db, user.id)
+    team_id = team.id if team else None
+
+    challenge_id = None
+    if team_id:
+        active_challenge = get_active_challenge(db, team_id)
+        challenge_id = active_challenge.id if active_challenge else None
+
+    # Generate new access token
+    access_token = create_access_token(
+        data={
+            "sub": user.email,
+            "user_id": user.id,
+            "team_id": team_id,
+            "challenge_id": challenge_id,
+            "role": user.role
+        },
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+    # Optionally: rotate refresh token
+    # db_token.revoked = True
+    # db.commit()
+    # new_refresh_token = create_refresh_token()
+    # expires_at = get_refresh_token_expiry()
+    # create_db_refresh_token(db, user.id, new_refresh_token, expires_at)
+    # refresh_token_to_return = new_refresh_token
+
+    refresh_token_to_return = request.refresh_token  # reuse old token
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token_to_return,
+        "token_type": "bearer",
+        "user_id": user.id,
+        "team_id": team_id,
+        "active_challenge_id": challenge_id,
+        "role": user.role,
+    }
