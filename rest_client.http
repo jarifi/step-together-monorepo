@@ -189,6 +189,10 @@ Content-Type: application/json
     "state": "closed"  
 }
 
+### 5.5 Get All Teams Participating in a Challenge
+GET {{baseUrl}}/challenges/1/teams
+Authorization: Bearer {{login.response.body.access_token}}
+
 ### 6. Get All Challange_progresses Using Access Token
 GET {{baseUrl}}/challenge_progress/
 Authorization: Bearer {{login.response.body.access_token}}

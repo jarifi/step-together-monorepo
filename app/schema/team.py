@@ -1,4 +1,3 @@
-# File: app/schema/team.py
 from pydantic import BaseModel, StringConstraints
 from typing import Optional, Annotated
 from datetime import datetime
@@ -8,7 +7,7 @@ class TeamCreate(CamelCaseBaseModel):
     name: Annotated[
         str, 
         StringConstraints(min_length=3, max_length=255, strip_whitespace=True)
-        ]
+    ]
 
 class TeamResponse(CamelCaseBaseModel):
     id: int
@@ -18,7 +17,9 @@ class TeamUpdate(CamelCaseBaseModel):
     name: Optional[
         Annotated[
             str, 
-            StringConstraints(min_length=3, max_length=255, strip_whitespace=True)]] = None
+            StringConstraints(min_length=3, max_length=255, strip_whitespace=True)
+        ]
+    ] = None
 
 class TeamSchema(CamelCaseBaseModel):
     id: int | None = None
@@ -28,7 +29,7 @@ class TeamSchema(CamelCaseBaseModel):
     updated_at: datetime | None = None
         
     model_config = {
-        "from_attributes": True,  # replaces orm_mode
+        "from_attributes": True,  
         "alias_generator": lambda field: ''.join(
             [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
         ),
@@ -37,3 +38,17 @@ class TeamSchema(CamelCaseBaseModel):
 
 class AddUserToTeamRequest(CamelCaseBaseModel):
     user_id: int
+
+
+class ChallengeTeamWithSteps(CamelCaseBaseModel):
+    id: int
+    name: str
+    total_steps: int 
+
+    model_config = {
+        "from_attributes": False,
+        "alias_generator": lambda field: ''.join(
+            [word if i == 0 else word.capitalize() for i, word in enumerate(field.split('_'))]
+        ),
+        "populate_by_name": True
+    }
