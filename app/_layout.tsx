@@ -1,13 +1,13 @@
+//file: app/_layout.tsx
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, router, usePathname } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import Sidebar from "../components/Sidebar";
-import { isLoggedIn } from '../lib/auth';
-
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { UserProvider } from '../context/UserContext';
 import { useColorScheme } from '../hooks/useColorScheme';
+import { isLoggedIn } from '../lib/auth';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -18,15 +18,20 @@ export default function RootLayout() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const loggedIn = await isLoggedIn();
+      try {
+        const loggedIn = await isLoggedIn();
 
-      if (!loggedIn && pathname !== '/login') {
+        if (!loggedIn && pathname !== '/login') {
+          router.replace('/login');
+        } else {
+          setShowSidebar(loggedIn && pathname !== '/login');
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
         router.replace('/login');
-      } else {
-        setShowSidebar(loggedIn && pathname !== '/login');
+      } finally {
+        setAuthChecked(true);
       }
-
-      setAuthChecked(true);
     };
     checkAuth();
   }, [pathname]);
