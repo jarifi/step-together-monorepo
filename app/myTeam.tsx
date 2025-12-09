@@ -1,4 +1,4 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useMemo, useState } from 'react';
 import { Animated, Easing } from 'react-native';
@@ -10,7 +10,6 @@ import {
     ScrollView,
     Share,
     Text,
-    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
@@ -89,32 +88,6 @@ export default function TeamsScreen() {
                     <Text style={styles.avatarText}>{initials}</Text>
                 </View>
 
-                <View style={styles.personInfo}>
-                    <Text style={styles.personName}>{item.name}</Text>
-                    {!!item.status && (
-                        <View style={styles.badgeWrap}>
-                            {item.status === 'manager' && (
-                                <View style={styles.badge}>
-                                    <Ionicons name="shield-checkmark" size={14} />
-                                    <Text style={styles.badgeText}>Group manager</Text>
-                                </View>
-                            )}
-                            {item.status === 'pending' && (
-                                <View style={styles.badgeMuted}>
-                                    <MaterialIcons name="hourglass-empty" size={14} />
-                                    <Text style={styles.badgeMutedText}>Pending</Text>
-                                </View>
-                            )}
-                            {item.status === 'invited' && (
-                                <View style={styles.badgeMuted}>
-                                    <Ionicons name="link-outline" size={14} />
-                                    <Text style={styles.badgeMutedText}>Added via code</Text>
-                                </View>
-                            )}
-                        </View>
-                    )}
-                </View>
-
                 {selecting ? (
                     <TouchableOpacity
                         onPress={() => toggleSelect(item.id)}
@@ -169,44 +142,7 @@ export default function TeamsScreen() {
                     <View style={{ width: 22 }} />
                 </View>
 
-                {/* Curved top card (green theme) */}
-                <View style={styles.topCard}>
-                    <Text style={styles.topTitle}>Add to group</Text>
-                    <Text style={styles.topSub}>Invite friends to your step challenge</Text>
-
-                    <View style={styles.topActions}>
-                        <TouchableOpacity
-                            onPress={() => setSelecting(true)}
-                            style={styles.primaryBtn}
-                        >
-                            <Text style={styles.primaryBtnText}>Registered members</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={() => setInviteModal(true)}
-                            style={styles.secondaryBtn}
-                        >
-                            <Text style={styles.secondaryBtnText}>Invitation code</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Search */}
-                    <View style={styles.searchWrap}>
-                        <Ionicons name="search" size={18} />
-                        <TextInput
-                            value={search}
-                            onChangeText={setSearch}
-                            placeholder="Search members"
-                            placeholderTextColor="#7FA58C"
-                            style={styles.searchInput}
-                        />
-                        {search.length > 0 && (
-                            <TouchableOpacity onPress={() => setSearch('')}>
-                                <Ionicons name="close" size={18} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
+        
 
                 {/* Selector list (like left screenshot) */}
                 {selecting && (
