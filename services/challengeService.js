@@ -1,27 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+// file: services/challengeService.js
+import { apiDelete, apiGet, apiPost, apiPut } from './api';
 
-const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
+// ---------------------------------------------------------------------------
+// CHALLENGES
+// ---------------------------------------------------------------------------
 
 export const getChallenges = async (skip = 0, limit = 10) => {
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/challenges/?skip=${skip}&limit=${limit}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const challenges = await res.json();
-
-    if (!res.ok) {
-      throw new Error(challenges.message || 'Failed to fetch challenges');
-    }
-
-    return challenges;
+    return await apiGet(`/challenges/?skip=${skip}&limit=${limit}`);
   } catch (err) {
     console.error('Error fetching challenges:', err);
     return [];
@@ -29,24 +15,9 @@ export const getChallenges = async (skip = 0, limit = 10) => {
 };
 
 export const getChallengeById = async (id) => {
+  if (!id) throw new Error('Challenge ID is required');
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/challenges/${id}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const challenge = await res.json();
-
-    if (!res.ok) {
-      throw new Error(challenge.message || 'Failed to fetch challenge');
-    }
-
-    return challenge;
+    return await apiGet(`/challenges/${id}`);
   } catch (err) {
     console.error('Error fetching challenge by id:', err);
     throw err;
@@ -79,25 +50,9 @@ export const getChallengeTeams = async (id) => {
 };
 
 export const updateChallenge = async (id, data) => {
+  if (!id) throw new Error('Challenge ID is required');
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/challenges/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    const updatedChallenge = await res.json();
-
-    if (!res.ok) {
-      throw new Error(updatedChallenge.message || 'Failed to update challenge');
-    }
-
-    return updatedChallenge;
+    return await apiPut(`/challenges/${id}`, data);
   } catch (err) {
     console.error('Error updating challenge:', err);
     throw err;
@@ -106,21 +61,7 @@ export const updateChallenge = async (id, data) => {
 
 export const createChallenge = async (data) => {
   try {
-    const token = await AsyncStorage.getItem('userToken');
-    const res = await fetch(`${BASE_URL}/challenges/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    const newChallenge = await res.json();
-    if (!res.ok) {
-      throw new Error(newChallenge.message || 'Failed to create challenge');
-    }
-    return newChallenge;
+    return await apiPost(`/challenges`, data);
   } catch (err) {
     console.error('Error creating challenge:', err);
     throw err;
@@ -128,15 +69,12 @@ export const createChallenge = async (data) => {
 };
 
 export const deleteChallenge = async (id) => {
-  const token = await AsyncStorage.getItem('userToken');
-  const response = await fetch(`${BASE_URL}/challenges/${id}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error('Failed to delete user');
+  if (!id) throw new Error('Challenge ID is required');
+  try {
+    await apiDelete(`/challenges/${id}`);
+    return true;
+  } catch (err) {
+    console.error('Error deleting challenge:', err);
+    throw err;
   }
-  return true;
 };

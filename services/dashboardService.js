@@ -1,84 +1,52 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+// file: services/dashboardService.js
+
 import {
   fromIsoLocal,
   inSameDayIso,
   toIsoDate,
   toIsoDateTimeMidnight,
-} from '../app/dashboard/dashboardDto';
+} from "../app/dashboard/dashboardDto";
+import { apiGet, apiPost, apiPut } from "./api";
 
-const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
+// ---------------------------------------------------------------------------
+// DASHBOARD INIT
+// ---------------------------------------------------------------------------
 
-const PATHS = {
-  init: '/users/user/dashboard/init',
-  stepLogs: '/step_logs', // always start with a slash
-};
-
-const joinUrl = (base, path) =>
-  `${String(base || '').replace(/\/+$/, '')}/${String(path || '').replace(/^\/+|\/+$/g, '')}`;
-
-const authHeaders = async () => {
-  const token = await AsyncStorage.getItem('userToken');
-  if (!token) throw new Error('No auth token found');
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-};
-
-const http = async (url, options) => {
-  const res = await fetch(url, options);
-  let payload = null;
-  try { payload = await res.json(); } catch { payload = null; }
-
-  if (!res.ok) {
-    const msg =
-      (payload && (payload.message || payload.detail)) ||
-      (Array.isArray(payload?.detail) ? JSON.stringify(payload.detail) : null) ||
-      `HTTP ${res.status}`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.payload = payload;
-    throw err;
-  }
-  return payload;
-};
-
-// ---------- API: Dashboard-Init ----------
 export const getHomeInit = async () => {
   try {
-    if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
-    const headers = await authHeaders();
-    const url = joinUrl(BASE_URL, PATHS.init);
-    return await http(url, { method: 'GET', headers });
+    return await apiGet("/users/user/dashboard/init");
   } catch (err) {
-    console.error('Error fetching home init:', err);
+    console.error("Error fetching home init:", err);
     return null;
   }
 };
 
-// ---------- API: Step Logs ) ----------
+// ---------------------------------------------------------------------------
+// STEP LOG HELPERS
+// ---------------------------------------------------------------------------
 
-export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) => {
-  if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
-  if (!Number.isFinite(+challengeId)) throw new Error('challengeId required');
-  if (!Number.isFinite(+userId)) throw new Error('userId required');
-  if (!fromISO || !toISO) throw new Error('from/to required');
-
-  const headers = await authHeaders();
-  const base = joinUrl(BASE_URL, PATHS.stepLogs);
-  const url = joinUrl(
-    base,
-    `challenge/${encodeURIComponent(challengeId)}/user/${encodeURIComponent(userId)}?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`
-  );
-  return await http(url, { method: 'GET', headers });
+export const listUserStepLogs = async (userId) => {
+  if (!userId) throw new Error("userId required");
+  return await apiGet(`/step_logs/user/${userId}`);
 };
 
-// Wrapper, den dein Screen nutzt (Signatur: challengeId, userId, weekStartISO)
+export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) => {
+  if (!challengeId) throw new Error("challengeId required");
+  if (!userId) throw new Error("userId required");
+  if (!fromISO || !toISO) throw new Error("from/to ISO required");
+
+  const path = `/step_logs/challenge/${challengeId}/user/${userId}?from=${fromISO}&to=${toISO}`;
+  return await apiGet(path);
+};
+
+// ---------------------------------------------------------------------------
+// WEEK STEPS (mapping + DTO normalization)
+// ---------------------------------------------------------------------------
+
 export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
-  if (!Number.isFinite(+challengeId)) throw new Error('challengeId required');
-  if (!Number.isFinite(+userId)) throw new Error('userId required');
-  if (!weekStartISO) throw new Error('weekStartISO required');
+  if (!challengeId) throw new Error("challengeId required");
+  if (!userId) throw new Error("userId required");
+  if (!weekStartISO) throw new Error("weekStartISO required");
 
   const weekStart = fromIsoLocal(weekStartISO);
   if (!weekStart) return [];
@@ -86,76 +54,59 @@ export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
-  const all = await getUserWeekStepLogs(
+  const logs = await getUserWeekStepLogs(
     challengeId,
     userId,
     toIsoDate(weekStart),
     toIsoDate(weekEnd)
   );
 
-  return (all ?? []).map((x) => {
+  return (logs ?? []).map((x) => {
     const d = fromIsoLocal(x.date);
     return {
       date: toIsoDate(d),
-      dayOfWeek: x.dayOfWeek || d.toLocaleDateString('en-US', { weekday: 'long' }),
-      numberOfSteps: Number.isFinite(+x?.numberOfSteps) ? +x.numberOfSteps : 0,
+      dayOfWeek: x.dayOfWeek || d.toLocaleDateString("en-US", { weekday: "long" }),
+      numberOfSteps: Number(x.numberOfSteps || 0),
       step_log_id: x?.id ?? null,
     };
   });
 };
 
-// Optional: komplette Liste (falls sonst wo gebraucht)
-export const listUserStepLogs = async (userId) => {
-  if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
-  if (userId === undefined || userId === null) throw new Error('userId required');
-
-  const headers = await authHeaders();
-  const base = joinUrl(BASE_URL, PATHS.stepLogs);
-  const url = joinUrl(base, `user/${encodeURIComponent(String(userId))}`);
-  return await http(url, { method: 'GET', headers });
-};
-
-// Ensure BASE_URL does not end with a slash
-const normalizeBaseUrl = (url) => url?.endsWith('/') ? url.slice(0, -1) : url;
+// ---------------------------------------------------------------------------
+// UPSERT STEP LOG
+// ---------------------------------------------------------------------------
 
 export const upsertStepsForDate = async (
   userId,
   dateISO,
   absoluteSteps,
-  context // { challengeId: number; teamId: number }
+  context // { challengeId, teamId }
 ) => {
-  if (!BASE_URL) throw new Error('Missing BASE_URL in expo constants');
-  if (userId === undefined || userId === null) throw new Error('userId required');
-  if (!dateISO) throw new Error('dateISO required');
+  if (!userId) throw new Error("userId required");
+  if (!dateISO) throw new Error("dateISO required");
 
-  const headers = await authHeaders();
-  const base = `${normalizeBaseUrl(BASE_URL)}${PATHS.stepLogs}/`; // ensure trailing slash
+  const numberOfSteps = Math.max(0, Number(absoluteSteps || 0));
 
-  // Find existing StepLog for the date
+  // Check for existing StepLog
   const all = await listUserStepLogs(userId);
-  const existing = (all ?? []).find((log) => log?.date && inSameDayIso(log.date, dateISO));
+  const existing = (all ?? []).find((log) => inSameDayIso(log.date, dateISO));
 
-  if (existing?.id != null) {
-    const id = String(existing.id);
-    const url = `${base}?step_log_id=${encodeURIComponent(id)}`;
-    const body = JSON.stringify({ numberOfSteps: Number.isFinite(+absoluteSteps) ? Math.abs(+absoluteSteps) : 0 });
-    return await http(url, { method: 'PUT', headers, body });
+  // --- UPDATE ---------------------------------------------------------------
+  if (existing?.id) {
+    return await apiPut(`/step_logs?step_log_id=${existing.id}`, {
+      numberOfSteps,
+    });
   }
 
-  // --- CREATE ---
+  // --- CREATE ---------------------------------------------------------------
   if (!context?.challengeId || !context?.teamId) {
-    throw new Error('challengeId/teamId required for create');
+    throw new Error("challengeId/teamId required for create");
   }
 
-  const url = base; // already ends with '/'
-  const body = JSON.stringify({
+  return await apiPost(`/step_logs`, {
     challengeId: context.challengeId,
     teamId: context.teamId,
     date: toIsoDateTimeMidnight(dateISO),
-    numberOfSteps: Number.isFinite(+absoluteSteps) ? Math.abs(+absoluteSteps) : 0,
+    numberOfSteps,
   });
-
-  console.log('Creating new step log:', { url, body });
-
-  return await http(url, { method: 'POST', headers, body });
 };

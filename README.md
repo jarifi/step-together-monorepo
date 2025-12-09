@@ -28,5 +28,9 @@ npm cache clean --force
 
 https://mandalorian.at/st/step.apk
 
-
 npx expo install expo-image@~3.0.10 expo-system-ui@~6.0.8 expo-web-browser@~15.0.8 react-native@0.81.5
+
+# 09.12.2025 BIg Update
+
+npm install react@19.2.1 react-dom@19.2.1
+npx expo install --fix
