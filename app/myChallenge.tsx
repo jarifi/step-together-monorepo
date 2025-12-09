@@ -177,28 +177,32 @@ const MyChallenge: React.FC = () => {
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
     >
       {/* Grundinfo zur Challenge */}
-      <Text
-        style={[
-          styles.font,
-          { fontSize: 20, fontWeight: '700', marginBottom: 8 },
-        ]}
-      >
-        Challenge-Details
-      </Text>
+      <View style={[styles.font, { marginBottom: 6, alignItems: 'center' }]}>
+  <Text
+    style={[
+      styles.font,
+      { fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+    ]}
+  >
+    Challenge-Detailss
+  </Text>
 
-      <Text style={[styles.font, { color: '#4B5563', marginBottom: 6 }]}>
-        <Text style={{ fontWeight: '700' }}>Challenge:</Text>{' '}
-        {vm.challenge.startLocation || '—'} → {vm.challenge.targetLocation || '—'}
-      </Text>
-      <Text style={[styles.font, { color: '#4B5563', marginBottom: 6 }]}>
-        <Text style={{ fontWeight: '700' }}>Distanz:</Text> {challengeDistanceKm} km
-      </Text>
-      {typeof daysLeft === 'number' && (
-        <Text style={[styles.font, { color: '#4B5563', marginBottom: 16 }]}>
-          <Text style={{ fontWeight: '700' }}>Verbleibende Zeit:</Text>{' '}
-          {daysLeft} Tage
-        </Text>
-      )}
+  <Text style={[styles.font, { color: '#4B5563', marginBottom: 6, textAlign: 'center' }]}>
+    <Text style={{ fontWeight: '700' }}>Challenge:</Text>{' '}
+    {vm.challenge.startLocation || '—'} → {vm.challenge.targetLocation || '—'}
+  </Text>
+
+  <Text style={[styles.font, { color: '#4B5563', marginBottom: 6, textAlign: 'center' }]}>
+    <Text style={{ fontWeight: '700' }}>Distanz:</Text> {challengeDistanceKm} km
+  </Text>
+
+  {typeof daysLeft === 'number' && (
+    <Text style={[styles.font, { color: '#4B5563', marginBottom: 16, textAlign: 'center' }]}>
+      <Text style={{ fontWeight: '700' }}>Verbleibende Zeit:</Text> {daysLeft} Tage
+    </Text>
+  )}
+</View>
+
 
       {/* CHALLENGE PROGRESS */}
       <View style={styles.progressCard}>
