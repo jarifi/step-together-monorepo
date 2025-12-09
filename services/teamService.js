@@ -1,27 +1,14 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// file: services/teamService.js
+import { apiDelete, apiGet, apiPost, apiPut } from './api';
 
-import Constants from 'expo-constants';
-const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
+// ---------------------------------------------------------------------------
+// TEAMS
+// ---------------------------------------------------------------------------
 
 export const getTeams = async (skip = 0, limit = 10) => {
+  const path = `/teams/?skip=${skip}&limit=${limit}`;
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/teams/?skip=${skip}&limit=${limit}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const teams = await res.json();
-
-    if (!res.ok) {
-      throw new Error(teams.message || 'Failed to fetch teams');
-    }
-
-    return teams;
+    return await apiGet(path);
   } catch (err) {
     console.error('Error fetching teams:', err);
     return [];
@@ -29,25 +16,9 @@ export const getTeams = async (skip = 0, limit = 10) => {
 };
 
 export const updateTeam = async (id, data) => {
+  if (!id) throw new Error('Team ID is required');
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/teams/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    const updatedTeam = await res.json();
-
-    if (!res.ok) {
-      throw new Error(updatedTeam.message || 'Failed to update team');
-    }
-
-    return updatedTeam;
+    return await apiPut(`/teams/${id}`, data);
   } catch (err) {
     console.error('Error updating team:', err);
     throw err;
@@ -56,58 +27,29 @@ export const updateTeam = async (id, data) => {
 
 export const createTeam = async (data) => {
   try {
-    const token = await AsyncStorage.getItem('userToken');
-    const res = await fetch(`${BASE_URL}/teams/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    const newTeam = await res.json();
-    if (!res.ok) {
-      throw new Error(newTeam.message || 'Failed to create team');
-    }
-    return newTeam;
+    return await apiPost(`/teams`, data);
   } catch (err) {
     console.error('Error creating team:', err);
     throw err;
   }
 };
 
-export const deleteTeam = async(id) => {
-  const token = await AsyncStorage.getItem('userToken');
-  const response = await fetch(`${BASE_URL}/teams/${id}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error('Failed to delete user');
+export const deleteTeam = async (id) => {
+  if (!id) throw new Error('Team ID is required');
+  try {
+    await apiDelete(`/teams/${id}`);
+    return true;
+  } catch (err) {
+    console.error('Error deleting team:', err);
+    throw err;
   }
-  return true;
 };
 
 export const getTeamRanking = async (teamId, challengeId) => {
+  if (!teamId || !challengeId) throw new Error('teamId and challengeId required');
   try {
-    const token = await AsyncStorage.getItem('userToken');
-    const res = await fetch(
-      `${BASE_URL}/teams/members/active_challenge/${teamId}/${challengeId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.message || 'Failed to fetch team ranking');
-
+    const path = `/teams/members/active_challenge/${teamId}/${challengeId}`;
+    const data = await apiGet(path);
     return Array.isArray(data) ? data : [];
   } catch (err) {
     console.error('Error fetching team ranking:', err);

@@ -1,27 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// file: services/userService.js
+import { apiDelete, apiGet, apiPost, apiPut } from './api';
 
-import Constants from 'expo-constants';
-const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
-
-
+// ---------------------------------------------------------------------------
+// GET USERS (with skip/limit + dummy avatars)
+// ---------------------------------------------------------------------------
 export const getUsers = async (skip = 0, limit = 10) => {
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/users/?skip=${skip}&limit=${limit}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const users = await res.json();
-
-    if (!res.ok) {
-      throw new Error(users.message || 'Failed to fetch users');
-    }
-
+    const users = await apiGet(`/users/?skip=${skip}&limit=${limit}`);
+    // Add dummy avatars
     return users.map((u, i) => ({
       ...u,
       avatar: `https://i.pravatar.cc/150?img=${i + 1}`,
@@ -32,68 +18,38 @@ export const getUsers = async (skip = 0, limit = 10) => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// UPDATE USER
+// ---------------------------------------------------------------------------
 export const updateUser = async (id, data) => {
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/users/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    const updatedUser = await res.json();
-
-    if (!res.ok) {
-      throw new Error(updatedUser.message || 'Failed to update user');
-    }
-
-    return updatedUser;
+    return await apiPut(`/users/${id}`, data);
   } catch (err) {
     console.error('Error updating user:', err);
     throw err;
   }
 };
 
-export async function createUser(userData) {
-  const token = await AsyncStorage.getItem('userToken');
-
-  const res = await fetch(`${BASE_URL}/users/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(userData),
-  });
-
-  if (!res.ok) {
-    let errorMessage = `Failed to create user: ${res.status}`;
-    try {
-      const errorBody = await res.json();
-      errorMessage = JSON.stringify(errorBody);
-    } catch (e) {
-      // ignore JSON parse errors
-    }
-    throw new Error(errorMessage);
+// ---------------------------------------------------------------------------
+// CREATE USER
+// ---------------------------------------------------------------------------
+export const createUser = async (userData) => {
+  try {
+    return await apiPost(`/users/`, userData);
+  } catch (err) {
+    console.error('Error creating user:', err);
+    throw err;
   }
+};
 
-  return res.json();
-}
-
+// ---------------------------------------------------------------------------
+// DELETE USER
+// ---------------------------------------------------------------------------
 export const deleteUser = async (id) => {
-  const token = await AsyncStorage.getItem('userToken');
-  const response = await fetch(`${BASE_URL}/users/${id}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error('Failed to delete user');
+  try {
+    return await apiDelete(`/users/${id}`);
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    throw err;
   }
-  return true;
 };

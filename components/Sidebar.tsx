@@ -1,11 +1,12 @@
+// file: components/Sidebar.tsx
 import Feather from '@expo/vector-icons/Feather';
 import { Link, router, usePathname } from 'expo-router';
 import React, { useState } from 'react';
 import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useUser } from '../context/UserContext';
-import { removeToken } from '../lib/auth';
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUser } from '../context/UserContext';
+import { removeTokens } from '../lib/auth';
+const { setUser, setToken, setUserId } = useUser();
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -45,24 +46,34 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
-    await removeToken();
+    // 1. Remove tokens from storage
+    await removeTokens();
+
+    // 2. Clear UserContext
+    setUser(null);
+    setToken(null);
+    setUserId(null);
+
+    // 3. Redirect to login
     router.replace('/login');
+
+    // 4. Close sidebar
     closeSidebar();
   };
 
   // direkt unter: const { user } = useUser();
-const initials = user?.name
-  ? user.name
+  const initials = user?.name
+    ? user.name
       .split(' ')
       .filter(Boolean)
       .map((n: string) => n[0])
       .join('')
       .slice(0, 2)
       .toUpperCase()
-  : 'U';
+    : 'U';
 
-const displayName = user?.name || 'Nutzer nicht gefunden';
-const displayEmail = user?.email || 'Profil bearbeiten';
+  const displayName = user?.name || 'Nutzer nicht gefunden';
+  const displayEmail = user?.email || 'Profil bearbeiten';
 
 
   // Helper to decide active state
@@ -84,25 +95,25 @@ const displayEmail = user?.email || 'Profil bearbeiten';
       <Animated.View
         style={[
           styles.sidebar,
-          { left: slideAnim, paddingTop: insets.top + 20 }, 
+          { left: slideAnim, paddingTop: insets.top + 20 },
         ]}
       >
         {user ? (
-         <Pressable
-  style={styles.profileContainer}
-  onPress={() => {
-    closeSidebar();
-    router.push('/profile/update');
-  }}
->
-  <View style={styles.profileCircle}>
-    <Text style={styles.profileInitials}>{initials}</Text>
-  </View>
-  <View style={{ marginLeft: 12 }}>
-    <Text style={styles.profileName}>{displayName}</Text>
-    <Text style={styles.profileEmail}>{displayEmail}</Text>
-  </View>
-</Pressable>
+          <Pressable
+            style={styles.profileContainer}
+            onPress={() => {
+              closeSidebar();
+              router.push('/profile/update');
+            }}
+          >
+            <View style={styles.profileCircle}>
+              <Text style={styles.profileInitials}>{initials}</Text>
+            </View>
+            <View style={{ marginLeft: 12 }}>
+              <Text style={styles.profileName}>{displayName}</Text>
+              <Text style={styles.profileEmail}>{displayEmail}</Text>
+            </View>
+          </Pressable>
 
         ) : (
           <Text style={{ color: '#2F3E34', marginBottom: 20 }}>Kein User geladen</Text>
@@ -118,7 +129,7 @@ const displayEmail = user?.email || 'Profil bearbeiten';
           />
 
           <View style={styles.separator} />
-  
+
           <NavLink
             href="/myTeam"
             label="Mein Team"
@@ -174,12 +185,12 @@ const displayEmail = user?.email || 'Profil bearbeiten';
 
           <View style={styles.separator} />
 
-          <Text style={{ 
-            fontSize: 16, 
-            fontWeight: '600', 
-            color: '#5F764E', 
-            marginBottom: 10, 
-            marginLeft: 12 
+          <Text style={{
+            fontSize: 16,
+            fontWeight: '600',
+            color: '#5F764E',
+            marginBottom: 10,
+            marginLeft: 12
           }}>
             Admin Bereich
           </Text>
@@ -262,7 +273,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
-  
+
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -294,7 +305,7 @@ const styles = StyleSheet.create({
     width: screenWidth * 0.75,          // keep at 75%
     backgroundColor: '#F7F8F5',         // off-white canvas
     padding: 20,
-    zIndex: 999, 
+    zIndex: 999,
     borderTopRightRadius: 28,
     borderBottomRightRadius: 28,
 

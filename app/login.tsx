@@ -1,3 +1,5 @@
+//file: app/login.tsx
+
 import { useState } from 'react';
 
 import {
@@ -16,7 +18,7 @@ import { router } from 'expo-router';
 
 
 import { useUser } from '../context/UserContext';
-import { saveToken, saveUserId } from '../lib/auth';
+import { saveTokens, saveUserId } from '../lib/auth';
 
 import Constants from 'expo-constants';
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
@@ -32,15 +34,10 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setErrorMessage(null);
-    console.log('API_BASE_URL:', API_BASE_URL);
-    console.log('Requesting:', `${API_BASE_URL}/auth/login`)
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
@@ -48,35 +45,40 @@ export default function LoginScreen() {
 
       if (!response.ok) {
         let message = 'Login fehlgeschlagen';
-
         if (Array.isArray(data.detail)) {
-        message = data.detail.map((d: any) => {
-        if (typeof d.msg === 'string') { 
-          const field = d.loc?.[1];
-          if (field === 'email') return 'Bitte geben Sie eine gültige E-Mail-Adresse ein!';
-          if (field === 'password') return 'Bitte geben Sie ein gültige Passwort ein!';
-          return d.msg;
+          message = data.detail.map((d: any) => {
+            if (typeof d.msg === 'string') {
+              const field = d.loc?.[1];
+              if (field === 'email') return 'Bitte geben Sie eine gültige E-Mail-Adresse ein!';
+              if (field === 'password') return 'Bitte geben Sie ein gültige Passwort ein!';
+              return d.msg;
+            }
+            return JSON.stringify(d);
+          }).join('\n');
+        } else if (data.detail) {
+          message = data.detail;
         }
-        return JSON.stringify(d);
-        }).join('\n');
-      } else if (data.detail) {
-        message = data.detail;
-      }
-      showError(message);
-      return;
+        showError(message);
+        return;
       }
 
-      if (!data.access_token || !data.user_id) {
+      if (!data.accessToken || !data.userId || !data.refreshToken) {
         showError('Login fehlgeschlagen');
         return;
       }
 
-      await saveToken(data.access_token);
-      await saveUserId(String(data.user_id));
+      await saveTokens(data.accessToken, data.refreshToken);
 
-      setToken(data.access_token);
-      setUserId(String(data.user_id));
-      setUser(data.user); // falls Backend auch User-Daten zurückgibt
+      // FIX: backend returns userId, not user_id
+      await saveUserId(String(data.userId));
+
+      setToken(data.accessToken);
+      setUserId(String(data.userId));
+
+      // Optional, only if your backend returns user object
+      if (data.user) {
+        setUser(data.user);
+      }
 
       router.replace('/dashboard');
     } catch (err: any) {
@@ -122,7 +124,7 @@ export default function LoginScreen() {
           />
 
           {errorMessage && (
-            <Text style={{ color: 'red', marginBottom: 10, textAlign: 'center'}}>
+            <Text style={{ color: 'red', marginBottom: 10, textAlign: 'center' }}>
               {errorMessage}
             </Text>
           )}
