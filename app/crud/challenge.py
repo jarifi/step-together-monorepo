@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime
 
@@ -8,6 +8,7 @@ from app.schema.challenge import ChallengeCreate, ChallengeUpdate
 from app.models.challenge_team import ChallengeTeam
 from app.models.team import Team
 from app.models.step_log import StepLog
+from app.models.team_member import TeamMember 
 
 from app.schema.team import TeamSchema, ChallengeTeamWithSteps
 
@@ -127,3 +128,25 @@ def get_teams_for_challenge(
         )
         for row in results
     ]
+
+def get_finished_challenges_for_user(
+    db: Session,
+    user_id: int,
+) -> List[ChallengeModel]:
+    now = datetime.utcnow()
+
+    query = (
+        db.query(ChallengeModel)
+        .join(ChallengeTeam, ChallengeTeam.challenge_id == ChallengeModel.id)
+        .join(TeamMember, TeamMember.team_id == ChallengeTeam.team_id)
+        .filter(
+            TeamMember.user_id == user_id,
+            ChallengeModel.is_deleted == False,
+            or_(
+                ChallengeModel.state == "closed",
+                ChallengeModel.end_date < now,
+            ),
+        )
+        .order_by(ChallengeModel.end_date.desc())
+    )
+    return query.all()
