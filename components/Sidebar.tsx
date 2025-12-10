@@ -126,39 +126,13 @@ export default function Sidebar() {
 
           <View style={styles.separator} />
 
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: '600',
-              color: '#5F764E',
-              marginBottom: 10,
-              marginLeft: 12,
-            }}
-          >
-            Admin Bereich
-          </Text>
-
-          {/* Admin Links */}
+          {/* Admin Bereich*/}
           {renderNavLink(
-            '/allChallenges',
-            'Alle Challenges',
-            'flag',
-            MaterialIcons
-          )}
-          {renderNavLink(
-            '/teams',
-            'Alle Teams',
-            'diversity-3',
-            MaterialIcons
-          )}
-          {renderNavLink(
-            '/users',
-            'Alle Benutzer',
+            '/admin',
+            'Admin Bereich',
             'groups',
             MaterialIcons
           )}
-
-          <View style={styles.separator} />
 
           {/* Einstellungen */}
           {renderNavLink(
