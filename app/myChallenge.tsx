@@ -7,7 +7,6 @@ import { getTeamRanking } from '../services/teamService';
 import { mapHomeInitToDashboard } from './dashboard/dashboardDto';
 import styles from './styles/dashboardStyles';
 
-// bewusst locker, damit TS nicht nervt
 const FIX_STEP_LENGTH_M = 0.78;
 
 const buildRankings = (rawRank: any[], userId: number | null | undefined) => {
@@ -177,7 +176,7 @@ const MyChallenge: React.FC = () => {
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
     >
       {/* Grundinfo zur Challenge */}
-      <View style={[styles.font, { marginBottom: 6, alignItems: 'center' }]}>
+      <View style={[{ marginBottom: 6, alignItems: 'center' }]}>
   <Text
     style={[
       styles.font,

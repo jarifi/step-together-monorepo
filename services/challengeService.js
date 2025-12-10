@@ -25,24 +25,9 @@ export const getChallengeById = async (id) => {
 };
 
 export const getChallengeTeams = async (id) => {
+  if (!id) throw new Error('Challenge ID is required');
   try {
-    const token = await AsyncStorage.getItem('userToken');
-
-    const res = await fetch(`${BASE_URL}/challenges/${id}/teams`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const teams = await res.json();
-
-    if (!res.ok) {
-      throw new Error(teams.message || 'Failed to fetch challenge teams');
-    }
-
-    return teams;
+    return await apiGet(`/challenges/${id}/teams`);
   } catch (err) {
     console.error('Error fetching challenge teams:', err);
     throw err;
@@ -76,5 +61,14 @@ export const deleteChallenge = async (id) => {
   } catch (err) {
     console.error('Error deleting challenge:', err);
     throw err;
+  }
+};
+
+export const getChallengeHistory = async () => {
+  try {
+    return await apiGet(`/challenges/me/history`);
+  } catch (err) {
+    console.error('Error fetching challenge history:', err);
+    return [];
   }
 };

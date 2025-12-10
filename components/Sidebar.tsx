@@ -146,8 +146,6 @@ export default function Sidebar() {
             onNavigate={closeSidebar}
           />
 
-          <View style={styles.separator} />
-
           <NavLink
             href="/userHistory"
             label="Meine Historie"

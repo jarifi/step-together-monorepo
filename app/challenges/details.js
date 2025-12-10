@@ -1,6 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { getChallengeById, getChallengeTeams } from '../../services/challengeService';
 
@@ -39,14 +46,16 @@ export default function ChallengeDetailsScreen() {
     load();
   }, [id]);
 
-  const leadingTeam = useMemo(() => {
-    if (!teams.length) return null;
-    return teams.reduce(
-      (max, t) =>
-        (t.totalSteps ?? 0) > (max?.totalSteps ?? 0) ? t : max,
-      null,
+  // Teams nach totalSteps sortieren (Ranking)
+  const sortedTeams = useMemo(() => {
+    if (!Array.isArray(teams)) return [];
+    return [...teams].sort(
+      (a, b) => (b.totalSteps ?? 0) - (a.totalSteps ?? 0),
     );
   }, [teams]);
+
+  // Leading Team ist einfach der erste Eintrag aus der sortierten Liste
+  const leadingTeam = sortedTeams[0] ?? null;
 
   if (loading) {
     return <ActivityIndicator style={{ flex: 1 }} size="large" />;
@@ -63,74 +72,65 @@ export default function ChallengeDetailsScreen() {
     );
   }
 
- return (
-  <ScrollView 
-    style={styles.container}
-    contentContainerStyle={{ paddingBottom: 40 }}
-    showsVerticalScrollIndicator={false}
-  >
-
-    {/* Challenge Card */}
-    <View style={[styles.card, styles.centered]}>
-      <Text style={styles.title}>{challenge.name}</Text>
-      <Text style={styles.sub}>
-        {challenge.startLocation} → {challenge.targetLocation}
-      </Text>
-      <Text style={styles.sub}>
-        Distance: {challenge.distance} km | State: {challenge.state}
-      </Text>
-    </View>
-
-    {/* Leading Team */}
-    {leadingTeam && (
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Challenge Card */}
       <View style={[styles.card, styles.centered]}>
-        <Text style={styles.sectionHeader}>Leading Team</Text>
-        <Text style={styles.highlight}>{leadingTeam.name}</Text>
-        <Text style={styles.subSmall}>
-          {(leadingTeam.totalSteps ?? 0)} steps total
+        <Text style={styles.title}>{challenge.name}</Text>
+        <Text style={styles.sub}>
+          {challenge.startLocation} → {challenge.targetLocation}
+        </Text>
+        <Text style={styles.sub}>
+          Distance: {challenge.distance} km | State: {challenge.state}
         </Text>
       </View>
-    )}
 
-    <Text style={[styles.sectionTitle, styles.centerText]}>
-      Participating Teams
-    </Text>
-
-    {/* Make THIS card scrollable too if many teams */}
-    <View style={styles.card}>
-      {teams.length === 0 ? (
-        <Text style={styles.emptyText}>No teams in this challenge yet.</Text>
-      ) : (
-        <View>
-          {teams.map((item, index) => (
-            <View style={styles.teamRow} key={item.id}>
-              <View>
-                <Text style={styles.teamName}>
-                  {index + 1}. {item.name}
-                </Text>
-                <Text style={styles.teamSteps}>
-                  {(item.totalSteps ?? 0)} steps
-                </Text>
-              </View>
-
-              {leadingTeam?.id === item.id && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>Leader</Text>
-                </View>
-              )}
-            </View>
-          ))}
+      {/* Leading Team */}
+      {leadingTeam && (
+        <View style={[styles.card, styles.centered]}>
+          <Text style={styles.sectionHeader}>Leading Team</Text>
+          <Text style={styles.highlight}>{leadingTeam.name}</Text>
+          <Text style={styles.subSmall}>
+            {(leadingTeam.totalSteps ?? 0).toLocaleString()} steps total
+          </Text>
         </View>
       )}
-    </View>
 
-    <Pressable onPress={() => router.back()} style={styles.backButton}>
-      <Text style={styles.backText}>Zurück</Text>
-    </Pressable>
+      <Text style={[styles.sectionTitle, styles.centerText]}>
+        Participating Teams
+      </Text>
 
-  </ScrollView>
-);
+      {/* Teams / Ranking Card */}
+      <View style={styles.card}>
+        {sortedTeams.length === 0 ? (
+          <Text style={styles.emptyText}>No teams in this challenge yet.</Text>
+        ) : (
+          <View>
+            {sortedTeams.map((item, index) => (
+              <View style={styles.teamRow} key={item.id}>
+                <View>
+                  <Text style={styles.teamName}>
+                    {index + 1}. {item.name}
+                  </Text>
+                  <Text style={styles.teamSteps}>
+                    {(item.totalSteps ?? 0).toLocaleString()} steps
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
 
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>Zurück</Text>
+      </Pressable>
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -154,10 +154,10 @@ const styles = StyleSheet.create({
     padding: 22,
     borderRadius: 22,
     shadowColor: '#000',
-    shadowOpacity: 0.07,      // softer
-    shadowRadius: 18,         // bigger blur
+    shadowOpacity: 0.07,      
+    shadowRadius: 18,       
     shadowOffset: { width: 0, height: 8 },
-    elevation: 4,             // Android softness
+    elevation: 4,           
     marginBottom: 20,
   },
 
@@ -247,7 +247,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // 🍏 Softer floating button
   backButton: {
     marginTop: 10,
     backgroundColor: '#82ae8dff',
@@ -268,5 +267,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-});
 
+  errorText: {
+    fontSize: 16,
+    color: '#c00',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+});
