@@ -2,21 +2,20 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import { Link, router, usePathname } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '../context/UserContext';
 import { removeTokens } from '../lib/auth';
-const { setUser, setToken, setUserId } = useUser();
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function Sidebar() {
   const insets = useSafeAreaInsets();
   const [isOpen, setIsOpen] = useState(false);
-  const [slideAnim] = useState(new Animated.Value(-screenWidth));
+  const slideAnim = useRef(new Animated.Value(-screenWidth)).current;
 
-  const { user } = useUser();
+  const { user, setUser, setToken, setUserId } = useUser();
   const pathname = usePathname();
 
   const toggleSidebar = () => {
@@ -48,18 +47,19 @@ export default function Sidebar() {
 
   const initials = user?.name
     ? user.name
-      .split(' ')
-      .filter(Boolean)
-      .map((n: string) => n[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase()
+        .split(' ')
+        .filter(Boolean)
+        .map((n: string) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
     : 'U';
 
   const displayName = user?.name || 'Nutzer nicht gefunden';
   const displayEmail = user?.email || 'Profil bearbeiten';
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <>
@@ -71,7 +71,12 @@ export default function Sidebar() {
 
       {isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
-      <Animated.View style={[styles.sidebar, { left: slideAnim, paddingTop: insets.top + 20 }]}>
+      <Animated.View
+        style={[
+          styles.sidebar,
+          { left: slideAnim, paddingTop: insets.top + 20 },
+        ]}
+      >
         {user ? (
           <Pressable
             style={styles.profileContainer}
@@ -89,7 +94,9 @@ export default function Sidebar() {
             </View>
           </Pressable>
         ) : (
-          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>Kein User geladen</Text>
+          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>
+            Kein User geladen
+          </Text>
         )}
 
         <View style={styles.linkContainer}>
@@ -99,27 +106,23 @@ export default function Sidebar() {
           <View style={styles.separator} />
 
           {/* Meine Challenge */}
-          {renderNavLink('/myChallenge', 'Meine Challenge', 'emoji-events', MaterialIcons)}
+          {renderNavLink(
+            '/myChallenge',
+            'Meine Challenge',
+            'emoji-events',
+            MaterialIcons
+          )}
 
           {/* Meine Historie */}
-          {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
-
-          <View style={styles.separator} />
+          {renderNavLink(
+            '/userHistory',
+            'Meine Historie',
+            'restore',
+            MaterialIcons
+          )}
 
           {/* Laufende Challenges */}
-          {renderNavLink('/openChallenges', 'Laufende Challenges', 'flag', MaterialIcons)}
-
-          <View style={styles.separator} />
-
-          {/* Einstellungen */}
-          {renderNavLink('/settings', 'Einstellungen', 'settings', MaterialIcons)}
-
-          <Pressable style={styles.navLink} onPress={handleLogout}>
-            <View style={[styles.navInner, styles.navDanger]}>
-              <Feather name="log-out" size={20} color="#B91C1C" style={styles.navIcon} />
-              <Text style={styles.navDangerText}>Logout</Text>
-            </View>
-          </Pressable>
+          {renderNavLink('/challenges', 'Challenges', 'flag', MaterialIcons)}
 
           <View style={styles.separator} />
 
@@ -136,9 +139,47 @@ export default function Sidebar() {
           </Text>
 
           {/* Admin Links */}
-          {renderNavLink('/challenges', 'Alle Challenges', 'flag', MaterialIcons)}
-          {renderNavLink('/teams', 'Alle Teams', 'diversity-3', MaterialIcons)}
-          {renderNavLink('/users', 'Alle Benutzer', 'groups', MaterialIcons)}
+          {renderNavLink(
+            '/allChallenges',
+            'Alle Challenges',
+            'flag',
+            MaterialIcons
+          )}
+          {renderNavLink(
+            '/teams',
+            'Alle Teams',
+            'diversity-3',
+            MaterialIcons
+          )}
+          {renderNavLink(
+            '/users',
+            'Alle Benutzer',
+            'groups',
+            MaterialIcons
+          )}
+
+          <View style={styles.separator} />
+
+          {/* Einstellungen */}
+          {renderNavLink(
+            '/settings',
+            'Einstellungen',
+            'settings',
+            MaterialIcons
+          )}
+
+          <Pressable style={styles.navLink} onPress={handleLogout}>
+            <View style={[styles.navInner, styles.navDanger]}>
+              <Feather
+                name="log-out"
+                size={20}
+                color="#B91C1C"
+                style={styles.navIcon}
+              />
+              <Text style={styles.navDangerText}>Logout</Text>
+            </View>
+          </Pressable>
+
         </View>
       </Animated.View>
     </>
@@ -185,9 +226,20 @@ function NavLink({ href, label, icon, style, active, onNavigate }: NavLinkProps)
   return (
     <Link href={href} asChild>
       <Pressable style={styles.navLink} onPress={onNavigate}>
-        <View style={[styles.navInner, active ? styles.navLinkActive : styles.navLinkInactive]}>
+        <View
+          style={[
+            styles.navInner,
+            active ? styles.navLinkActive : styles.navLinkInactive,
+          ]}
+        >
           {icon}
-          <Text style={[styles.navLinkText, active ? styles.navLinkTextActive : null, style]}>
+          <Text
+            style={[
+              styles.navLinkText,
+              active ? styles.navLinkTextActive : null,
+              style,
+            ]}
+          >
             {label}
           </Text>
         </View>
@@ -196,7 +248,7 @@ function NavLink({ href, label, icon, style, active, onNavigate }: NavLinkProps)
   );
 }
 
-/** Styles (same as your previous code) */
+/** Styles */
 const styles = StyleSheet.create({
   headerContainer: {
     position: 'absolute',
@@ -212,8 +264,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  burgerBtn: { backgroundColor: '#6B8F71', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)', zIndex: 30 },
+  burgerBtn: {
+    backgroundColor: '#6B8F71',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    zIndex: 30,
+  },
   sidebar: {
     position: 'absolute',
     top: 0,
@@ -230,20 +295,61 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  profileContainer: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 22, borderRadius: 18, backgroundColor: '#EAF1E6' },
-  profileCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#6B8F71', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#F7F8F5' },
-  profileInitials: { color: '#FFFFFF', fontWeight: '800', fontSize: 18, letterSpacing: 0.5 },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    marginBottom: 22,
+    borderRadius: 18,
+    backgroundColor: '#EAF1E6',
+  },
+  profileCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#6B8F71',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#F7F8F5',
+  },
+  profileInitials: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
   profileName: { color: '#2F3E34', fontWeight: '700', fontSize: 16 },
   profileEmail: { color: '#6B7280', fontSize: 12, marginTop: 2 },
   linkContainer: { flex: 1, paddingTop: 4 },
   navLink: { marginVertical: 8, borderRadius: 16 },
-  navInner: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 20 },
+  navInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
   navLinkInactive: {},
   navLinkActive: { backgroundColor: '#6B8F71' },
   navIcon: { marginRight: 10 },
-  navLinkText: { color: '#2F3E34', fontSize: 16, fontWeight: '600', letterSpacing: 0.2 },
+  navLinkText: {
+    color: '#2F3E34',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
   navLinkTextActive: { color: '#F7F8F5' },
   navDanger: { backgroundColor: '#F5DCDC' },
-  navDangerText: { color: '#B91C1C', fontSize: 16, fontWeight: '700' },
-  separator: { height: 1, backgroundColor: '#DDE5D2', marginVertical: 12, borderRadius: 1 },
+  navDangerText: {
+    color: '#B91C1C',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#DDE5D2',
+    marginVertical: 12,
+    borderRadius: 1,
+  },
 });
