@@ -634,7 +634,7 @@ const Dashboard: React.FC = () => {
           }}
         >
           <Text style={[styles.editBtnText, styles.font]}>
-            Challenge-Details & Team-Ranking anzeigen
+            Challenge-Details
           </Text>
         </TouchableOpacity>
 

@@ -18,22 +18,6 @@ const ChallengeCard = ({ challenge, onUpdate, onDelete, onPress }) => {
     return 'Invalid Date';
   };
 
-  const renderTeamsInfo = () => {
-    const teams = challenge?.teams;
-
-    if (!teams || !Array.isArray(teams) || teams.length === 0) {
-      return <Text style={styles.details}>Noch keine Teams angemeldet</Text>;
-    }
-
-    const teamNames = teams.map((t) => t.name).join(', ');
-
-    return (
-      <Text style={styles.details}>
-        {teams.length} teilnehmende Teams: {teamNames}
-      </Text>
-    );
-  };
-
   return (
     <View style={styles.card}>
       <Pressable
@@ -55,9 +39,9 @@ const ChallengeCard = ({ challenge, onUpdate, onDelete, onPress }) => {
           {formatDate(challenge.startDate)} - {formatDate(challenge.endDate)}
         </Text>
 
-        <Text style={styles.details}>Status: {challenge.state || 'N/A'}</Text>
-
-        {renderTeamsInfo()}
+        <Text style={styles.details}>
+          Status: {challenge.state || 'N/A'}
+        </Text>
       </Pressable>
 
       {/* Edit / Delete Buttons */}
