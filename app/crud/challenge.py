@@ -9,6 +9,8 @@ from app.models.challenge_team import ChallengeTeam
 from app.models.team import Team
 from app.models.step_log import StepLog
 
+from app.schema.team import TeamSchema, ChallengeTeamWithSteps
+
 def get_all_challenges(db: Session, skip: int = 0, limit: int = 10) -> List[ChallengeModel]:
     return (
         db.query(ChallengeModel)
@@ -84,35 +86,9 @@ def delete_challenge(db: Session, challenge_id: int) -> Optional[ChallengeModel]
     db.refresh(challenge_obj)
     return challenge_obj
 
-def get_teams_for_challenge(db: Session, challenge_id: int) -> Optional[List[dict]]:
-    challenge = (
-        db.query(ChallengeModel)
-        .filter(
-            ChallengeModel.id == challenge_id,
-            ChallengeModel.is_deleted == False,
-        )
-        .first()
-    )
-    if not challenge:
-        return None
-
-    results = (
-        db.query(
-            Team.id.label("id"),
-            Team.name.label("name"),
-            func.coalesce(func.sum(StepLog.steps), 0).label("total_steps"),
-        )
-        .join(ChallengeTeam, ChallengeTeam.team_id == Team.id)
-        .outerjoin(TeamMember, TeamMember.team_id == Team.id)
-        .outerjoin(StepLog, StepLog.user_id == TeamMember.user_id)
-        .filter(ChallengeTeam.challenge_id == challenge_id)
-        .group_by(Team.id, Team.name)
-        .all()
-    )
-
-    return [dict(row._mapping) for row in results]
-
-def get_teams_for_challenge(db: Session, challenge_id: int) -> Optional[List[dict]]:
+def get_teams_for_challenge(
+    db: Session, challenge_id: int
+) -> Optional[List[ChallengeTeamWithSteps]]:
     challenge = (
         db.query(ChallengeModel)
         .filter(
@@ -135,11 +111,19 @@ def get_teams_for_challenge(db: Session, challenge_id: int) -> Optional[List[dic
             StepLog,
             and_(
                 StepLog.team_id == Team.id,
-                StepLog.challenge_id == challenge_id, 
+                StepLog.challenge_id == challenge_id,
             ),
         )
         .filter(ChallengeTeam.challenge_id == challenge_id)
         .group_by(Team.id, Team.name)
         .all()
     )
-    return [dict(row._mapping) for row in results]
+
+    return [
+        ChallengeTeamWithSteps(
+            id=row.id,
+            name=row.name,
+            total_steps=row.total_steps,
+        )
+        for row in results
+    ]
