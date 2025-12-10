@@ -2,21 +2,50 @@ import { MaterialIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-const ChallengeCard = ({ challenge, onUpdate, onDelete, onPress }) => {
+const ChallengeCard = ({
+  challenge,
+  onUpdate,
+  onDelete,
+  onPress,
+  showActions = false,
+}) => {
   const [modalVisible, setModalVisible] = useState(false);
 
+  // Safety: wenn keine Challenge -> nichts rendern
+  if (!challenge) {
+    return null;
+  }
+
   const formatDate = (dateString) => {
-    if (!dateString) return 'No Date';
+    if (!dateString) return 'Kein Datum';
     try {
       const date = new Date(dateString);
       if (date instanceof Date && !isNaN(date)) {
-        return date.toLocaleDateString();
+        return date.toLocaleDateString('de-DE');
       }
     } catch (e) {
-      return 'Invalid Date';
+      return 'Ungültiges Datum';
     }
-    return 'Invalid Date';
+    return 'Ungültiges Datum';
   };
+
+  // ✅ Status-Icon-Logik inkl. closed
+  const getStatusIcon = (stateRaw) => {
+    const state = (stateRaw ?? '').toLowerCase();
+
+    if (state === 'open') {
+      return { name: 'lock-open', color: '#4CAF50', text: 'Offen' };
+    }
+    if (state === 'incoming') {
+      return { name: 'schedule', color: '#FF9800', text: 'Bevorstehend' };
+    }
+    if (state === 'closed') {
+      return { name: 'lock', color: '#F44336', text: 'Abgeschlossen' };
+    }
+    return { name: 'help-outline', color: '#999', text: 'Unbekannt' };
+  };
+
+  const status = getStatusIcon(challenge?.state);
 
   return (
     <View style={styles.card}>
@@ -29,34 +58,44 @@ const ChallengeCard = ({ challenge, onUpdate, onDelete, onPress }) => {
         <Text style={styles.title}>{challenge.name}</Text>
 
         <Text style={styles.details}>
-          {challenge.startLocation || 'Start Location'} to{' '}
-          {challenge.targetLocation || 'Target Location'}
+          {challenge.startLocation || 'Start'} →{' '}
+          {challenge.targetLocation || 'Ziel'}
         </Text>
 
         <Text style={styles.details}>{challenge.distance || 0} km</Text>
 
         <Text style={styles.details}>
-          {formatDate(challenge.startDate)} - {formatDate(challenge.endDate)}
+          {formatDate(challenge.startDate)} – {formatDate(challenge.endDate)}
         </Text>
 
-        <Text style={styles.details}>
-          Status: {challenge.state || 'N/A'}
-        </Text>
+        {/* Status mit Icon */}
+        <View style={styles.statusRow}>
+          <MaterialIcons
+            name={status.name}
+            size={18}
+            color={status.color}
+          />
+          <Text style={[styles.statusText, { color: status.color }]}>
+            {status.text}
+          </Text>
+        </View>
       </Pressable>
 
-      {/* Edit / Delete Buttons */}
-      <View style={styles.buttonContainer}>
-        <Pressable onPress={onUpdate} style={styles.updateButton}>
-          <MaterialIcons name="edit" size={20} color="#fff" />
-        </Pressable>
+      {/* Edit / Delete nur, wenn showActions = true */}
+      {showActions && (
+        <View style={styles.buttonContainer}>
+          <Pressable onPress={onUpdate} style={styles.updateButton}>
+            <MaterialIcons name="edit" size={20} color="#fff" />
+          </Pressable>
 
-        <Pressable
-          onPress={() => setModalVisible(true)}
-          style={styles.deleteButton}
-        >
-          <MaterialIcons name="delete" size={20} color="#fff" />
-        </Pressable>
-      </View>
+          <Pressable
+            onPress={() => setModalVisible(true)}
+            style={styles.deleteButton}
+          >
+            <MaterialIcons name="delete" size={20} color="#fff" />
+          </Pressable>
+        </View>
+      )}
 
       {/* Delete-Modal */}
       <Modal
@@ -118,6 +157,16 @@ const styles = StyleSheet.create({
   details: {
     fontSize: 14,
     color: '#555',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   buttonContainer: {
     flexDirection: 'row',

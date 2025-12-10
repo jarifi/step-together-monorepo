@@ -2,22 +2,22 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
-import ChallengeCard from '../../components/ChallengeCard.js';
+import ChallengeCard from '../../components/ChallengeCard';
 import { deleteChallenge, getChallenges } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
-export default function ChallengesScreen() {
+export default function AllChallengesScreen() {
   const [challenges, setChallenges] = useState([]);
   const [skip, setSkip] = useState(0);
   const limit = 10;
@@ -127,6 +127,7 @@ export default function ChallengesScreen() {
           renderItem={({ item }) => (
             <ChallengeCard
               challenge={item}
+              showActions={true} // 🔥 HIER: Edit/Delete sichtbar
               onPress={() =>
                 router.push({
                   pathname: '/challenges/details',

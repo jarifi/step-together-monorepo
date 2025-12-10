@@ -10,12 +10,12 @@ import {
   View,
 } from 'react-native';
 
-import ChallengeCard from '../../components/ChallengeCard.js';
-import { deleteChallenge, getChallenges } from '../../services/challengeService.js';
+import ChallengeCard from '../../components/ChallengeCard';
+import { getChallenges } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
-export default function ChallengesScreen() {
+export default function OpenChallengesScreen() {
   const [challenges, setChallenges] = useState([]);
   const [skip, setSkip] = useState(0);
   const limit = 10;
@@ -80,33 +80,6 @@ export default function ChallengesScreen() {
                   params: { id: item.id.toString() },
                 })
               }
-              onUpdate={() =>
-                router.push({
-                  pathname: '/challenges/update',
-                  params: {
-                    id: item.id,
-                    name: item.name,
-                    startLocation: item.startLocation,
-                    targetLocation: item.targetLocation,
-                    distance: item.distance?.toString(),
-                    startDate: item.startDate,
-                    endDate: item.endDate,
-                    creatorId: item.creatorId,
-                    teamId: item.teamId,
-                    state: item.state,
-                  },
-                })
-              }
-              onDelete={async () => {
-                try {
-                  await deleteChallenge(item.id);
-                  setChallenges((prev) =>
-                    prev.filter((u) => u.id !== item.id)
-                  );
-                } catch (error) {
-                  console.error('Delete failed:', error);
-                }
-              }}
             />
           )}
           onEndReached={loadChallenges}

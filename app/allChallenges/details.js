@@ -54,7 +54,7 @@ export default function ChallengeDetailsScreen() {
     );
   }, [teams]);
 
-  // Leading Team ist einfach der erste Eintrag aus der sortierten Liste
+  // Führendes Team ist einfach der erste Eintrag aus der sortierten Liste
   const leadingTeam = sortedTeams[0] ?? null;
 
   if (loading) {
@@ -64,7 +64,7 @@ export default function ChallengeDetailsScreen() {
   if (!challenge) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Challenge not found.</Text>
+        <Text style={styles.errorText}>Challenge wurde nicht gefunden.</Text>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>Zurück</Text>
         </Pressable>
@@ -78,36 +78,38 @@ export default function ChallengeDetailsScreen() {
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Challenge Card */}
+      {/* Challenge-Karte */}
       <View style={[styles.card, styles.centered]}>
         <Text style={styles.title}>{challenge.name}</Text>
         <Text style={styles.sub}>
           {challenge.startLocation} → {challenge.targetLocation}
         </Text>
         <Text style={styles.sub}>
-          Distance: {challenge.distance} km | State: {challenge.state}
+          Distanz: {challenge.distance} km | Status: {challenge.state}
         </Text>
       </View>
 
-      {/* Leading Team */}
+      {/* Führendes Team */}
       {leadingTeam && (
         <View style={[styles.card, styles.centered]}>
-          <Text style={styles.sectionHeader}>Leading Team</Text>
+          <Text style={styles.sectionHeader}>Führendes Team</Text>
           <Text style={styles.highlight}>{leadingTeam.name}</Text>
           <Text style={styles.subSmall}>
-            {(leadingTeam.totalSteps ?? 0).toLocaleString()} steps total
+            {(leadingTeam.totalSteps ?? 0).toLocaleString()} Schritte gesamt
           </Text>
         </View>
       )}
 
       <Text style={[styles.sectionTitle, styles.centerText]}>
-        Participating Teams
+        Teilnehmende Teams
       </Text>
 
-      {/* Teams / Ranking Card */}
+      {/* Teams / Ranking-Karte */}
       <View style={styles.card}>
         {sortedTeams.length === 0 ? (
-          <Text style={styles.emptyText}>No teams in this challenge yet.</Text>
+          <Text style={styles.emptyText}>
+            Es nehmen aktuell noch keine Teams an dieser Challenge teil.
+          </Text>
         ) : (
           <View>
             {sortedTeams.map((item, index) => (
@@ -117,7 +119,7 @@ export default function ChallengeDetailsScreen() {
                     {index + 1}. {item.name}
                   </Text>
                   <Text style={styles.teamSteps}>
-                    {(item.totalSteps ?? 0).toLocaleString()} steps
+                    {(item.totalSteps ?? 0).toLocaleString()} Schritte
                   </Text>
                 </View>
               </View>
@@ -154,10 +156,10 @@ const styles = StyleSheet.create({
     padding: 22,
     borderRadius: 22,
     shadowColor: '#000',
-    shadowOpacity: 0.07,      
-    shadowRadius: 18,       
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 4,           
+    elevation: 4,
     marginBottom: 20,
   },
 
@@ -254,7 +256,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 14,
     alignSelf: 'center',
-
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 16,
