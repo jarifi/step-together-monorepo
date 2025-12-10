@@ -626,18 +626,6 @@ const Dashboard: React.FC = () => {
           </View>
         </View>
 
-        {/* CHALLENGE-DETAILS BUTTON */}
-        <TouchableOpacity
-          style={styles.editBtn}
-          onPress={() => {
-            router.push('/myChallenge'); // deine Extra-Page
-          }}
-        >
-          <Text style={[styles.editBtnText, styles.font]}>
-            Challenge-Details
-          </Text>
-        </TouchableOpacity>
-
         {/* MODAL: Schritte verwalten */}
         <Modal
           animationType="fade"
