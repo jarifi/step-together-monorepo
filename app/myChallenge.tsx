@@ -33,7 +33,8 @@ const buildRankings = (rawRank: any[], userId: number | null | undefined) => {
   return normalized.map((r: any, i: number) => ({
     ...r,
     isUser: userId != null && r.userId === userId,
-    rankColor: i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
+    rankColor:
+      i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
   }));
 };
 
@@ -55,7 +56,7 @@ const MyChallenge: React.FC = () => {
     const ch = vm?.challenge;
     const d = ch?.distanceKm ?? ch?.distance ?? 0;
     return Number(d || 0);
-  }, [vm?.challenge]);
+  }, [vm]);
 
   const loadData = useCallback(async () => {
     try {
@@ -77,18 +78,34 @@ const MyChallenge: React.FC = () => {
 
       if (mapped.team?.id && mapped.challenge?.id) {
         setRankingLoading(true);
-        const rawRank = await getTeamRanking(mapped.team.id, mapped.challenge.id);
-        setRankings(buildRankings(rawRank, mapped.user?.id));
+        try {
+          const rawRank = await getTeamRanking(
+            mapped.team.id,
+            mapped.challenge.id
+          );
+          setRankings(buildRankings(rawRank, mapped.user?.id));
+        } catch (err: any) {
+          console.error('TeamRanking error', err);
+          setRankingError(
+            err?.message ?? 'Fehler beim Laden des Team-Rankings.'
+          );
+          setRankings([]);
+        } finally {
+          setRankingLoading(false);
+        }
       } else {
         setRankings([]);
+        setRankingLoading(false);
       }
     } catch (e: any) {
       console.error('ChallengeScreen loadData error', e);
-      setErrorMsg(e?.message ?? 'Unbekannter Fehler beim Laden der Challenge-Daten.');
+      setErrorMsg(
+        e?.message ?? 'Unbekannter Fehler beim Laden der Challenge-Daten.'
+      );
       setRankings([]);
+      setRankingLoading(false);
     } finally {
       setLoading(false);
-      setRankingLoading(false);
     }
   }, []);
 
@@ -105,16 +122,24 @@ const MyChallenge: React.FC = () => {
 
     const kmSum = rankings.reduce((sum, r) => {
       const steps = Number(r?.steps || 0);
-      const len = Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
+      const len =
+        Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
       return sum + (steps * len) / 1000;
     }, 0);
 
-    const pct = Math.max(0, Math.min(100, (kmSum / Math.max(1, targetKm)) * 100));
+    const pct = Math.max(
+      0,
+      Math.min(100, (kmSum / Math.max(1, targetKm)) * 100)
+    );
 
     return [Number.isFinite(kmSum) ? kmSum : 0, Math.round(pct)];
   }, [rankings, challengeDistanceKm]);
 
-  const daysLeft = vm?.challenge?.daysLeft;
+  const daysLeft =
+    typeof vm?.challenge?.daysLeft === 'number'
+      ? Math.max(0, vm.challenge.daysLeft)
+      : undefined;
+
   const hasRanking = !rankingLoading && !rankingError && rankings.length > 0;
   const noRanking = !rankingLoading && !rankingError && rankings.length === 0;
 
@@ -170,41 +195,17 @@ const MyChallenge: React.FC = () => {
     );
   }
 
+  const startLocation = vm?.challenge?.startLocation || '—';
+  const targetLocation = vm?.challenge?.targetLocation || '—';
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
     >
-      {/* Grundinfo zur Challenge */}
-      <View style={[{ marginBottom: 6, alignItems: 'center' }]}>
-  <Text
-    style={[
-      styles.font,
-      { fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-    ]}
-  >
-    Challenge-Detailss
-  </Text>
-
-  <Text style={[styles.font, { color: '#4B5563', marginBottom: 6, textAlign: 'center' }]}>
-    <Text style={{ fontWeight: '700' }}>Challenge:</Text>{' '}
-    {vm.challenge.startLocation || '—'} → {vm.challenge.targetLocation || '—'}
-  </Text>
-
-  <Text style={[styles.font, { color: '#4B5563', marginBottom: 6, textAlign: 'center' }]}>
-    <Text style={{ fontWeight: '700' }}>Distanz:</Text> {challengeDistanceKm} km
-  </Text>
-
-  {typeof daysLeft === 'number' && (
-    <Text style={[styles.font, { color: '#4B5563', marginBottom: 16, textAlign: 'center' }]}>
-      <Text style={{ fontWeight: '700' }}>Verbleibende Zeit:</Text> {daysLeft} Tage
-    </Text>
-  )}
-</View>
-
-
       {/* CHALLENGE PROGRESS */}
       <View style={styles.progressCard}>
+
         <Text style={[styles.progressTitle, styles.font]}>
           Challenge Fortschritte vom Team
           <Text style={{ color: '#6e865cff', fontWeight: '800' }}>
@@ -213,8 +214,24 @@ const MyChallenge: React.FC = () => {
           </Text>
         </Text>
 
+        <Text
+          style={[
+            styles.font,
+            {
+              fontSize: 20,
+              fontWeight: '700',
+              marginBottom: 4,
+              textAlign: 'center',
+            },
+          ]}
+        >
+          <Text style={{ fontWeight: '700' }}></Text>{' '}
+          {startLocation} → {targetLocation}
+        </Text>
+
+        
         <View style={styles.topScaleRow}>
-          <Text style={[styles.scaleTick, styles.font]}>Start </Text>
+          <Text style={[styles.scaleTick, styles.font]}>Start</Text>
           <Text style={[styles.scaleTick, styles.font]}>
             Ziel: {challengeDistanceKm} km
           </Text>
@@ -223,28 +240,29 @@ const MyChallenge: React.FC = () => {
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${distancePct}%` }]} />
         </View>
+
         <Text style={[styles.progressNote, styles.font]}>
           <Text style={{ color: '#5F764E', fontWeight: '800' }}>
             {distancePct}%
           </Text>{' '}
           der Strecke geschafft. ({fmt1.format(distanceKmDone)} /{' '}
           {challengeDistanceKm} km)
-          {'\n'}
-          {typeof daysLeft === 'number' ? (
+          {typeof daysLeft === 'number' && (
             <>
+              {'\n'}
               Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage
               übrig.
             </>
-          ) : null}
+          )}
         </Text>
 
         {/* TEAM RANKING */}
         <View style={styles.teamSectionHeader}>
           <Text style={[styles.teamSubtitle, styles.font]}>
             <Text style={{ color: '#7FA58C', fontWeight: '700' }}>
-              Team Mitglieder{' '}
+              Team-Mitglieder{' '}
             </Text>
-            ranking
+            Ranking
           </Text>
         </View>
 
@@ -255,7 +273,12 @@ const MyChallenge: React.FC = () => {
         )}
 
         {rankingError && !rankingLoading && (
-          <Text style={[styles.font, { color: '#B91C1C', marginVertical: 6 }]}>
+          <Text
+            style={[
+              styles.font,
+              { color: '#B91C1C', marginVertical: 6, textAlign: 'center' },
+            ]}
+          >
             {rankingError}
           </Text>
         )}
@@ -264,7 +287,7 @@ const MyChallenge: React.FC = () => {
           <Text
             style={[
               styles.font,
-              { color: '#6B7280', marginVertical: 6 },
+              { color: '#6B7280', marginVertical: 6, textAlign: 'center' },
             ]}
           >
             Noch keine Ranking-Daten vorhanden.
@@ -275,10 +298,7 @@ const MyChallenge: React.FC = () => {
           rankings.map((u, idx) => (
             <View
               key={`${u.userId ?? 'x'}-${idx}`}
-              style={[
-                styles.rankRow,
-                u.isUser && styles.rankRowMe,
-              ]}
+              style={[styles.rankRow, u.isUser && styles.rankRowMe]}
             >
               <Text
                 style={[
