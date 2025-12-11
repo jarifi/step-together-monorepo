@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.db.session import get_db
 from app.schema.challenge import (
@@ -15,7 +16,6 @@ from app.core.security import get_current_user
 from app.models.user import User
 
 router = APIRouter(tags=["challenges"])
-
 
 @router.post("/", response_model=ChallengeResponse, status_code=status.HTTP_201_CREATED)
 def create_challenge(
@@ -85,3 +85,13 @@ def read_challenge_teams(
         raise HTTPException(status_code=404, detail="Challenge not found")
 
     return teams
+
+@router.get("/me/history", response_model=List[ChallengeResponse])
+def read_my_finished_challenges(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    challenges = challenge_crud.get_finished_challenges_for_user(
+        db, current_user.id
+    )
+    return challenges
