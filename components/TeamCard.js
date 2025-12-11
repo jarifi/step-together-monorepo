@@ -2,49 +2,75 @@ import { MaterialIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-export default function TeamCard({ team, onUpdate, onDelete }) {
+export default function TeamCard({ team, onPress, onUpdate, onDelete }) {
   const [modalVisible, setModalVisible] = useState(false);
 
   return (
-    <View style={styles.card}>
-
+    <Pressable
+      style={styles.card}
+      onPress={onPress}
+      android_ripple={{ color: '#e0e0e0' }}
+    >
       <View style={styles.info}>
         <Text style={styles.name}>{team.name}</Text>
       </View>
 
       <View style={styles.buttonContainer}>
         {onUpdate && (
-          <Pressable onPress={onUpdate} style={styles.updateButton}>
-            <MaterialIcons name='edit' size={20} color="#fff" />
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation(); 
+              onUpdate();
+            }}
+            style={styles.updateButton}
+          >
+            <MaterialIcons name="edit" size={20} color="#fff" />
           </Pressable>
         )}
 
-        <Pressable onPress={() => setModalVisible(true)} style={styles.deleteButton}>
-          <MaterialIcons name='delete' size={20} color="#fff" />
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation(); 
+            setModalVisible(true);
+          }}
+          style={styles.deleteButton}
+        >
+          <MaterialIcons name="delete" size={20} color="#fff" />
         </Pressable>
       </View>
 
       <Modal
-        animationType='fade'
+        animationType="fade"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Möchten Sie dieses Team wirklich löschen?</Text>
+            <Text style={styles.modalTitle}>
+              Möchten Sie dieses Team wirklich löschen?
+            </Text>
 
-            <Pressable style={styles.actionButton} onPress={() => { setModalVisible(false); onDelete?.(); }} >
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => {
+                setModalVisible(false);
+                onDelete?.();
+              }}
+            >
               <Text style={styles.actionText}>Team löschen</Text>
             </Pressable>
 
-            <Pressable style={styles.cancelButton} onPress={() => { setModalVisible(false) }} >
+            <Pressable
+              style={styles.cancelButton}
+              onPress={() => setModalVisible(false)}
+            >
               <Text style={styles.cancelText}>Abbrechen</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
-    </View>
+    </Pressable>
   );
 }
 
@@ -59,15 +85,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  info: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   name: {
     fontSize: 16,
     fontWeight: 'bold',
     flexShrink: 1,
     marginRight: 10,
-  },
-  info: {
-    flex: 1,
-    justifyContent: 'center',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -90,11 +116,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
-  },
-  deleteText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,

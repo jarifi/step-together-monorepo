@@ -64,7 +64,7 @@ export default function TeamsScreen() {
     }, [])
   );
 
-  // Navigation Handler
+  // Navigation Handler (falls du unten Tabs anzeigen willst)
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     switch (tab) {
@@ -141,6 +141,15 @@ export default function TeamsScreen() {
             renderItem={({ item }) => (
               <TeamCard
                 team={item}
+                onPress={() =>
+                  router.push({
+                    pathname: '/teams/members',
+                    params: {
+                      id: item.id.toString(),
+                      name: item.name,
+                    },
+                  })
+                }
                 onUpdate={() =>
                   router.push({
                     pathname: '/teams/update',

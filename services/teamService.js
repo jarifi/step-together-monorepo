@@ -56,3 +56,16 @@ export const getTeamRanking = async (teamId, challengeId) => {
     return [];
   }
 };
+
+export const getTeamMembers = async (teamId) => {
+  if (!teamId) throw new Error('teamId is required');
+
+  try {
+    const path = `/teams/${teamId}/members`;
+    const data = await apiGet(path);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('Error fetching team members:', err);
+    return [];
+  }
+};

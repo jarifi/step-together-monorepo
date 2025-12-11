@@ -127,7 +127,7 @@ export default function AllChallengesScreen() {
           renderItem={({ item }) => (
             <ChallengeCard
               challenge={item}
-              showActions={true} // 🔥 HIER: Edit/Delete sichtbar
+              showActions={true} 
               onPress={() =>
                 router.push({
                   pathname: '/challenges/details',

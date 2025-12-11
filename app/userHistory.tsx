@@ -9,7 +9,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { getChallengeHistory } from '../services/challengeService.js';
+
+import { getChallengeHistory } from './../services/challengeService.js';
 
 export default function ChallengeHistoryScreen() {
   const router = useRouter();
@@ -69,19 +70,37 @@ export default function ChallengeHistoryScreen() {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ gap: 10, paddingTop: 12 }}
           renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardLine}>
-                {item.startLocation} → {item.targetLocation}
-              </Text>
-              <Text style={styles.cardLine}>
-                Distance: {item.distance} km
-              </Text>
-              <Text style={styles.cardSmall}>
-                Status: {item.state} | Ended:{' '}
-                {item.endDate ? new Date(item.endDate).toLocaleDateString() : '-'}
-              </Text>
-            </View>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/challenges/details',
+                  params: { id: item.id.toString() },
+                })
+              }
+            >
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+
+                <Text style={styles.cardLine}>
+                  {item.startLocation} → {item.targetLocation}
+                </Text>
+
+                <Text style={styles.cardLine}>
+                  Distanz: {item.distance} km
+                </Text>
+
+                <Text style={styles.cardSmall}>
+                  Status: {item.state} | Beendet:{' '}
+                  {item.endDate
+                    ? new Date(item.endDate).toLocaleDateString()
+                    : '-'}
+                </Text>
+
+                <Text style={styles.cardLink}>
+                  Teams & Ranking anzeigen ›
+                </Text>
+              </View>
+            </Pressable>
           )}
         />
       )}
@@ -155,5 +174,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#777',
     marginTop: 6,
+  },
+  cardLink: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B8F71',
   },
 });

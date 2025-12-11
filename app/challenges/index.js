@@ -71,6 +71,14 @@ export default function OpenChallengesScreen() {
         <FlatList
           data={visibleChallenges}
           keyExtractor={(item) => item.id.toString()}
+          ListHeaderComponent={
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerTitle}>Offene & kommende Challenges</Text>
+              <Text style={styles.headerSub}>
+                Tippe auf eine Challenge, um Details, Teams und das Ranking zu sehen.
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <ChallengeCard
               challenge={item}
@@ -116,6 +124,19 @@ const styles = StyleSheet.create({
   loader: {
     flex: 1,
     justifyContent: 'center',
+  },
+  headerInfo: {
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 4,
+  },
+  headerSub: {
+    fontSize: 13,
+    color: '#666',
   },
   emptyContainer: {
     padding: 40,
