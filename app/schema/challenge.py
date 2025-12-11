@@ -42,6 +42,7 @@ class ChallengeUpdate(CamelCaseBaseModel):
     end_date: Optional[datetime] = None
     team_id: Optional[int] = None
     state: Optional[ChallengeState] = Field(None, example="open", description="Possible values: incoming, open, closed")
+    is_deleted: Optional[bool] = None
 
 class ChallengeResponse(ChallengeBase):
     """Schema for returning challenge data (GET responses)"""

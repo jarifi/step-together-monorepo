@@ -20,6 +20,7 @@ class TeamUpdate(CamelCaseBaseModel):
             StringConstraints(min_length=3, max_length=255, strip_whitespace=True)
         ]
     ] = None
+    is_deleted: Optional[bool] = None
 
 class TeamSchema(CamelCaseBaseModel):
     id: int | None = None

@@ -65,6 +65,8 @@ class UserResponse(CamelCaseBaseModel):
     name: str
     email: EmailStr
     step_length: Optional[float] = None
+    is_active: bool = True
+    is_deleted: bool = False
 
 class UserLogin(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
@@ -97,6 +99,8 @@ class UserUpdate(CamelCaseBaseModel):
         le=200,
         json_schema_extra={"example": 80.0}
     )]] = None
+    is_active: Optional[bool] = None
+    is_deleted: Optional[bool] = None
     model_config = ConfigDict(from_attributes=True)
 
 class CurrentUser(UserResponse):

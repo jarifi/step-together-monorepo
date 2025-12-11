@@ -63,6 +63,9 @@ def update_challenge(db: Session, challenge_id: int, challenge_data: ChallengeUp
 
     for key, value in challenge_data.model_dump(exclude_unset=True).items():
         setattr(challenge_obj, key, value)
+    
+    if challenge_data.is_deleted is not None:
+        challenge_obj.is_deleted = challenge_data.is_deleted
 
     db.commit()
     db.refresh(challenge_obj)
