@@ -15,6 +15,8 @@ from app.models.challenge_team import ChallengeTeam
 from app.models.team_member import TeamMember
 from app.models.step_log import StepLog
 
+from app.schema.team_member import TeamMemberSimple
+
 router = APIRouter(tags=["teams"])
 
 @router.post("/", response_model=TeamSchema, status_code=status.HTTP_201_CREATED)
@@ -136,3 +138,27 @@ def add_user_to_team(
     db.refresh(new_member)
 
     return {"message": f"User {request.user_id} joined team {team_id}"}
+
+@router.get("/{team_id}/members", response_model=List[TeamMemberSimple])
+def get_team_members_for_team(
+    team_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    results = (
+        db.query(TeamMember, User)
+        .join(User, TeamMember.user_id == User.id)
+        .filter(TeamMember.team_id == team_id)
+        .all()
+    )
+
+    return [
+        TeamMemberSimple(
+            id=tm.id,
+            user_id=tm.user_id,
+            team_id=tm.team_id,
+            joining_date=tm.joining_date,
+            name=user.name,
+        )
+        for tm, user in results
+    ]

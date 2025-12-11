@@ -137,6 +137,10 @@ Content-Type: application/json
     "teamId": 2
 }
 
+### 4.4 Get All Members for Team 1 with name
+GET {{baseUrl}}/teams/2/members
+Authorization: Bearer {{login.response.body.accessToken}}
+
 ### 5. Get All Challenges Using Access Token
 GET {{baseUrl}}/challenges/
 Authorization: Bearer {{login.response.body.accessToken}}
