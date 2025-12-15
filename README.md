@@ -16,9 +16,21 @@
 
 ### Some helper commands
 
-# Clear Expo + Metro cache
+# --------------------------------------------
+
+# Run project on localhost:
+
+# --------------------------------------------
 
 npx expo start -c
+
+# --------------------------------------------
+
+# Run project and Force LAN mode:
+
+# --------------------------------------------
+
+npx expo start -c --lan
 
 # Optionally clear npm cache (sometimes needed on Windows)
 
