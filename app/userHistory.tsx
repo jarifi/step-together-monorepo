@@ -73,7 +73,7 @@ export default function ChallengeHistoryScreen() {
             <Pressable
               onPress={() =>
                 router.push({
-                  pathname: '/challenges/details',
+                  pathname: '/allChallenges/details',
                   params: { id: item.id.toString() },
                 })
               }

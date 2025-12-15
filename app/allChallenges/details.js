@@ -20,7 +20,14 @@ export default function ChallengeDetailsScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setChallenge(null);
+      setTeams([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
 
     const load = async () => {
       try {
@@ -30,9 +37,6 @@ export default function ChallengeDetailsScreen() {
           getChallengeById(challengeId),
           getChallengeTeams(challengeId),
         ]);
-
-        console.log('Challenge details response:', JSON.stringify(challengeData, null, 2));
-        console.log('Challenge teams response:', JSON.stringify(teamsData, null, 2));
 
         setChallenge(challengeData);
         setTeams(teamsData ?? []);
@@ -46,15 +50,34 @@ export default function ChallengeDetailsScreen() {
     load();
   }, [id]);
 
-  // Teams nach totalSteps sortieren (Ranking)
+  // ----------- SORTIERTE TEAMS (mit Tie-Breaker) -----------
   const sortedTeams = useMemo(() => {
     if (!Array.isArray(teams)) return [];
-    return [...teams].sort(
-      (a, b) => (b.totalSteps ?? 0) - (a.totalSteps ?? 0),
-    );
+
+    return [...teams].sort((a, b) => {
+      const stepsA = a.totalSteps ?? 0;
+      const stepsB = b.totalSteps ?? 0;
+
+      // 1️⃣ Sortierung nach Schritten
+      if (stepsB !== stepsA) return stepsB - stepsA;
+
+      // 2️⃣ Bei Gleichstand nach Name alphabetisch
+      const nameA = (a.name ?? '').toLowerCase();
+      const nameB = (b.name ?? '').toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+
+      // 3️⃣ Falls komplett gleich → nach ID
+      return (a.id ?? 0) - (b.id ?? 0);
+    });
   }, [teams]);
 
-  // Führendes Team ist einfach der erste Eintrag aus der sortierten Liste
+  // Statusflags
+  const isUpcoming = challenge?.state === 'upcoming';
+  const isOpen = challenge?.state === 'open';
+  const isClosed = challenge?.state === 'closed';
+
+  // Gewinner/Führendes Team
   const leadingTeam = sortedTeams[0] ?? null;
 
   if (loading) {
@@ -78,22 +101,23 @@ export default function ChallengeDetailsScreen() {
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Challenge-Karte */}
+      {/* Header */}
       <View style={[styles.card, styles.centered]}>
         <Text style={styles.title}>{challenge.name}</Text>
-        <Text style={styles.sub}>
-          {challenge.startLocation} → {challenge.targetLocation}
-        </Text>
         <Text style={styles.sub}>
           Distanz: {challenge.distance} km | Status: {challenge.state}
         </Text>
       </View>
 
-      {/* Führendes Team */}
-      {leadingTeam && (
+      {/* Führendes Team / Gewinner-Team */}
+      {!isUpcoming && leadingTeam && (
         <View style={[styles.card, styles.centered]}>
-          <Text style={styles.sectionHeader}>Führendes Team</Text>
+          <Text style={styles.sectionHeader}>
+            {isClosed ? 'Gewinner-Team' : 'Führendes Team'}
+          </Text>
+
           <Text style={styles.highlight}>{leadingTeam.name}</Text>
+
           <Text style={styles.subSmall}>
             {(leadingTeam.totalSteps ?? 0).toLocaleString()} Schritte gesamt
           </Text>
@@ -104,16 +128,35 @@ export default function ChallengeDetailsScreen() {
         Teilnehmende Teams
       </Text>
 
-      {/* Teams / Ranking-Karte */}
+      <Text style={styles.tapHint}>
+        Tippe ein Team an, um Details & Mitglieder zu sehen.
+      </Text>
+
+      {/* Teamliste */}
       <View style={styles.card}>
         {sortedTeams.length === 0 ? (
           <Text style={styles.emptyText}>
-            Es nehmen aktuell noch keine Teams an dieser Challenge teil.
+            Es nehmen aktuell noch keine Teams teil.
           </Text>
         ) : (
           <View>
             {sortedTeams.map((item, index) => (
-              <View style={styles.teamRow} key={item.id}>
+              <Pressable
+                key={item.id}
+                style={({ pressed }) => [
+                  styles.teamRow,
+                  pressed && { backgroundColor: '#f3f7f3' },
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/teams/members',
+                    params: {
+                      id: item.id.toString(),
+                      name: item.name,
+                    },
+                  })
+                }
+              >
                 <View>
                   <Text style={styles.teamName}>
                     {index + 1}. {item.name}
@@ -122,7 +165,12 @@ export default function ChallengeDetailsScreen() {
                     {(item.totalSteps ?? 0).toLocaleString()} Schritte
                   </Text>
                 </View>
-              </View>
+
+                <View style={styles.detailBox}>
+                  <Text style={styles.detailBoxText}>Details</Text>
+                  <Text style={styles.teamArrow}>›</Text>
+                </View>
+              </Pressable>
             ))}
           </View>
         )}
@@ -134,6 +182,8 @@ export default function ChallengeDetailsScreen() {
     </ScrollView>
   );
 }
+
+// --------------------- STYLES ---------------------
 
 const styles = StyleSheet.create({
   container: {
@@ -182,9 +232,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 6,
     color: '#111',
     textAlign: 'center',
+  },
+
+  tapHint: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
   },
 
   sub: {
@@ -217,12 +274,14 @@ const styles = StyleSheet.create({
   },
 
   teamRow: {
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomColor: '#E5E5EA',
     borderBottomWidth: 1,
+    borderRadius: 8,
   },
 
   teamName: {
@@ -236,22 +295,30 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 
-  badge: {
-    backgroundColor: '#82ae8dff',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
+  detailBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e9efe9',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
   },
 
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
+  detailBoxText: {
+    fontSize: 13,
+    color: '#444',
+    marginRight: 4,
+  },
+
+  teamArrow: {
+    fontSize: 20,
     fontWeight: '600',
+    color: '#666',
   },
 
   backButton: {
     marginTop: 10,
-    backgroundColor: '#82ae8dff',
+    backgroundColor: '#82ae8d',
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 14,

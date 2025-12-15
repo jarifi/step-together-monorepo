@@ -84,7 +84,7 @@ export default function OpenChallengesScreen() {
               challenge={item}
               onPress={() =>
                 router.push({
-                  pathname: '/challenges/details',
+                  pathname: '/allChallenges/details',
                   params: { id: item.id.toString() },
                 })
               }
