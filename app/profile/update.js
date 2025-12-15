@@ -1,15 +1,15 @@
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  Image,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
 import { useUser } from "../../context/UserContext";
 import { updateUser } from "../../services/userService";
 
@@ -140,16 +140,6 @@ export default function ProfileUpdateScreen() {
               placeholderTextColor="#9CA3AF"
             />
           </View>
-
-          <Pressable style={styles.passwordRow} onPress={() => {}}>
-            <View>
-              <Text style={styles.passwordLabel}>Passwort ändern</Text>
-              <Text style={styles.passwordHint}>
-                Sicherheit deines Kontos verwalten
-              </Text>
-            </View>
-            <Text style={styles.passwordChevron}>›</Text>
-          </Pressable>
 
           <Pressable
             onPress={handleUpdate}

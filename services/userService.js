@@ -53,3 +53,18 @@ export const deleteUser = async (id) => {
     throw err;
   }
 };
+
+// ---------------------------------------------------------------------------
+// CHANGE PASSWORD
+// ---------------------------------------------------------------------------
+export const changePassword = async (oldPassword, newPassword) => {
+  try {
+    return await apiPost('/auth/change_password', {
+      old_password: oldPassword,
+      new_password: newPassword,
+    });
+  } catch (err) {
+    console.error('Error changing password:', err);
+    throw err;
+  }
+};

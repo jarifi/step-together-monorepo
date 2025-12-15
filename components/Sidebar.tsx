@@ -136,7 +136,7 @@ export default function Sidebar() {
 
           {/* Einstellungen */}
           {renderNavLink(
-            '/settings',
+            '/settings/settings',
             'Einstellungen',
             'settings',
             MaterialIcons
