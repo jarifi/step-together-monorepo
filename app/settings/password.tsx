@@ -1,24 +1,87 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
 import { changePassword } from '../../services/userService';
 
+/* ======================================================
+   Reusable Password Field (OUTSIDE the screen!)
+====================================================== */
+
+type PasswordFieldProps = {
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  show: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+};
+
+const PasswordField: React.FC<PasswordFieldProps> = ({
+  label,
+  value,
+  onChangeText,
+  show,
+  onToggle,
+  disabled,
+}) => {
+  return (
+    <>
+      <Text style={styles.label}>{label}</Text>
+
+      <View style={styles.inputWrapper}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder="••••••••"
+          secureTextEntry={!show}
+          editable={!disabled}
+          style={styles.inputWithIcon}
+          placeholderTextColor="#9CA3AF"
+        />
+
+        <Pressable
+          onPress={onToggle}
+          disabled={disabled}
+          style={styles.eyeButton}
+          hitSlop={10}
+        >
+          <Ionicons
+            name={show ? 'eye-off-outline' : 'eye-outline'}
+            size={22}
+            color="#6B7280"
+          />
+        </Pressable>
+      </View>
+    </>
+  );
+};
+
+/* ======================================================
+   Screen
+====================================================== */
+
 const PasswordScreen: React.FC = () => {
   const router = useRouter();
-  const { user } = useUser(); 
+  const { user } = useUser();
 
-  const [oldPassword, setOldPassword] = useState<string>('');
-  const [newPassword, setNewPassword] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // 👁 visibility states
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handlePasswordUpdate = async () => {
     if (!user) {
@@ -43,9 +106,7 @@ const PasswordScreen: React.FC = () => {
 
     try {
       setLoading(true);
-
       await changePassword(oldPassword, newPassword);
-
       Alert.alert('Erfolg', 'Passwort wurde erfolgreich geändert.');
       router.back();
     } catch (err: any) {
@@ -65,43 +126,33 @@ const PasswordScreen: React.FC = () => {
       <View style={styles.card}>
         <Text style={styles.header}>Passwort ändern</Text>
 
-        {/* Altes Passwort */}
-        <Text style={styles.label}>Altes Passwort</Text>
-        <TextInput
+        <PasswordField
+          label="Altes Passwort"
           value={oldPassword}
           onChangeText={setOldPassword}
-          placeholder="••••••••"
-          secureTextEntry
-          style={styles.input}
-          editable={!loading}
-          placeholderTextColor="#9CA3AF"
+          show={showOld}
+          onToggle={() => setShowOld((v) => !v)}
+          disabled={loading}
         />
 
-        {/* Neues Passwort */}
-        <Text style={styles.label}>Neues Passwort</Text>
-        <TextInput
+        <PasswordField
+          label="Neues Passwort"
           value={newPassword}
           onChangeText={setNewPassword}
-          placeholder="••••••••"
-          secureTextEntry
-          style={styles.input}
-          editable={!loading}
-          placeholderTextColor="#9CA3AF"
+          show={showNew}
+          onToggle={() => setShowNew((v) => !v)}
+          disabled={loading}
         />
 
-        {/* Bestätigung */}
-        <Text style={styles.label}>Neues Passwort bestätigen</Text>
-        <TextInput
+        <PasswordField
+          label="Neues Passwort bestätigen"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          placeholder="••••••••"
-          secureTextEntry
-          style={styles.input}
-          editable={!loading}
-          placeholderTextColor="#9CA3AF"
+          show={showConfirm}
+          onToggle={() => setShowConfirm((v) => !v)}
+          disabled={loading}
         />
 
-        {/* Button */}
         <Pressable
           style={[styles.button, loading && styles.disabled]}
           disabled={loading}
@@ -117,6 +168,10 @@ const PasswordScreen: React.FC = () => {
 };
 
 export default PasswordScreen;
+
+/* ======================================================
+   Styles
+====================================================== */
 
 const styles = StyleSheet.create({
   container: {
@@ -156,15 +211,29 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  input: {
+  inputWrapper: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+
+  inputWithIcon: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
     paddingHorizontal: 14,
     paddingVertical: 12,
+    paddingRight: 46,
     borderRadius: 14,
     fontSize: 16,
     backgroundColor: '#F9FAFB',
-    marginBottom: 16,
+  },
+
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   button: {
