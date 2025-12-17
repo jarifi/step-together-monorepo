@@ -21,10 +21,8 @@ export default function AboutScreen() {
         </Text>
 
         <Text style={styles.text}>
-          Nutzer können Challenges erstellen, Teams beitreten, Fortschritte
-          vergleichen und gemeinsam Ziele erreichen. Das Projekt wurde für
-          Ausbildungs-, Lern- und Praxiszwecke entwickelt und wird laufend
-          erweitert.
+          Nutzer können Teil eines Teams sein und gemeinsam an Challenges teilnehmen. 
+          Dabei sehen sie auch andere teilnehmende Teams und deren aktuellen Fortschritt.
         </Text>
 
 
