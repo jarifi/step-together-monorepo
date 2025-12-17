@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -38,12 +39,12 @@ export default function OpenChallengesScreen() {
 
     try {
       const data = await getChallenges(skip, limit);
-      setChallenges((prev) => [...prev, ...data]);
-      setSkip((prev) => prev + data.length);
+      const safe = Array.isArray(data) ? data : [];
 
-      if (data.length < limit) {
-        setHasMore(false);
-      }
+      setChallenges((prev) => [...prev, ...safe]);
+      setSkip((prev) => prev + safe.length);
+
+      if (safe.length < limit) setHasMore(false);
     } catch (err) {
       console.error('Failed to load challenges:', err);
     } finally {
@@ -62,24 +63,33 @@ export default function OpenChallengesScreen() {
   );
 
   if (loadingInitial && challenges.length === 0) {
-    return <ActivityIndicator style={styles.loader} size="large" />;
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Lade Challenges…</Text>
+      </View>
+    );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
-      <View style={styles.container}>
-        <FlatList
-          data={visibleChallenges}
-          keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={
-            <View style={styles.headerInfo}>
-              <Text style={styles.headerTitle}>Offene & kommende Challenges</Text>
-              <Text style={styles.headerSub}>
-                Tippe auf eine Challenge, um Details, Teams und das Ranking zu sehen.
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
+    <View style={styles.container}>
+      {/* Header Card */}
+      <View style={[styles.content, styles.headerCard]}>
+        <Text style={styles.title}>Offene & kommende Challenges</Text>
+        <Text style={styles.sub}>
+          Tippe auf eine Challenge, um Details, Teams und das Ranking zu sehen.
+        </Text>
+      </View>
+
+      <FlatList
+        data={visibleChallenges}
+        keyExtractor={(item) => item.id.toString()}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        onEndReached={loadChallenges}
+        onEndReachedThreshold={0.5}
+        renderItem={({ item }) => (
+          <View style={styles.content}>
             <ChallengeCard
               challenge={item}
               onPress={() =>
@@ -89,62 +99,141 @@ export default function OpenChallengesScreen() {
                 })
               }
             />
-          )}
-          onEndReached={loadChallenges}
-          onEndReachedThreshold={0.5}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                Derzeit sind keine offenen oder kommenden Challenges vorhanden
-              </Text>
-            </View>
-          }
-          ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ margin: 16 }} />
-            ) : null
-          }
-          contentContainerStyle={{
-            flexGrow: 1,
-            minHeight: screenHeight - 180,
-          }}
-        />
-      </View>
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={[styles.content, styles.emptyCard]}>
+            <Text style={styles.emptyEmoji}>🫥</Text>
+            <Text style={styles.emptyTitle}>Keine Challenges gerade</Text>
+            <Text style={styles.emptyText}>
+              Derzeit sind keine offenen oder kommenden Challenges vorhanden.
+            </Text>
+          </View>
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator style={{ margin: 16 }} />
+          ) : (
+            <View style={{ height: 6 }} />
+          )
+        }
+        ListFooterComponentStyle={{ paddingBottom: 12 }}
+        style={{ flex: 1, minHeight: screenHeight - 180 }}
+      />
     </View>
   );
 }
 
+const COLORS = {
+  bg: '#F4F7F4',
+  card: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  dim: '#7B877F',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#2E6B4F',
+  accentSoft: '#E7F3EC',
+};
+
+const shadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  android: { elevation: 2 },
+});
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.bg,
+    paddingHorizontal: 16,
     paddingTop: 60,
   },
-  loader: {
+
+  content: {
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+  },
+
+  // ---------------- LOADING ----------------
+  loadingWrap: {
     flex: 1,
+    backgroundColor: COLORS.bg,
+    alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
   },
-  headerInfo: {
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 4,
-  },
-  headerSub: {
+  loadingText: {
     fontSize: 13,
     color: '#666',
   },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
+
+  // ---------------- HEADER ----------------
+  headerCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 12,
+    ...shadow,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
+
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111',
     textAlign: 'center',
+    marginBottom: 6,
+  },
+
+  sub: {
+    fontSize: 15,
+    color: '#555',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+
+  // ---------------- LIST ----------------
+  listContent: {
+    paddingTop: 6,
+    paddingBottom: 24,
+    gap: 12,
+  },
+
+  // ---------------- EMPTY ----------------
+  emptyCard: {
+    marginTop: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    ...shadow,
+  },
+
+  emptyEmoji: {
+    fontSize: 26,
+    marginBottom: 8,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

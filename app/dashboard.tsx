@@ -473,6 +473,135 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const hasActiveChallenge =
+  vm?.challenge?.id != null && vm?.challenge?.state === 'open';
+
+  if (!hasActiveChallenge) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#F5F7F4',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 20,
+        }}
+      >
+        <View
+          style={{
+            width: '100%',
+            maxWidth: 420,
+            backgroundColor: '#FFFFFF',
+            borderRadius: 26,
+            paddingVertical: 26,
+            paddingHorizontal: 22,
+            shadowColor: '#000',
+            shadowOpacity: 0.08,
+            shadowRadius: 22,
+            shadowOffset: { width: 0, height: 10 },
+            elevation: 5,
+          }}
+        >
+          {/* Icon */}
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 999,
+              backgroundColor: '#e3efe6',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 12,
+              alignSelf: 'center',
+            }}
+          >
+            <Ionicons name="flag-outline" size={22} color="#2f5c3a" />
+          </View>
+
+          <Text
+            style={[
+              styles.font,
+              {
+                fontSize: 18,
+                fontWeight: '800',
+                color: '#111',
+                marginBottom: 6,
+                textAlign: 'center',
+              },
+            ]}
+          >
+            Keine offene Challenge
+          </Text>
+
+          <Text
+            style={[
+              styles.font,
+              {
+                fontSize: 14,
+                color: '#6B7280',
+                lineHeight: 20,
+                marginBottom: 22,
+                textAlign: 'center',
+              },
+            ]}
+          >
+            Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
+            oder wirf einen Blick auf deine bisherigen Aktivitäten.
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => router.push('/challenges')}
+            activeOpacity={0.9}
+            style={{
+              backgroundColor: '#658869ff',
+              paddingVertical: 14,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <Text
+              style={[
+                styles.font,
+                { color: '#fff', fontWeight: '800', fontSize: 15 },
+              ]}
+            >
+              Zu den Challenges
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/userHistory')}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: 12,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: '#D1D5DB',
+              backgroundColor: '#F9FAFB',
+            }}
+          >
+            <Text
+              style={[
+                styles.font,
+                {
+                  color: '#374151',
+                  fontWeight: '600',
+                  fontSize: 14,
+                },
+              ]}
+            >
+              Meine Challenge-Historie
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   // ========= Render =========
   return (
     <>

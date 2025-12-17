@@ -173,13 +173,13 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
 
-  // Zentriert den Content (Header/Empty/List Cards) auf eine angenehme Breite
   content: {
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
   },
 
+  // ---------------- LOADING ----------------
   loadingWrap: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -189,9 +189,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: COLORS.sub,
+    color: '#666',
   },
 
+  // ---------------- HEADER ----------------
   headerCard: {
     backgroundColor: COLORS.card,
     borderRadius: 18,
@@ -203,26 +204,28 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: -0.2,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111',
     textAlign: 'center',
     marginBottom: 6,
   },
+
   sub: {
-    fontSize: 13.5,
-    color: COLORS.sub,
-    lineHeight: 18,
+    fontSize: 15,
+    color: '#555',
+    lineHeight: 20,
     textAlign: 'center',
   },
 
+  // ---------------- LIST ----------------
   listContent: {
     paddingTop: 6,
     paddingBottom: 24,
     gap: 12,
   },
 
+  // ---------------- EMPTY ----------------
   emptyCard: {
     marginTop: 4,
     backgroundColor: COLORS.card,
@@ -233,25 +236,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadow,
   },
+
   emptyEmoji: {
     fontSize: 26,
     marginBottom: 8,
   },
+
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
     marginBottom: 6,
     textAlign: 'center',
   },
+
   emptyText: {
-    fontSize: 13,
-    color: COLORS.sub,
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 14,
   },
 
+  // ---------------- BUTTON ----------------
   primaryButton: {
     backgroundColor: COLORS.accent,
     paddingVertical: 11,
@@ -266,11 +273,11 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#fff',
-    fontWeight: '800',
-    fontSize: 13.5,
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    fontSize: 15,
   },
 
+  // ---------------- CARD ----------------
   card: {
     backgroundColor: COLORS.card,
     borderRadius: 18,
@@ -290,14 +297,15 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 8,
   },
+
   cardTitle: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: -0.1,
+    fontWeight: '500',
+    color: '#111',
   },
 
+  // ---------------- STATUS ----------------
   statusPill: {
     backgroundColor: COLORS.accentSoft,
     borderRadius: 999,
@@ -308,18 +316,22 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: COLORS.accent,
-    fontWeight: '800',
-    fontSize: 11.5,
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    fontSize: 12,
   },
 
+  // ---------------- TEXT ----------------
   cardLine: {
-    fontSize: 13,
-    color: COLORS.sub,
-    lineHeight: 18,
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
-  dim: { color: COLORS.dim },
 
+  dim: {
+    color: '#777',
+  },
+
+  // ---------------- META ----------------
   metaRow: {
     marginTop: 12,
     flexDirection: 'row',
@@ -331,17 +343,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(15,20,17,0.06)',
   },
-  metaItem: { flex: 1 },
+
+  metaItem: {
+    flex: 1,
+  },
+
   metaLabel: {
     fontSize: 11,
-    color: COLORS.dim,
+    color: '#777',
     marginBottom: 2,
   },
+
   metaValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#111',
   },
+
   metaDivider: {
     width: 1,
     height: 26,
@@ -349,10 +367,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
 
+  // ---------------- LINK ----------------
   cardLink: {
     marginTop: 12,
     fontSize: 13,
-    fontWeight: '800',
-    color: COLORS.accent,
+    fontWeight: '600',
+    color: '#444',
   },
 });

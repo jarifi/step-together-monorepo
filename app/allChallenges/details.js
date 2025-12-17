@@ -167,7 +167,7 @@ export default function ChallengeDetailsScreen() {
                 </View>
 
                 <View style={styles.detailBox}>
-                  <Text style={styles.detailBoxText}>Details</Text>
+                  <Text style={styles.detailBoxText}>Team Info</Text>
                   <Text style={styles.teamArrow}>›</Text>
                 </View>
               </Pressable>

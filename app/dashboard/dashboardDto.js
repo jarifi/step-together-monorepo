@@ -140,10 +140,34 @@ export const toDate = (iso) => (iso ? new Date(iso) : null);
 
 export const mapHomeInitToDashboard = (data, pivotMonday) => {
   if (!data) return null;
-  const { user = {}, team = {}, challenge = {} } = data;
 
-  const start = toDate(challenge.startDate);
-  const end   = toDate(challenge.endDate);
+  const { user = {}, team = {}, challenge: rawChallenge = {} } = data;
+
+  // optional: Backend könnte eine separate Upcoming-Challenge schicken
+  const upcoming =
+    data.upcomingChallenge ||
+    data.nextChallenge ||
+    data.upcoming_challenge ||
+    null;
+
+  // 1. bevorzugt: offene Challenge
+  let challenge = rawChallenge && rawChallenge.state === 'open'
+    ? rawChallenge
+    : null;
+
+  // 2. Fallback: upcoming-Challenge, falls vorhanden
+  if (!challenge && upcoming && upcoming.state === 'upcoming') {
+    challenge = upcoming;
+  }
+
+  // 3. letzter Fallback: falls Backend einfach irgendeine Challenge in "challenge" legt
+  if (!challenge && rawChallenge && (rawChallenge.id != null || rawChallenge.name)) {
+    challenge = rawChallenge;
+  }
+
+  // KEIN hartes return null mehr nur wegen Challenge!
+  const start = toDate(challenge?.startDate);
+  const end   = toDate(challenge?.endDate);
   const now   = new Date();
 
   let daysLeft = 0;
@@ -154,7 +178,7 @@ export const mapHomeInitToDashboard = (data, pivotMonday) => {
     daysLeft = Math.max(0, daysBetween(now, end));
   }
 
-  const distAny = challenge.distanceKm ?? challenge.distance;
+  const distAny = challenge?.distanceKm ?? challenge?.distance;
   const distanceKm = Number.isFinite(+distAny) ? +distAny : 0;
 
   return {
@@ -169,31 +193,17 @@ export const mapHomeInitToDashboard = (data, pivotMonday) => {
       name: team.name || '',
     },
     challenge: {
-      id: Number.isFinite(+challenge.id) ? +challenge.id : null,
-      name: challenge.name || '',
-      startLocation: challenge.startLocation || '',
-      targetLocation: challenge.targetLocation || '',
+      id: Number.isFinite(+(challenge?.id)) ? +challenge.id : null,
+      name: challenge?.name || '',
+      startLocation: challenge?.startLocation || '',
+      targetLocation: challenge?.targetLocation || '',
       distanceKm,
       startDate: start,
       endDate: end,
-      state: challenge.state || '',
+      state: challenge?.state || '',
       daysLeft,
       timeProgress,
     },
     steps_this_week: parseStepsThisWeek(data.steps_this_week, pivotMonday),
   };
 };
-
-// ======================
-// Default Export (to satisfy Expo Router)
-// ======================
-import React from 'react';
-import { Text, View } from 'react-native';
-
-export default function DashboardDtoPlaceholder() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Utility functions loaded</Text>
-    </View>
-  );
-}
