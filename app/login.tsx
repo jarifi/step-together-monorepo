@@ -1,43 +1,42 @@
-//file: app/login.tsx
+// file: app/login.tsx
 
 import { useState } from 'react';
-
 import {
-  ImageBackground,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native';
 
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
-
-
 
 import { useUser } from '../context/UserContext';
 import { saveTokens, saveUserId } from '../lib/auth';
 
-import Constants from 'expo-constants';
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
-
-console.log("ARIFI" + API_BASE_URL);
-
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('alice@example.com');
   const [password, setPassword] = useState('StrongPassword123');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const { setUser, setToken, setUserId } = useUser();
 
   const handleLogin = async () => {
     setErrorMessage(null);
+
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
         body: JSON.stringify({ email, password }),
       });
 
@@ -45,45 +44,42 @@ export default function LoginScreen() {
 
       if (!response.ok) {
         let message = 'Login fehlgeschlagen';
+
         if (Array.isArray(data.detail)) {
-          message = data.detail.map((d: any) => {
-            if (typeof d.msg === 'string') {
+          message = data.detail
+            .map((d: any) => {
               const field = d.loc?.[1];
-              if (field === 'email') return 'Bitte geben Sie eine gültige E-Mail-Adresse ein!';
-              if (field === 'password') return 'Bitte geben Sie ein gültige Passwort ein!';
+              if (field === 'email') return 'Bitte gültige E-Mail eingeben';
+              if (field === 'password') return 'Bitte gültiges Passwort eingeben';
               return d.msg;
-            }
-            return JSON.stringify(d);
-          }).join('\n');
+            })
+            .join('\n');
         } else if (data.detail) {
           message = data.detail;
         }
+
         showError(message);
         return;
       }
 
-      if (!data.accessToken || !data.userId || !data.refreshToken) {
+      if (!data.accessToken || !data.refreshToken || !data.userId) {
         showError('Login fehlgeschlagen');
         return;
       }
 
       await saveTokens(data.accessToken, data.refreshToken);
-
-      // FIX: backend returns userId, not user_id
       await saveUserId(String(data.userId));
 
       setToken(data.accessToken);
       setUserId(String(data.userId));
 
-      // Optional, only if your backend returns user object
       if (data.user) {
         setUser(data.user);
       }
 
       router.replace('/dashboard');
     } catch (err: any) {
-      console.error('Login-Fehler:', err.message ?? err);
-      showError(err.message ?? "Unbekannter Fehler");
+      showError(err.message ?? 'Unbekannter Fehler');
     }
   };
 
@@ -93,18 +89,22 @@ export default function LoginScreen() {
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/images/background1.jpg')}
-      style={styles.background}
-      resizeMode="cover"
-      blurRadius={2}
-    >
+    <View style={styles.background}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
       >
+        {/* LOGO */}
+        <Image
+          source={require('../assets/images/logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+
+        {/* LOGIN CARD */}
         <View style={styles.card}>
           <Text style={styles.title}>Willkommen</Text>
+
           <TextInput
             style={styles.input}
             placeholder="E-Mail"
@@ -114,6 +114,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
           />
+
           <TextInput
             style={styles.input}
             placeholder="Passwort"
@@ -124,42 +125,85 @@ export default function LoginScreen() {
           />
 
           {errorMessage && (
-            <Text style={{ color: 'red', marginBottom: 10, textAlign: 'center' }}>
-              {errorMessage}
-            </Text>
+            <Text style={styles.error}>{errorMessage}</Text>
           )}
+
           <Pressable style={styles.button} onPress={handleLogin}>
             <Text style={styles.buttonText}>Einloggen</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1, width: '100%', height: '100%' },
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 },
+  background: {
+    flex: 1,
+    backgroundColor: '#313633c7',
+  },
+
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: 110,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+
+  logo: {
+    width: 250,
+    height: 150,
+    marginBottom: 52,
+  },
+
   card: {
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    padding: 24,
-    borderRadius: 15,
     width: '100%',
     maxWidth: 400,
-    elevation: 4,
+    padding: 24,
+    borderRadius: 18,
+    backgroundColor: 'rgba(80, 92, 73, 0.83)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  title: { fontSize: 26, color: '#fff', textAlign: 'center', marginBottom: 20, fontWeight: '600' },
+
+  title: {
+    fontSize: 26,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '600',
+  },
+
   input: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(108, 118, 96, 0.65)',
     color: '#fff',
     borderWidth: 1,
-    borderColor: '#aaa',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderColor: 'rgba(108, 118, 96, 0.65)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     marginBottom: 16,
     fontSize: 16,
   },
-  button: { backgroundColor: '#1e604c', paddingVertical: 14, borderRadius: 8, marginTop: 8 },
-  buttonText: { color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
+
+  button: {
+    backgroundColor: '#698059ff',
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+
+  buttonText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  error: {
+    color: '#ff6b6b',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
 });
