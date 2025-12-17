@@ -1,4 +1,3 @@
-import { Picker } from '@react-native-picker/picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -16,7 +15,6 @@ export default function UpdateChallengeScreen() {
     const [distance, setDistance] = useState(params.distance || '');
     const [startDate, setStartDate] = useState(params.startDate ? params.startDate.split('T')[0] : '');
     const [endDate, setEndDate] = useState(params.endDate ? params.endDate.split('T')[0] : '');
-    const [state, setState] = useState(params.state || '');
     const [loading, setLoading] = useState(false);
 
     const handleUpdate = async () => {
@@ -112,7 +110,6 @@ export default function UpdateChallengeScreen() {
             distance: parseFloat(distance),
             start_date: formattedStartDate,
             end_date: formattedEndDate,
-            state: state,
         };
         setLoading(true);
         try {
@@ -192,18 +189,7 @@ export default function UpdateChallengeScreen() {
                     style={styles.input}
                     editable={!loading}
                 />
-                <View style={styles.pickerContainer}>
-                    <Picker
-                        selectedValue={state}
-                        onValueChange={(itemValue, itemIndex) => setState(itemValue)}
-                        style={styles.picker}
-                        enabled={!loading}
-                    >
-                        <Picker.Item label="incoming" value="incoming" />
-                        <Picker.Item label="open" value="open" />
-                        <Picker.Item label="closed" value="closed" />
-                    </Picker>
-                </View>
+            
                 
                 <View style={styles.buttonContainer}>
                     <Pressable
