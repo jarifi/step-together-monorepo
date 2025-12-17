@@ -13,6 +13,9 @@ import {
 import ChallengeCard from '../../components/ChallengeCard';
 import { getChallenges } from '../../services/challengeService';
 
+const IS_WEB = Platform.OS === 'web';
+const CARD_RADIUS = 26;
+
 export default function OpenChallengesScreen() {
   const [challenges, setChallenges] = useState([]);
   const [skip, setSkip] = useState(0);
@@ -78,7 +81,7 @@ export default function OpenChallengesScreen() {
         onEndReached={loadChallenges}
         onEndReachedThreshold={0.4}
         ListHeaderComponent={
-          <View style={styles.heroWrap}>
+          <View style={styles.centered}>
             <View style={styles.hero}>
               <View style={styles.accentLine} />
               <Text style={styles.heroTitle}>Challenges</Text>
@@ -96,15 +99,17 @@ export default function OpenChallengesScreen() {
         }
         renderItem={({ item }) => (
           <View style={styles.centered}>
-            <ChallengeCard
-              challenge={item}
-              onPress={() =>
-                router.push({
-                  pathname: '/allChallenges/details',
-                  params: { id: item.id.toString() },
-                })
-              }
-            />
+            <View style={styles.cardSurface}>
+              <ChallengeCard
+                challenge={item}
+                onPress={() =>
+                  router.push({
+                    pathname: '/allChallenges/details',
+                    params: { id: item.id.toString() },
+                  })
+                }
+              />
+            </View>
           </View>
         )}
         ListEmptyComponent={
@@ -135,7 +140,7 @@ const COLORS = {
   surface: '#FFFFFF',
   text: '#0F1411',
   sub: '#55605A',
-  border: 'rgba(15,20,17,0.08)',
+  border: 'rgba(15,20,17,0.10)',
   accent: '#55805c',
   accentSoft: 'rgba(85,128,92,0.12)',
 };
@@ -147,9 +152,7 @@ const shadow = Platform.select({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 12 },
   },
-  android: {
-    elevation: 3,
-  },
+  android: { elevation: 3 },
 });
 
 const styles = StyleSheet.create({
@@ -158,10 +161,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
 
+  // ✅ ONE shared width for hero + cards
   centered: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: IS_WEB ? 960 : 520,
     alignSelf: 'center',
+    paddingHorizontal: 16,
   },
 
   // ---------- LOADING ----------
@@ -179,18 +184,14 @@ const styles = StyleSheet.create({
   },
 
   // ---------- HERO ----------
-  heroWrap: {
-    paddingHorizontal: 1,
-    paddingTop: 48,
-    paddingBottom: 16,
-  },
-
   hero: {
     backgroundColor: COLORS.surface,
-    borderRadius: 26,
+    borderRadius: CARD_RADIUS,
     padding: 22,
     borderWidth: 1,
     borderColor: COLORS.border,
+    marginTop: 48,
+    marginBottom: 16,
     ...shadow,
   },
 
@@ -232,18 +233,25 @@ const styles = StyleSheet.create({
 
   // ---------- LIST ----------
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
     paddingBottom: 32,
     gap: 16,
-    
+  },
+
+  // ✅ SAME radius as hero
+  cardSurface: {
+    backgroundColor: COLORS.surface,
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+    ...shadow,
   },
 
   // ---------- EMPTY ----------
   emptyCard: {
     marginTop: 20,
     backgroundColor: COLORS.surface,
-    borderRadius: 20,
+    borderRadius: CARD_RADIUS,
     padding: 26,
     borderWidth: 1,
     borderColor: COLORS.border,
