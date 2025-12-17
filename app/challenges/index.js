@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Platform,
   StyleSheet,
@@ -14,19 +13,19 @@ import {
 import ChallengeCard from '../../components/ChallengeCard';
 import { getChallenges } from '../../services/challengeService';
 
-const { height: screenHeight } = Dimensions.get('window');
-
 export default function OpenChallengesScreen() {
   const [challenges, setChallenges] = useState([]);
   const [skip, setSkip] = useState(0);
   const limit = 10;
+
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
   const router = useRouter();
 
   const visibleChallenges = useMemo(
-    () => challenges.filter((c) => ['open', 'incoming'].includes(c.state)),
+    () => challenges.filter(c => ['open', 'incoming'].includes(c.state)),
     [challenges]
   );
 
@@ -34,22 +33,20 @@ export default function OpenChallengesScreen() {
     if (loadingMore || !hasMore) return;
 
     const isInitial = challenges.length === 0;
-    if (isInitial) setLoadingInitial(true);
-    else setLoadingMore(true);
+    isInitial ? setLoadingInitial(true) : setLoadingMore(true);
 
     try {
       const data = await getChallenges(skip, limit);
       const safe = Array.isArray(data) ? data : [];
 
-      setChallenges((prev) => [...prev, ...safe]);
-      setSkip((prev) => prev + safe.length);
+      setChallenges(prev => [...prev, ...safe]);
+      setSkip(prev => prev + safe.length);
 
       if (safe.length < limit) setHasMore(false);
     } catch (err) {
       console.error('Failed to load challenges:', err);
     } finally {
-      if (isInitial) setLoadingInitial(false);
-      else setLoadingMore(false);
+      isInitial ? setLoadingInitial(false) : setLoadingMore(false);
     }
   };
 
@@ -73,23 +70,32 @@ export default function OpenChallengesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header Card */}
-      <View style={[styles.content, styles.headerCard]}>
-        <Text style={styles.title}>Offene & kommende Challenges</Text>
-        <Text style={styles.sub}>
-          Tippe auf eine Challenge, um Details, Teams und das Ranking zu sehen.
-        </Text>
-      </View>
-
       <FlatList
         data={visibleChallenges}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={item => item.id.toString()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         onEndReached={loadChallenges}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={0.4}
+        ListHeaderComponent={
+          <View style={styles.heroWrap}>
+            <View style={styles.hero}>
+              <View style={styles.accentLine} />
+              <Text style={styles.heroTitle}>Challenges</Text>
+              <Text style={styles.heroSub}>
+                Offene & kommende Wettbewerbe. Beweg dich gemeinsam mit anderen.
+              </Text>
+
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {visibleChallenges.length} aktiv
+                </Text>
+              </View>
+            </View>
+          </View>
+        }
         renderItem={({ item }) => (
-          <View style={styles.content}>
+          <View style={styles.centered}>
             <ChallengeCard
               challenge={item}
               onPress={() =>
@@ -102,23 +108,23 @@ export default function OpenChallengesScreen() {
           </View>
         )}
         ListEmptyComponent={
-          <View style={[styles.content, styles.emptyCard]}>
-            <Text style={styles.emptyEmoji}>🫥</Text>
-            <Text style={styles.emptyTitle}>Keine Challenges gerade</Text>
-            <Text style={styles.emptyText}>
-              Derzeit sind keine offenen oder kommenden Challenges vorhanden.
-            </Text>
+          <View style={styles.centered}>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyEmoji}>🫥</Text>
+              <Text style={styles.emptyTitle}>Keine Challenges</Text>
+              <Text style={styles.emptyText}>
+                Momentan sind keine offenen oder kommenden Challenges verfügbar.
+              </Text>
+            </View>
           </View>
         }
         ListFooterComponent={
           loadingMore ? (
-            <ActivityIndicator style={{ margin: 16 }} />
+            <ActivityIndicator style={{ marginVertical: 28 }} />
           ) : (
-            <View style={{ height: 6 }} />
+            <View style={{ height: 32 }} />
           )
         }
-        ListFooterComponentStyle={{ paddingBottom: 12 }}
-        style={{ flex: 1, minHeight: screenHeight - 180 }}
       />
     </View>
   );
@@ -126,40 +132,39 @@ export default function OpenChallengesScreen() {
 
 const COLORS = {
   bg: '#F4F7F4',
-  card: '#FFFFFF',
+  surface: '#FFFFFF',
   text: '#0F1411',
   sub: '#55605A',
-  dim: '#7B877F',
-  border: 'rgba(15,20,17,0.10)',
-  accent: '#2E6B4F',
-  accentSoft: '#E7F3EC',
+  border: 'rgba(15,20,17,0.08)',
+  accent: '#55805c',
+  accentSoft: 'rgba(85,128,92,0.12)',
 };
 
 const shadow = Platform.select({
   ios: {
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
   },
-  android: { elevation: 2 },
+  android: {
+    elevation: 3,
+  },
 });
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    paddingHorizontal: 16,
-    paddingTop: 60,
   },
 
-  content: {
+  centered: {
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
   },
 
-  // ---------------- LOADING ----------------
+  // ---------- LOADING ----------
   loadingWrap: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -167,50 +172,79 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
+
   loadingText: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.sub,
   },
 
-  // ---------------- HEADER ----------------
-  headerCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 16,
+  // ---------- HERO ----------
+  heroWrap: {
+    paddingHorizontal: 1,
+    paddingTop: 48,
+    paddingBottom: 16,
+  },
+
+  hero: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 26,
+    padding: 22,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 12,
     ...shadow,
   },
 
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111',
-    textAlign: 'center',
+  accentLine: {
+    width: 140,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
+    marginBottom: 14,
+  },
+
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: COLORS.text,
     marginBottom: 6,
   },
 
-  sub: {
+  heroSub: {
     fontSize: 15,
-    color: '#555',
-    lineHeight: 20,
-    textAlign: 'center',
+    color: COLORS.sub,
+    lineHeight: 21,
+    marginBottom: 14,
   },
 
-  // ---------------- LIST ----------------
+  badge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.accentSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  badgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
+
+  // ---------- LIST ----------
   listContent: {
-    paddingTop: 6,
-    paddingBottom: 24,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
+    gap: 16,
+    
   },
 
-  // ---------------- EMPTY ----------------
+  // ---------- EMPTY ----------
   emptyCard: {
-    marginTop: 4,
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 18,
+    marginTop: 20,
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    padding: 26,
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: 'center',
@@ -218,21 +252,21 @@ const styles = StyleSheet.create({
   },
 
   emptyEmoji: {
-    fontSize: 26,
-    marginBottom: 8,
+    fontSize: 30,
+    marginBottom: 10,
   },
 
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111',
+    color: COLORS.text,
     marginBottom: 6,
     textAlign: 'center',
   },
 
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.sub,
     textAlign: 'center',
     lineHeight: 20,
   },
