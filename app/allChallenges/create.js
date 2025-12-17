@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -43,13 +42,12 @@ const sameDay = (a, b) => {
 
 export default function CreateChallengeScreen() {
     const router = useRouter();
-    const [name, setName] = useState('');
-    const [startLocation, setStartLocation] = useState('');
-    const [targetLocation, setTargetLocation] = useState('');
-    const [distance, setDistance] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [state, setState] = useState('incoming');
+    const [name, setName] = useState('Graz Wien 2025');
+    const [startLocation, setStartLocation] = useState('Graz');
+    const [targetLocation, setTargetLocation] = useState('Wien');
+    const [distance, setDistance] = useState('200');
+    const [startDate, setStartDate] = useState('2025-12-17');
+    const [endDate, setEndDate] = useState('2025-12-31');
     const [loading, setLoading] = useState(false);
 
     // Kalender State
@@ -104,7 +102,6 @@ export default function CreateChallengeScreen() {
             end_date: `${endDate}T00:00:00.000Z`,
             creator_id: parseInt(userId || '0', 10),
             team_id: parseInt(teamId, 10),
-            state,
         };
 
         setLoading(true);
@@ -308,23 +305,6 @@ export default function CreateChallengeScreen() {
                                 color="#6B8F71"
                             />
                         </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.pickerWrapper}>
-                        <Text style={styles.pickerLabel}>Status:</Text>
-                        <View style={styles.pickerContainer}>
-                            <Picker
-                                selectedValue={state}
-                                onValueChange={setState}
-                                style={styles.picker}
-                                dropdownIconColor="#6B8F71"
-                                enabled={!loading}
-                            >
-                                <Picker.Item label="Incoming" value="incoming" />
-                                <Picker.Item label="Open" value="open" />
-                                <Picker.Item label="Closed" value="closed" />
-                            </Picker>
-                        </View>
                     </View>
 
                     <View style={styles.buttonContainer}>

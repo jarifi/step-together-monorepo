@@ -38,7 +38,7 @@ export default function AllChallengesScreen() {
       challenge.id?.toString().includes(query) ||
       challenge.startLocation?.toLowerCase().includes(query) ||
       challenge.targetLocation?.toLowerCase().includes(query) ||
-      challenge.state?.toLowerCase().includes(query) ||
+      c?.toLowerCase().includes(query) ||
       challenge.teamId?.toString().includes(query)
     );
   }, [searchQuery, challenges]);
@@ -147,7 +147,6 @@ export default function AllChallengesScreen() {
                     endDate: item.endDate,
                     creatorId: item.creatorId,
                     teamId: item.teamId,
-                    state: item.state,
                   },
                 })
               }
