@@ -1,3 +1,4 @@
+# app/crud/challenge.py
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
@@ -33,18 +34,15 @@ def get_challenge(db: Session, challenge_id: int) -> Optional[ChallengeModel]:
     )
 
 
-def get_active_challenge(db: Session, team_id: int) -> ChallengeModel | None:
-    now = datetime.utcnow()
+def get_active_challenge(db: Session, team_id: int):
     return (
         db.query(ChallengeModel)
         .join(ChallengeTeam, ChallengeModel.id == ChallengeTeam.challenge_id)
         .filter(
             ChallengeTeam.team_id == team_id,
-            ChallengeModel.start_date <= now,
-            ChallengeModel.end_date >= now,
+            ChallengeModel.computed_state == "open",
             ChallengeModel.is_deleted == False,
         )
-        .order_by(ChallengeTeam.created_at.desc())
         .first()
     )
 
@@ -132,24 +130,16 @@ def get_teams_for_challenge(
         for row in results
     ]
 
-def get_finished_challenges_for_user(
-    db: Session,
-    user_id: int,
-) -> List[ChallengeModel]:
-    now = datetime.utcnow()
-
-    query = (
+def get_finished_challenges_for_user(db: Session, user_id: int):
+    return (
         db.query(ChallengeModel)
         .join(ChallengeTeam, ChallengeTeam.challenge_id == ChallengeModel.id)
         .join(TeamMember, TeamMember.team_id == ChallengeTeam.team_id)
         .filter(
             TeamMember.user_id == user_id,
+            ChallengeModel.computed_state == "closed",
             ChallengeModel.is_deleted == False,
-            or_(
-                ChallengeModel.state == "closed",
-                ChallengeModel.end_date < now,
-            ),
         )
         .order_by(ChallengeModel.end_date.desc())
+        .all()
     )
-    return query.all()

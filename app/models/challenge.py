@@ -1,7 +1,7 @@
-# # File: app/models/challenge.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
-from app.db.base import Base
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, case, func
+from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime
+from app.db.base import Base
 
 
 class Challenge(Base):
@@ -18,5 +18,31 @@ class Challenge(Base):
     team_id = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    state = Column(String(50), default="incoming")  # Possible values: incoming, open, closed
     is_deleted = Column(Boolean, default=False)
+
+    # ----------------------------
+    # Computed (internal) state
+    # ----------------------------
+    @hybrid_property
+    def computed_state(self) -> str:
+        now = datetime.utcnow()
+        if now < self.start_date:
+            return "incoming"
+        elif now > self.end_date:
+            return "closed"
+        return "open"
+
+    @computed_state.expression
+    def computed_state(cls):
+        return case(
+            (cls.start_date > func.now(), "incoming"),
+            (cls.end_date < func.now(), "closed"),
+            else_="open",
+        )
+
+    # ----------------------------
+    # API-facing alias (READ ONLY)
+    # ----------------------------
+    @property
+    def state(self) -> str:
+        return self.computed_state
