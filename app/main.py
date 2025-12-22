@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.endpoints import auth
 from app.api.v1 import router as v1_router  # This is safe now
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -21,3 +22,9 @@ app.add_middleware(
 )
 # End CORS configuration
 app.include_router(v1_router.router, prefix=settings.API_V1_STR, tags=["v1"])
+
+app.mount(
+    "/media",
+    StaticFiles(directory="app/media"),
+    name="media"
+)

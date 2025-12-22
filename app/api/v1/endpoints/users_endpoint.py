@@ -1,5 +1,7 @@
+import os
+import uuid
 from typing import List, Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 
 # Import your database session, security, CRUD operations, and schemas
@@ -15,6 +17,9 @@ from app.crud.user import get_user
 from app.schema.HomeInitResponse import UserDashboardResponse
 # Define the APIRouter for user-related endpoints
 router = APIRouter(tags=["users"])
+
+BASE_MEDIA_PATH = "app/media/profile_pictures"
+
 
 
 @router.get("/", response_model=List[UserResponse], dependencies=[Depends(get_current_user)])
@@ -131,3 +136,25 @@ def init_dashboard_data(
         challenge=challenge,
         steps_this_week=steps_this_week
     )
+
+@router.post("/me/profile-picture")
+async def upload_profile_picture(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="Invalid image type")
+    
+    user_folder = f"user_{current_user.id}"
+    user_path = os.path.join(BASE_MEDIA_PATH, user_folder)
+    os.makedirs(user_path, exist_ok=True)
+
+    file_path = os.path.join(user_path, "profile.jpg")
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(await file.read())
+
+    return {
+        "message": "Profile picture uploaded successfully",
+        "path": f"/media/profile_pictures/user_{current_user.id}/profile.jpg"
+    }
