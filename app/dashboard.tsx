@@ -25,9 +25,14 @@ import {
   startOfWeek,
   stripTime,
   toIsoDate as toISO,
-} from './dashboard/dashboardDto';
+} from '../services/dto/dashboardDto';
 
-import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboardService';
+import {
+  getHomeInit,
+  getWeekSteps,
+  upsertStepsForDate,
+} from '../services/dashboardService';
+
 import styles from './styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -113,7 +118,9 @@ const Dashboard: React.FC = () => {
 
   // Date & Week State
   const [displayDate, setDisplayDate] = useState(new Date());
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date()));
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(
+    startOfWeek(new Date())
+  );
   const [weekSteps, setWeekSteps] = useState<number[]>([...EMPTY_WEEK]);
   const [stepsToday, setStepsToday] = useState(0);
   const [weekLoading, setWeekLoading] = useState(false);
@@ -125,6 +132,12 @@ const Dashboard: React.FC = () => {
 
   // Warning state
   const [showExpiredWarning, setShowExpiredWarning] = useState(true);
+
+  // Congrats popup
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [didShowCongrats, setDidShowCongrats] = useState(false);
+  const prevChallengeStateRef = useRef<string | null>(null);
+  const prevChallengeIdRef = useRef<number | null>(null);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -178,7 +191,11 @@ const Dashboard: React.FC = () => {
   );
 
   const calendarHeader = useMemo(
-    () => calendarMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
+    () =>
+      calendarMonth.toLocaleDateString('de-DE', {
+        month: 'long',
+        year: 'numeric',
+      }),
     [calendarMonth]
   );
 
@@ -189,13 +206,21 @@ const Dashboard: React.FC = () => {
 
   const canGoPrevMonth = useMemo(() => {
     if (!minDate) return true;
-    const prev = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+    const prev = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth() - 1,
+      1
+    );
     return lastOfMonth(prev) >= firstOfMonth(minDate);
   }, [calendarMonth, minDate]);
 
   const canGoNextMonth = useMemo(() => {
     if (!maxDate) return true;
-    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+    const next = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth() + 1,
+      1
+    );
     return firstOfMonth(next) <= lastOfMonth(maxDate);
   }, [calendarMonth, maxDate]);
 
@@ -218,7 +243,7 @@ const Dashboard: React.FC = () => {
   }, [vm?.challenge]);
 
   // ========= Initial load & Retry =========
-  const initFromMapped = (mapped: HomeInitDto | null, pivot: Date) => {
+  const initFromMapped = (mapped: HomeInitDto | null) => {
     if (!mapped) {
       setVm(null);
       setErrorMsg('Keine Daten verfügbar.');
@@ -254,7 +279,7 @@ const Dashboard: React.FC = () => {
 
       const pivot = startOfWeek(new Date());
       const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
-      initFromMapped(mapped, pivot);
+      initFromMapped(mapped);
     } catch (e: any) {
       if (!alive) return;
       setErrorMsg(e?.message ?? 'Unbekannter Fehler');
@@ -280,13 +305,18 @@ const Dashboard: React.FC = () => {
 
     try {
       setWeekLoading(true);
-      const respWeek = await getWeekSteps(vm.challenge.id!, vm.user.id!, toISO(weekStart));
+      const respWeek = await getWeekSteps(
+        vm.challenge.id!,
+        vm.user.id!,
+        toISO(weekStart)
+      );
 
       if (!isMountedRef.current) return;
 
       const parsed = Array.isArray(respWeek)
         ? parseStepsThisWeek(respWeek, weekStart)
         : parseStepsThisWeek([], weekStart);
+
       const arr = parsed.map((x) => x.numberOfSteps);
 
       setWeekSteps(arr);
@@ -319,7 +349,12 @@ const Dashboard: React.FC = () => {
     setWeekLoading(true);
     (async () => {
       try {
-        const resp = await getWeekSteps(vm.challenge!.id!, vm.user!.id!, toISO(weekStart));
+        const resp = await getWeekSteps(
+          vm.challenge!.id!,
+          vm.user!.id!,
+          toISO(weekStart)
+        );
+
         const parsed = Array.isArray(resp)
           ? parseStepsThisWeek(resp, weekStart)
           : parseStepsThisWeek([], weekStart);
@@ -340,7 +375,15 @@ const Dashboard: React.FC = () => {
         setWeekLoading(false);
       }
     })();
-  }, [displayDate, vm?.user?.id, vm?.challenge?.id, selectedWeekStart, minDate, maxDate, weekSteps]);
+  }, [
+    displayDate,
+    vm?.user?.id,
+    vm?.challenge?.id,
+    selectedWeekStart,
+    minDate,
+    maxDate,
+    weekSteps,
+  ]);
 
   // ---- Save Steps ----
   const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
@@ -363,7 +406,11 @@ const Dashboard: React.FC = () => {
         challengeId: vm.challenge.id,
         teamId: vm.team.id,
       });
+
       await refreshWeek();
+
+      // ✅ wichtig: neuen Challenge-State vom Backend holen
+      await loadInitial();
     } catch (e) {
       setWeekSteps(prev);
       setStepsToday(prev[idx] ?? 0);
@@ -374,6 +421,7 @@ const Dashboard: React.FC = () => {
   const applyStepDelta = async (delta: number) => {
     const dateSafe = clampDate(displayDate, minDate, maxDate);
     if (stripTime(dateSafe) > stripTime(new Date())) return;
+
     const idx = (dateSafe.getDay() + 6) % 7;
     const current = weekSteps[idx] ?? 0;
 
@@ -394,19 +442,47 @@ const Dashboard: React.FC = () => {
   );
 
   const stepLengthMeters =
-    vm?.user?.stepLength && vm.user.stepLength > 0 ? vm.user.stepLength : FIX_STEP_LENGTH_M;
+    vm?.user?.stepLength && vm.user.stepLength > 0
+      ? vm.user.stepLength
+      : FIX_STEP_LENGTH_M;
 
-  const distanceKm = useMemo(() => {
+  const distanceKmToday = useMemo(() => {
     const km = (stepsToday * stepLengthMeters) / 1000;
     return Math.round(km * 100) / 100;
   }, [stepsToday, stepLengthMeters]);
 
   const kcal = useMemo(() => {
-    const k = stepsToday * 0.04; // grob
+    const k = stepsToday * 0.04;
     return Math.round(k * 100) / 100;
   }, [stepsToday]);
 
-  const daysLeft = vm?.challenge?.daysLeft;
+  // ✅ Congrats: nur bei State-Transition open -> closed
+  useEffect(() => {
+    const ch = vm?.challenge;
+    if (!ch?.id) return;
+
+    // Reset wenn neue Challenge
+    if (prevChallengeIdRef.current !== ch.id) {
+      prevChallengeIdRef.current = ch.id;
+      prevChallengeStateRef.current = ch.state ?? null;
+      setDidShowCongrats(false);
+      setShowCongrats(false);
+      return;
+    }
+
+    const prev = prevChallengeStateRef.current;
+    const next = ch.state ?? null;
+
+    if (prev === 'open' && next === 'closed' && !didShowCongrats) {
+      setDidShowCongrats(true);
+      setShowCongrats(true);
+
+      const t = setTimeout(() => setShowCongrats(false), 1400);
+      return () => clearTimeout(t);
+    }
+
+    prevChallengeStateRef.current = next;
+  }, [vm?.challenge?.id, vm?.challenge?.state, didShowCongrats]);
 
   // ===== Auto-Refresh =====
   useFocusEffect(
@@ -425,18 +501,25 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (!vm?.user?.id) return;
-    const id = setInterval(() => {
-      refreshWeek();
-    }, 30000);
+    const id = setInterval(() => refreshWeek(), 30000);
     return () => clearInterval(id);
   }, [vm?.user?.id, vm?.team?.id, vm?.challenge?.id, selectedWeekStart, refreshWeek]);
 
   // ========= Render Guards =========
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#F5F7F4',
+        }}
+      >
         <ActivityIndicator size="large" />
-        <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
+        <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>
+          Lade Daten...
+        </Text>
       </View>
     );
   }
@@ -444,13 +527,35 @@ const Dashboard: React.FC = () => {
   if (errorMsg || !vm) {
     const pivot = startOfWeek(new Date());
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4', padding: 24 }}>
-        <Text style={[styles.font, { color: '#B91C1C', fontSize: 16, textAlign: 'center' }]}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#F5F7F4',
+          padding: 24,
+        }}
+      >
+        <Text
+          style={[
+            styles.font,
+            { color: '#B91C1C', fontSize: 16, textAlign: 'center' },
+          ]}
+        >
           Ups, konnte Home-Daten nicht laden.
         </Text>
+
         {errorMsg ? (
-          <Text style={[styles.font, { color: '#6B7280', marginTop: 6, textAlign: 'center' }]}>{String(errorMsg)}</Text>
+          <Text
+            style={[
+              styles.font,
+              { color: '#6B7280', marginTop: 6, textAlign: 'center' },
+            ]}
+          >
+            {String(errorMsg)}
+          </Text>
         ) : null}
+
         <TouchableOpacity
           onPress={async () => {
             try {
@@ -458,158 +563,204 @@ const Dashboard: React.FC = () => {
               setErrorMsg(null);
               const raw = await getHomeInit();
               const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
-              initFromMapped(mapped, pivot);
+              initFromMapped(mapped);
             } catch (e: any) {
               setErrorMsg(e?.message ?? 'Unbekannter Fehler');
             } finally {
               setLoading(false);
             }
           }}
-          style={{ marginTop: 16, backgroundColor: '#7FA58C', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12 }}
+          style={{
+            marginTop: 16,
+            backgroundColor: '#7FA58C',
+            paddingVertical: 10,
+            paddingHorizontal: 18,
+            borderRadius: 12,
+          }}
         >
-          <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>Erneut versuchen</Text>
+          <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>
+            Erneut versuchen
+          </Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  // ✅ Active Challenge ist nur state === open
   const hasActiveChallenge =
-  vm?.challenge?.id != null && vm?.challenge?.state === 'open';
+    vm?.challenge?.id != null && vm?.challenge?.state === 'open';
 
   if (!hasActiveChallenge) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#F5F7F4',
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingHorizontal: 20,
-        }}
-      >
+      <>
         <View
           style={{
-            width: '100%',
-            maxWidth: 420,
-            backgroundColor: '#FFFFFF',
-            borderRadius: 26,
-            paddingVertical: 26,
-            paddingHorizontal: 22,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 22,
-            shadowOffset: { width: 0, height: 10 },
-            elevation: 5,
+            flex: 1,
+            backgroundColor: '#F5F7F4',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 20,
           }}
         >
-          {/* Icon */}
           <View
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 999,
-              backgroundColor: '#e3efe6',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 12,
-              alignSelf: 'center',
+              width: '100%',
+              maxWidth: 420,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 26,
+              paddingVertical: 26,
+              paddingHorizontal: 22,
+              shadowColor: '#000',
+              shadowOpacity: 0.08,
+              shadowRadius: 22,
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 5,
             }}
           >
-            <Ionicons name="flag-outline" size={22} color="#2f5c3a" />
-          </View>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 999,
+                backgroundColor: '#e3efe6',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12,
+                alignSelf: 'center',
+              }}
+            >
+              <Ionicons name="flag-outline" size={22} color="#2f5c3a" />
+            </View>
 
-          <Text
-            style={[
-              styles.font,
-              {
-                fontSize: 18,
-                fontWeight: '800',
-                color: '#111',
-                marginBottom: 6,
-                textAlign: 'center',
-              },
-            ]}
-          >
-            Keine offene Challenge
-          </Text>
-
-          <Text
-            style={[
-              styles.font,
-              {
-                fontSize: 14,
-                color: '#6B7280',
-                lineHeight: 20,
-                marginBottom: 22,
-                textAlign: 'center',
-              },
-            ]}
-          >
-            Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
-            oder wirf einen Blick auf deine bisherigen Aktivitäten.
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => router.push('/challenges')}
-            activeOpacity={0.9}
-            style={{
-              backgroundColor: '#658869ff',
-              paddingVertical: 14,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 10,
-            }}
-          >
             <Text
               style={[
                 styles.font,
-                { color: '#fff', fontWeight: '800', fontSize: 15 },
+                {
+                  fontSize: 18,
+                  fontWeight: '800',
+                  color: '#111',
+                  marginBottom: 6,
+                  textAlign: 'center',
+                },
               ]}
             >
-              Zu den Challenges
+              Keine offene Challenge
             </Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => router.push('/userHistory')}
-            activeOpacity={0.8}
+            <Text
+              style={[
+                styles.font,
+                {
+                  fontSize: 14,
+                  color: '#6B7280',
+                  lineHeight: 20,
+                  marginBottom: 22,
+                  textAlign: 'center',
+                },
+              ]}
+            >
+              Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
+              oder wirf einen Blick auf deine bisherigen Aktivitäten.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => router.push('/challenges')}
+              activeOpacity={0.9}
+              style={{
+                backgroundColor: '#658869ff',
+                paddingVertical: 14,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 10,
+              }}
+            >
+              <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>
+                Zu den Challenges
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/userHistory')}
+              activeOpacity={0.85}
+              style={{
+                paddingVertical: 12,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: '#D1D5DB',
+                backgroundColor: '#F9FAFB',
+              }}
+            >
+              <Text
+                style={[
+                  styles.font,
+                  {
+                    color: '#374151',
+                    fontWeight: '700',
+                    fontSize: 14,
+                  },
+                ]}
+              >
+                Meine Challenge-Historie
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {showCongrats && (
+          <View
             style={{
-              paddingVertical: 12,
+              position: 'absolute',
+              left: 20,
+              right: 20,
+              bottom: 40,
+              backgroundColor: '#2F3E34',
+              paddingVertical: 14,
+              paddingHorizontal: 16,
               borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: '#D1D5DB',
-              backgroundColor: '#F9FAFB',
+              shadowColor: '#000',
+              shadowOpacity: 0.18,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 6,
             }}
           >
             <Text
               style={[
                 styles.font,
                 {
-                  color: '#374151',
-                  fontWeight: '600',
-                  fontSize: 14,
+                  color: '#fff',
+                  fontWeight: '800',
+                  textAlign: 'center',
+                  fontSize: 15,
                 },
               ]}
             >
-              Meine Challenge-Historie
+              🎉 Gratulation! Challenge abgeschlossen!
             </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+          </View>
+        )}
+      </>
     );
   }
 
-  // ========= Render =========
+  // ========= Render (Active Challenge) =========
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
-        {/* SOFORTIGE WARNMELDUNG - Immer sichtbar wenn Challenge abgelaufen */}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
+      >
         {isChallengeExpired && showExpiredWarning && (
           <View style={styles.expiredWarningContainer}>
-            <Ionicons name="information-circle" size={22} color="#DC2626" style={styles.expiredWarningIcon} />
+            <Ionicons
+              name="information-circle"
+              size={22}
+              color="#DC2626"
+              style={styles.expiredWarningIcon}
+            />
             <View style={styles.expiredWarningContent}>
               <Text style={[styles.font, styles.expiredWarningTitle]}>
                 Challenge beendet
@@ -668,7 +819,6 @@ const Dashboard: React.FC = () => {
             </Text>
           )}
 
-
           <View style={styles.hr} />
 
           <Text style={[styles.challengeRow, styles.font]}>
@@ -715,7 +865,7 @@ const Dashboard: React.FC = () => {
                   style={{ marginBottom: 4 }}
                 />
                 <Text style={[styles.metricSideValue, styles.font]}>
-                  {weekLoading ? '…' : distanceKm}
+                  {weekLoading ? '…' : distanceKmToday}
                 </Text>
                 <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
               </View>
@@ -723,7 +873,10 @@ const Dashboard: React.FC = () => {
           </View>
 
           <TouchableOpacity
-            style={[styles.editBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
+            style={[
+              styles.editBtn,
+              (isFutureSelected || isChallengeExpired) && { opacity: 0.5 },
+            ]}
             disabled={isFutureSelected || isChallengeExpired}
             onPress={() => setModalVisible(true)}
           >
@@ -889,7 +1042,9 @@ const Dashboard: React.FC = () => {
                 >
                   <Ionicons name="chevron-back" size={18} />
                 </TouchableOpacity>
+
                 <Text style={[styles.font, styles.calHeaderTitle]}>{calendarHeader}</Text>
+
                 <TouchableOpacity
                   onPress={goNextMonth}
                   style={[styles.navPill, !canGoNextMonth && { opacity: 0.35 }]}
@@ -952,7 +1107,7 @@ const Dashboard: React.FC = () => {
                   setCalendarOpen(false);
                 }}
               >
-                <Text style={[styles.font, styles.applyBtnText]}>Übernehmen </Text>
+                <Text style={[styles.font, styles.applyBtnText]}>Übernehmen</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setCalendarOpen(false)}>
@@ -962,6 +1117,40 @@ const Dashboard: React.FC = () => {
           </TouchableOpacity>
         </Modal>
       </ScrollView>
+
+      {showCongrats && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 20,
+            right: 20,
+            bottom: 40,
+            backgroundColor: '#2F3E34',
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            borderRadius: 18,
+            shadowColor: '#000',
+            shadowOpacity: 0.18,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: 8 },
+            elevation: 6,
+          }}
+        >
+          <Text
+            style={[
+              styles.font,
+              {
+                color: '#fff',
+                fontWeight: '800',
+                textAlign: 'center',
+                fontSize: 15,
+              },
+            ]}
+          >
+            🎉 Gratulation! Challenge abgeschlossen!
+          </Text>
+        </View>
+      )}
     </>
   );
 };

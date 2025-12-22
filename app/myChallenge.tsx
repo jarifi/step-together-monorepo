@@ -3,8 +3,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { getHomeInit } from '../services/dashboardService';
+import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
-import { mapHomeInitToDashboard } from './dashboard/dashboardDto';
 import styles from './styles/dashboardStyles';
 
 const FIX_STEP_LENGTH_M = 0.78;

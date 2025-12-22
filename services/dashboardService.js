@@ -1,12 +1,12 @@
 // file: services/dashboardService.js
 
+import { apiGet, apiPost, apiPut } from "./api";
 import {
   fromIsoLocal,
   inSameDayIso,
   toIsoDate,
   toIsoDateTimeMidnight,
-} from "../app/dashboard/dashboardDto";
-import { apiGet, apiPost, apiPut } from "./api";
+} from "./dto/dashboardDto";
 
 // ---------------------------------------------------------------------------
 // DASHBOARD INIT

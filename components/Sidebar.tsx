@@ -82,7 +82,7 @@ export default function Sidebar() {
             style={styles.profileContainer}
             onPress={() => {
               closeSidebar();
-              router.push('/profile/update');
+              router.push('/profileInfo');
             }}
           >
             <View style={styles.profileCircle}>
