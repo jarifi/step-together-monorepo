@@ -1,9 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import UserCard from '../../components/UserCard';
-import { deleteUser, getUsers } from '../../services/userService';
+import { deleteUser, getUsers, searchUsers } from '../../services/userService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -15,6 +15,9 @@ export default function UsersScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef(null);
   const router = useRouter();
 
   const filteredUsers = useMemo(() => {
@@ -22,12 +25,70 @@ export default function UsersScreen() {
       return users;
     }
     
+    // If we have API search results, use those
+    if (searchResults.length > 0) {
+      return searchResults;
+    }
+    
+    // Otherwise, filter locally loaded users
     const query = searchQuery.toLowerCase().trim();
     return users.filter(user => 
       user.name?.toLowerCase().includes(query) ||
       user.email?.toLowerCase().includes(query) ||
       user.id?.toString().includes(query)
     );
+  }, [searchQuery, users, searchResults]);
+
+  // Search with debounce and API fallback
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    const query = searchQuery.trim();
+    
+    // If no search query, clear search results
+    if (!query) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // First, check if we have local results
+    const localResults = users.filter(user => 
+      user.name?.toLowerCase().includes(query.toLowerCase()) ||
+      user.email?.toLowerCase().includes(query.toLowerCase()) ||
+      user.id?.toString().includes(query)
+    );
+
+    // If we have local results, no need to search API
+    if (localResults.length > 0) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // No local results - search API after debounce
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await searchUsers(query);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500); // 500ms debounce
+
+    // Cleanup function
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [searchQuery, users]);
 
   const loadUsers = async () => {
@@ -60,6 +121,7 @@ export default function UsersScreen() {
       setUsers([]);
       setHasMore(true);
       setSearchQuery('');
+      setSearchResults([]);
       loadUsers();
     }, [])
   );
@@ -94,8 +156,14 @@ export default function UsersScreen() {
         {searchQuery.trim() && (
           <View style={styles.searchInfo}>
             <Text style={styles.searchInfoText}>
-              {filteredUsers.length} von {users.length} Benutzern gefunden
-              {searchQuery.trim() && ` für "${searchQuery}"`}
+              {isSearching ? (
+                'Suche in der Datenbank...'
+              ) : (
+                <>
+                  {filteredUsers.length} {searchResults.length > 0 ? 'Ergebnis(se) aus Datenbank' : `von ${users.length} Benutzern`} gefunden
+                  {searchQuery.trim() && ` für "${searchQuery}"`}
+                </>
+              )}
             </Text>
           </View>
         )}
@@ -147,7 +215,7 @@ export default function UsersScreen() {
               </View>
             }
             ListFooterComponent={
-              loadingMore && !searchQuery.trim() ? (
+              (loadingMore && !searchQuery.trim()) || isSearching ? (
                 <ActivityIndicator style={{ margin: 16 }} />
               ) : null
             }
