@@ -18,11 +18,21 @@
 
 # --------------------------------------------
 
-# Run project on localhost:
+# Run project on localhost and mobile device:
 
 # --------------------------------------------
 
+# 1. On Desktop
+
 npx expo start -c
+
+# 2. On Mobile device
+
+Install Expo Go
+
+# Start Terminal and login in Expo Go using email and password
+
+npx expo login
 
 # --------------------------------------------
 

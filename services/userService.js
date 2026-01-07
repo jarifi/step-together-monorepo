@@ -19,6 +19,23 @@ export const getUsers = async (skip = 0, limit = 10) => {
 };
 
 // ---------------------------------------------------------------------------
+// SEARCH USERS (by name, email, or ID)
+// ---------------------------------------------------------------------------
+export const searchUsers = async (query) => {
+  try {
+    const users = await apiGet(`/users/search?q=${encodeURIComponent(query)}`);
+    // Add dummy avatars
+    return users.map((u, i) => ({
+      ...u,
+      avatar: `https://i.pravatar.cc/150?img=${i + 1}`,
+    }));
+  } catch (err) {
+    console.error('Error searching users:', err);
+    return [];
+  }
+};
+
+// ---------------------------------------------------------------------------
 // UPDATE USER
 // ---------------------------------------------------------------------------
 export const updateUser = async (id, data) => {
