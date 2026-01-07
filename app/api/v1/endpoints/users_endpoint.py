@@ -1,5 +1,7 @@
+import os
+import uuid
 from typing import List, Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 
 # Import your database session, security, CRUD operations, and schemas
@@ -15,6 +17,9 @@ from app.crud.user import get_user
 from app.schema.HomeInitResponse import UserDashboardResponse
 # Define the APIRouter for user-related endpoints
 router = APIRouter(tags=["users"])
+
+BASE_MEDIA_PATH = "app/media/profile_pictures"
+
 
 
 @router.get("/", response_model=List[UserResponse], dependencies=[Depends(get_current_user)])
@@ -71,14 +76,26 @@ def update_existing_user(
 ):
     """
     Update an existing user's information.
-    Requires authentication. Only the user themselves can update their profile.
-    Expected path: /api/v1/users/{user_id}
+    - Regular users: can update ONLY their own profile
+    - Admins: can update ANY user
     """
-    
+
+    print("Current User ID:", current_user.id, "Role:", current_user.role)
+
+    # Check permission
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this user's profile"
+        )
+
+    # Update user
     updated_user = user_crud.update_user(db, user_id, user_data)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")
+
     return updated_user
+
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)
@@ -92,8 +109,8 @@ def delete_existing_user(
     Requires authentication. Only the user themselves can delete their account.
     Expected path: /api/v1/users/{user_id}
     """
-    if current_user.id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this user's account")
+    # if current_user.id != user_id:
+    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this user's account")
     success = user_crud.delete_user(db, user_id)
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
@@ -119,3 +136,25 @@ def init_dashboard_data(
         challenge=challenge,
         steps_this_week=steps_this_week
     )
+
+@router.post("/me/profile-picture")
+async def upload_profile_picture(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="Invalid image type")
+    
+    user_folder = f"user_{current_user.id}"
+    user_path = os.path.join(BASE_MEDIA_PATH, user_folder)
+    os.makedirs(user_path, exist_ok=True)
+
+    file_path = os.path.join(user_path, "profile.jpg")
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(await file.read())
+
+    return {
+        "message": "Profile picture uploaded successfully",
+        "path": f"/media/profile_pictures/user_{current_user.id}/profile.jpg"
+    }

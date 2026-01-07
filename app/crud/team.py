@@ -39,6 +39,10 @@ def update_team(db: Session, team_id: int, team_update: TeamUpdate) -> Team | No
         return None
     if team_update.name is not None:
         db_team.name = team_update.name
+
+    if team_update.is_deleted is not None:
+        db_team.is_deleted = team_update.is_deleted   
+
     db.commit()
     db.refresh(db_team)
     return db_team

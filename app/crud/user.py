@@ -79,6 +79,7 @@ def delete_user(db: Session, user_id: int):
     if not user:
         return None
     
+    
     user.is_deleted = True
     db.commit()
     db.refresh(user)

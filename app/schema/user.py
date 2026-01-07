@@ -65,6 +65,8 @@ class UserResponse(CamelCaseBaseModel):
     name: str
     email: EmailStr
     step_length: Optional[float] = None
+    is_active: bool = True
+    is_deleted: bool = False
 
 class UserLogin(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
@@ -97,6 +99,8 @@ class UserUpdate(CamelCaseBaseModel):
         le=200,
         json_schema_extra={"example": 80.0}
     )]] = None
+    is_active: Optional[bool] = None
+    is_deleted: Optional[bool] = None
     model_config = ConfigDict(from_attributes=True)
 
 class CurrentUser(UserResponse):
@@ -106,7 +110,7 @@ class PasswordResetRequest(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
 
 class PasswordResetConfirm(CamelCaseBaseModel):
-    token: str = Field(json_schema_extra={"example": "reset-token-123"})
+    #token: str = Field(json_schema_extra={"example": "reset-token-123"})
     new_password: PasswordString
     password_confirm: str = Field(json_schema_extra={"example": "NewStr0ngPass!"})
 
@@ -115,3 +119,7 @@ class PasswordResetConfirm(CamelCaseBaseModel):
         if self.new_password != self.password_confirm:
             raise ValueError('Passwords do not match')
         return self
+    
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
