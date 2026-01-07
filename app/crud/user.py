@@ -18,6 +18,21 @@ def get_all_users(db: Session, skip: int = 0, limit: int = 10) -> List[User]:
     return db.query(User).filter(User.is_deleted == False).offset(skip).limit(limit).all()
 
 
+def search_users(db: Session, search_term: str, skip: int = 0, limit: int = 100) -> List[User]:
+    """
+    Search users by name or email.
+    :param db: SQLAlchemy Session
+    :param search_term: Search query string
+    :param skip: Number of records to skip
+    :param limit: Number of records to return
+    """
+    search_pattern = f"%{search_term}%"
+    return db.query(User).filter(
+        User.is_deleted == False,
+        (User.name.ilike(search_pattern)) | (User.email.ilike(search_pattern))
+    ).offset(skip).limit(limit).all()
+
+
 def get_user(db: Session, user_id: int):
     return db.query(User).filter(User.id == user_id).first()
 
@@ -41,6 +56,7 @@ def create_user(db: Session, user: UserCreate):
         step_length=user.step_length,
         is_active=True,
         is_verified=False
+        
     )
     db.add(db_user)
     try:

@@ -36,6 +36,21 @@ def read_users(
     return user_crud.get_all_users(db, skip=skip, limit=limit)
 
 
+@router.get("/search", response_model=List[UserResponse], dependencies=[Depends(get_current_user)])
+def search_users(
+    q: str = Query(..., min_length=1, description="Search term for user name or email"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=100, description="Maximum number of records to return"),
+    db: Session = Depends(get_db)
+):
+    """
+    Search users by name or email.
+    Requires authentication.
+    Expected path: /api/v1/users/search?q=searchterm
+    """
+    return user_crud.search_users(db, search_term=q, skip=skip, limit=limit)
+
+
 @router.get("/me", response_model=CurrentUser)
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     """

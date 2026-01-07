@@ -1,5 +1,5 @@
-#@baseUrl = http://91.99.231.235:3000/api/v1
-@baseUrl = http://localhost:3000/api/v1
+@baseUrl = http://91.99.231.235:3000/api/v1
+#@baseUrl = http://localhost:3000/api/v1
 
 ### 1. Login to Get Access Token
 # @name login
@@ -42,7 +42,7 @@ Content-Type: application/json
 }
 
 ### 2. Get All Users Using Access Token
-GET {{baseUrl}}/users/
+GET {{baseUrl}}/users/?skip=0&limit=200
 Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 2.1 Get Single User Using Access Token
