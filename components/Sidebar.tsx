@@ -2,34 +2,47 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import { Link, router, usePathname } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '../context/UserContext';
-import { removeTokens } from '../lib/auth';
+import { getUserRole, removeTokens } from '../lib/auth';
 
 const screenWidth = Dimensions.get('window').width;
+const SIDEBAR_WIDTH = screenWidth * 0.75;
 
 export default function Sidebar() {
   const insets = useSafeAreaInsets();
   const [isOpen, setIsOpen] = useState(false);
-  const slideAnim = useRef(new Animated.Value(-screenWidth)).current;
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Starting position is exactly the negative width of the sidebar
+  const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
 
   const { user, setUser, setToken, setUserId } = useUser();
   const pathname = usePathname();
 
+  // Load user role from AsyncStorage
+  useEffect(() => {
+    const loadRole = async () => {
+      const role = await getUserRole();
+      setUserRole(role);
+    };
+    loadRole();
+  }, []);
+
   const toggleSidebar = () => {
     Animated.timing(slideAnim, {
-      toValue: isOpen ? -screenWidth : 0,
+      toValue: isOpen ? -SIDEBAR_WIDTH : 0,
       duration: 300,
-      useNativeDriver: false,
+      useNativeDriver: false, // Set to true if using translateX instead of left
     }).start();
     setIsOpen(!isOpen);
   };
 
   const closeSidebar = () => {
     Animated.timing(slideAnim, {
-      toValue: -screenWidth,
+      toValue: -SIDEBAR_WIDTH,
       duration: 300,
       useNativeDriver: false,
     }).start();
@@ -60,6 +73,32 @@ export default function Sidebar() {
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
+
+  /** Helper function to render links */
+  function renderNavLink(
+    href: string,
+    label: string,
+    iconName: string,
+    IconComponent: typeof MaterialIcons | typeof Feather
+  ) {
+    const active = isActive(href);
+    return (
+      <NavLink
+        href={href}
+        label={label}
+        icon={
+          <IconComponent
+            name={iconName as any}
+            size={screenWidth < 380 ? 22 : 24}
+            color={active ? '#F7F8F5' : '#4B5563'}
+            style={styles.navIcon}
+          />
+        }
+        active={active}
+        onNavigate={closeSidebar}
+      />
+    );
+  }
 
   return (
     <>
@@ -100,47 +139,19 @@ export default function Sidebar() {
         )}
 
         <View style={styles.linkContainer}>
-          {/* Dashboard */}
           {renderNavLink('/dashboard', 'Dashboard', 'dashboard', MaterialIcons)}
 
           <View style={styles.separator} />
 
-          {/* Meine Challenge */}
-          {renderNavLink(
-            '/myChallenge',
-            'Meine Challenge',
-            'emoji-events',
-            MaterialIcons
-          )}
-
-          {/* Meine Historie */}
-          {renderNavLink(
-            '/userHistory',
-            'Meine Historie',
-            'restore',
-            MaterialIcons
-          )}
-
-          {/* Laufende Challenges */}
+          {renderNavLink('/myChallenge', 'Meine Challenge', 'emoji-events', MaterialIcons)}
+          {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
           {renderNavLink('/challenges', 'Challenges', 'flag', MaterialIcons)}
 
           <View style={styles.separator} />
 
-          {/* Admin Bereich*/}
-          {renderNavLink(
-            '/admin',
-            'Admin Bereich',
-            'groups',
-            MaterialIcons
-          )}
+          {userRole === 'admin' && renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
 
-          {/* Einstellungen */}
-          {renderNavLink(
-            '/settings/settings',
-            'Einstellungen',
-            'settings',
-            MaterialIcons
-          )}
+          {renderNavLink('/settings/settings', 'Einstellungen', 'settings', MaterialIcons)}
 
           <Pressable style={styles.navLink} onPress={handleLogout}>
             <View style={[styles.navInner, styles.navDanger]}>
@@ -153,37 +164,10 @@ export default function Sidebar() {
               <Text style={styles.navDangerText}>Logout</Text>
             </View>
           </Pressable>
-
         </View>
       </Animated.View>
     </>
   );
-
-  /** Helper function to avoid repeating code */
-  function renderNavLink(
-    href: string,
-    label: string,
-    iconName: string,
-    IconComponent: typeof MaterialIcons | typeof Feather
-  ) {
-    const active = isActive(href);
-    return (
-      <NavLink
-        href={href}
-        label={label}
-        icon={
-          <IconComponent
-            name={iconName as any}
-            size={screenWidth < 380 ? 22 : 24}
-            color={active ? '#F7F8F5' : '#4B5563'}
-            style={styles.navIcon}
-          />
-        }
-        active={active}
-        onNavigate={closeSidebar}
-      />
-    );
-  }
 }
 
 /** NavLink component */
@@ -257,7 +241,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    width: screenWidth * 0.75,
+    width: SIDEBAR_WIDTH,
     backgroundColor: '#F7F8F5',
     padding: 20,
     zIndex: 999,
@@ -269,25 +253,74 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  profileContainer: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 15, borderRadius: 18, backgroundColor: '#EAF1E6' },
-  profileCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#6B8F71', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#F7F8F5' },
-  profileInitials: { color: '#FFFFFF', fontWeight: '800', fontSize: 18, letterSpacing: 0.5 },
-  profileName: { color: '#2F3E34', fontWeight: '700', fontSize: 16 },
-  profileEmail: { color: '#6B7280', fontSize: 12, marginTop: 2 },
-  linkContainer: { flex: 1, paddingTop: 2 },
-  navLink: { marginVertical: 1, borderRadius: 16 },
-  navInner: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20 },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    marginBottom: 15,
+    borderRadius: 18,
+    backgroundColor: '#EAF1E6'
+  },
+  profileCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#6B8F71',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#F7F8F5'
+  },
+  profileInitials: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 18,
+    letterSpacing: 0.5
+  },
+  profileName: {
+    color: '#2F3E34',
+    fontWeight: '700',
+    fontSize: 16
+  },
+  profileEmail: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 2
+  },
+  linkContainer: {
+    flex: 1,
+    paddingTop: 2
+  },
+  navLink: {
+    marginVertical: 1,
+    borderRadius: 16
+  },
+  navInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20
+  },
   navLinkInactive: {},
-  navLinkActive: { backgroundColor: '#6B8F71' },
-  navIcon: { marginRight: 10 },
+  navLinkActive: {
+    backgroundColor: '#6B8F71'
+  },
+  navIcon: {
+    marginRight: 10
+  },
   navLinkText: {
     color: '#2F3E34',
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.2,
   },
-  navLinkTextActive: { color: '#F7F8F5' },
-  navDanger: { backgroundColor: '#F5DCDC' },
+  navLinkTextActive: {
+    color: '#F7F8F5'
+  },
+  navDanger: {
+    backgroundColor: '#F5DCDC'
+  },
   navDangerText: {
     color: '#B91C1C',
     fontSize: 16,

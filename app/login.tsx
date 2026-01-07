@@ -16,7 +16,7 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 
 import { useUser } from '../context/UserContext';
-import { saveTokens, saveUserId } from '../lib/auth';
+import { saveTokens, saveUserId, saveUserRole } from '../lib/auth';
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
@@ -73,9 +73,25 @@ export default function LoginScreen() {
       setToken(data.accessToken);
       setUserId(String(data.userId));
 
-      if (data.user) {
-        setUser(data.user);
+      // Save user role from the root level of response
+      if (data.role) {
+        await saveUserRole(data.role);
+        console.log('✅ Login - Role saved to AsyncStorage:', data.role);
+      } else {
+        console.log('⚠️ Login - No role found in response data');
       }
+
+      // The response doesn't contain a user object, so create one
+      const userObject = {
+        id: data.userId,
+        email: email, // Use the email from login form
+        role: data.role,
+        teamId: data.teamId,
+        activeChallengeId: data.activeChallengeId
+      };
+
+      setUser(userObject);
+      console.log('🔍 Login - User data created:', userObject);
 
       router.replace('/dashboard');
     } catch (err: any) {
