@@ -86,6 +86,7 @@ export const upsertStepsForDate = async (
   if (!dateISO) throw new Error("dateISO required");
 
   const numberOfSteps = Math.max(0, Number(absoluteSteps || 0));
+  console.log(`Upsert steps for user ${userId} on ${dateISO}: ${numberOfSteps} steps`);
 
   // Check for existing StepLog
   const all = await listUserStepLogs(userId);
