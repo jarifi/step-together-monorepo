@@ -50,3 +50,7 @@ npx expo install --fix
 10.12.2025 Update
 npm uninstall react-native-reanimated react-native-worklets
 npm install react-native-reanimated@~3.10.1 react-native-worklets@0.5.1 --legacy-peer-deps
+
+# Allow scripts tu run
+
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
