@@ -94,7 +94,7 @@ export const upsertStepsForDate = async (
 
   // --- UPDATE ---------------------------------------------------------------
   if (existing?.id) {
-    return await apiPut(`/step_logs?step_log_id=${existing.id}`, {
+    return await apiPut(`/step_logs/${existing.id}`, {
       numberOfSteps,
     });
   }

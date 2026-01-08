@@ -387,6 +387,7 @@ const Dashboard: React.FC = () => {
 
   // ---- Save Steps ----
   const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
+    console.log('🟦 saveAbsoluteStepsForSelectedDay START:', newValue);
     if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
 
     const dateSafe = clampDate(displayDate, minDate, maxDate);
@@ -397,20 +398,35 @@ const Dashboard: React.FC = () => {
 
     const prev = [...weekSteps];
     const next = [...weekSteps];
+    const beforeSave = prev[idx] ?? 0;
+
+    console.log('🟦 BEFORE SAVE - Date:', dateISO, 'Index:', idx, 'Previous steps:', beforeSave, 'New value:', newValue);
     next[idx] = Math.max(0, Math.floor(newValue));
     setWeekSteps(next);
     setStepsToday(next[idx]);
 
     try {
-      await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
+      // TEMPORARY WORKAROUND: Backend adds 20 steps, so subtract 20 before sending
+      const valueToSend = Math.max(0, next[idx] - 20);
+      console.log('🟦 WORKAROUND: Sending', valueToSend, 'instead of', next[idx], 'to compensate for backend +20');
+
+      const apiResponse = await upsertStepsForDate(vm.user.id, dateISO, valueToSend, {
         challengeId: vm.challenge.id,
         teamId: vm.team.id,
       });
 
-      await refreshWeek();
+      console.log('🟦 AFTER BACKEND SAVE - Sent to backend:', valueToSend);
+      console.log('🟦 BACKEND RESPONSE:', JSON.stringify(apiResponse, null, 2));
 
-      // ✅ wichtig: neuen Challenge-State vom Backend holen
-      await loadInitial();
+      const beforeRefresh = [...weekSteps];
+      await refreshWeek();
+      console.log('🟦 AFTER refreshWeek - Before:', beforeRefresh[idx], 'After:', weekSteps[idx]);
+
+      // Commented out loadInitial() as it might be causing the extra steps
+      // const beforeLoadInitial = [...weekSteps];
+      // await loadInitial();
+      // console.log('🟦 AFTER loadInitial - Before:', beforeLoadInitial[idx], 'After:', weekSteps[idx]);
+
     } catch (e) {
       setWeekSteps(prev);
       setStepsToday(prev[idx] ?? 0);
@@ -425,12 +441,18 @@ const Dashboard: React.FC = () => {
     const idx = (dateSafe.getDay() + 6) % 7;
     const current = weekSteps[idx] ?? 0;
 
+    console.log('🟨 applyStepDelta START - Delta:', delta, 'Current steps at index', idx, ':', current);
+
     if (delta > 0) {
       const add = Math.min(delta, MAX_STEP_DELTA);
-      await saveAbsoluteStepsForSelectedDay(current + add);
+      const newTotal = current + add;
+      console.log('🟨 ADDING - Current:', current, '+ Delta:', add, '= New total:', newTotal);
+      await saveAbsoluteStepsForSelectedDay(newTotal);
     } else if (delta < 0) {
       const remove = Math.min(current, Math.abs(delta));
-      await saveAbsoluteStepsForSelectedDay(current - remove);
+      const newTotal = current - remove;
+      console.log('🟨 REMOVING - Current:', current, '- Delta:', remove, '= New total:', newTotal);
+      await saveAbsoluteStepsForSelectedDay(newTotal);
     }
   };
 
