@@ -21,7 +21,7 @@ import { saveTokens, saveUserId, saveUserRole } from '../lib/auth';
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('bob@example.com');
+  const [email, setEmail] = useState('eli@example.com');
   const [password, setPassword] = useState('StrongPassword123');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 

@@ -539,37 +539,20 @@ const Dashboard: React.FC = () => {
         <Text
           style={[
             styles.font,
-            { color: '#B91C1C', fontSize: 16, textAlign: 'center' },
+            {
+              fontSize: 14,
+              color: '#6B7280',
+              lineHeight: 20,
+              marginBottom: 22,
+              textAlign: 'center',
+            },
           ]}
         >
-          Ups, konnte Home-Daten nicht laden.
+          Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
+          oder wirf einen Blick auf deine bisherigen Aktivitäten.
         </Text>
-
-        {errorMsg ? (
-          <Text
-            style={[
-              styles.font,
-              { color: '#6B7280', marginTop: 6, textAlign: 'center' },
-            ]}
-          >
-            {String(errorMsg)}
-          </Text>
-        ) : null}
-
         <TouchableOpacity
-          onPress={async () => {
-            try {
-              setLoading(true);
-              setErrorMsg(null);
-              const raw = await getHomeInit();
-              const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
-              initFromMapped(mapped);
-            } catch (e: any) {
-              setErrorMsg(e?.message ?? 'Unbekannter Fehler');
-            } finally {
-              setLoading(false);
-            }
-          }}
+          onPress={() => router.push('/userHistory')}
           style={{
             marginTop: 16,
             backgroundColor: '#7FA58C',
@@ -579,7 +562,7 @@ const Dashboard: React.FC = () => {
           }}
         >
           <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>
-            Erneut versuchen
+            Meine History
           </Text>
         </TouchableOpacity>
       </View>
@@ -884,8 +867,8 @@ const Dashboard: React.FC = () => {
               {isChallengeExpired
                 ? 'Challenge abgelaufen - Keine Bearbeitung möglich'
                 : isFutureSelected
-                ? 'Zukunft nicht bearbeitbar'
-                : 'Schritte bearbeiten'}
+                  ? 'Zukunft nicht bearbeitbar'
+                  : 'Schritte bearbeiten'}
             </Text>
           </TouchableOpacity>
 
