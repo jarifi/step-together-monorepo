@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
 from datetime import date
+import logging
 
 from app.db.session import get_db
 from app.schema.step_log import StepLogCreate, StepLogResponse, StepLogUpdate, StepWeekResponse
@@ -49,12 +50,7 @@ def read_step_logs_by_user_id(
     current_user: User = Depends(get_current_user)
 ):
     step_logs = step_log_crud.get_step_logs_by_user_id(db, user_id)
-    if not step_logs:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No step logs found for user with id {user_id}"
-        )
-    return step_logs
+    return step_logs or []
 
 # Admin Update
 @router.put("/{step_log_id}", response_model=StepLogResponse)
@@ -67,26 +63,28 @@ def update_step_log(
     step_log = step_log_crud.get_step_log(db, step_log_id)
     if not step_log:
         raise HTTPException(status_code=404, detail="Step Log not found")
-    updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data)
-    return updated_step_log
-
-# User Update
-@router.put("/", response_model=StepLogResponse, dependencies=[Depends(get_current_user)])
-def update_own_step_log(
-    step_log_id: int,
-    step_log_data: StepLogUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    step_log = step_log_crud.get_step_log(db, step_log_id)
-    if not step_log:
-        raise HTTPException(status_code=404, detail="Step Log not found")
     
-    if step_log.user_id != current_user.id:
+    # Non-admins may only update their own step logs
+    if getattr(current_user, "role", "user") != 'admin' and step_log.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this step log")
 
-    updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data, user_id=current_user.id)
+    # Debug logging for auditing
+    logging.info(
+        "User %s updating step log %s with data: %s",
+        current_user.id,
+        step_log_id,
+        step_log_data.model_dump(exclude_unset=True)
+    )
+
+    # Admins can update any record; users restricted by user_id
+    if getattr(current_user, "role", "user") == 'admin':
+        updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data)
+    else:
+        updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data, user_id=current_user.id)
+
     return updated_step_log
+
+# Removed duplicate PUT "/" endpoint to prevent 307 redirects and route ambiguity
 
 @router.delete("/{step_log_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_step_log(
