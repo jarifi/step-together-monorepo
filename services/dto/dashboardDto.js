@@ -90,13 +90,15 @@ const normalizeDayOfWeek = (val) => {
 
 // Woche Mo..So exakt zur Pivot-Woche
 export const parseStepsThisWeek = (raw, pivotMonday) => {
+ 
   const baseMonday = startOfWeek(pivotMonday || new Date());
   const sums = new Array(7).fill(0);
-
+  
+  
   const addAtIdx = (idx, v) => {
     if (idx >= 0 && idx < 7) {
       const n = Math.floor(Number(v) || 0);
-      if (n > 0) sums[idx] += n;
+     sums[idx] = n; // Set the value instead of adding to it
     }
   };
 
@@ -125,11 +127,14 @@ export const parseStepsThisWeek = (raw, pivotMonday) => {
     }
   }
 
-  return sums.map((n, i) => {
+ 
+  const result = sums.map((n, i) => {
     const d = new Date(baseMonday);
     d.setDate(baseMonday.getDate() + i);
     return { date: toIsoDate(d), dayOfWeek: dayLabelDe[i], numberOfSteps: n };
   });
+  
+  return result;
 };
 
 // ======================
