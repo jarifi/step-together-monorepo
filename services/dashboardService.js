@@ -36,7 +36,10 @@ export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) =
   if (!fromISO || !toISO) throw new Error("from/to ISO required");
 
   const path = `/step_logs/challenge/${challengeId}/user/${userId}?from=${fromISO}&to=${toISO}`;
-  return await apiGet(path);
+  
+  const result = await apiGet(path);
+  
+  return result;
 };
 
 // ---------------------------------------------------------------------------
@@ -61,15 +64,18 @@ export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
     toIsoDate(weekEnd)
   );
 
-  return (logs ?? []).map((x) => {
+ 
+  const mapped = (logs ?? []).map((x) => {
     const d = fromIsoLocal(x.date);
-    return {
+    const result = {
       date: toIsoDate(d),
       dayOfWeek: x.dayOfWeek || d.toLocaleDateString("en-US", { weekday: "long" }),
       numberOfSteps: Number(x.numberOfSteps || 0),
       step_log_id: x?.id ?? null,
     };
+    return result;
   });
+  return mapped;
 };
 
 // ---------------------------------------------------------------------------
@@ -94,20 +100,17 @@ export const upsertStepsForDate = async (
 
   // --- UPDATE ---------------------------------------------------------------
   if (existing?.id) {
+    console.log("🟡 Taking UPDATE path for existing log:", existing.id);
     return await apiPut(`/step_logs/${existing.id}`, {
       numberOfSteps,
     });
+  } else {
+    console.log("🟡 Taking CREATE path - no existing log found");
+    return await apiPost(`/step_logs`, {
+      challengeId: context.challengeId,
+      teamId: context.teamId,
+      date: toIsoDateTimeMidnight(dateISO),
+      numberOfSteps,
+    });
   }
-
-  // --- CREATE ---------------------------------------------------------------
-  if (!context?.challengeId || !context?.teamId) {
-    throw new Error("challengeId/teamId required for create");
-  }
-
-  return await apiPost(`/step_logs`, {
-    challengeId: context.challengeId,
-    teamId: context.teamId,
-    date: toIsoDateTimeMidnight(dateISO),
-    numberOfSteps,
-  });
 };
