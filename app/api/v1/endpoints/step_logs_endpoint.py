@@ -11,6 +11,8 @@ from app.crud import step_log as step_log_crud
 from app.core.security import get_current_user
 from app.models.user import User
 
+from logfile import step_logger
+
 router = APIRouter(tags=["step_logs"])
 
 @router.post("/", response_model=StepLogResponse, dependencies=[Depends(get_current_user)])
@@ -19,17 +21,28 @@ def create_step_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return step_log_crud.create_step_log(
+    result = step_log_crud.create_step_log(
         db=db,
         step_log_data=step_log,
         user_id=current_user.id
     )
+
+    step_logger.info(
+         f"STEP_LOG CREATED | user_id={current_user.id} | step_log_id={result.id} | date={step_log.date}"
+    )
+
+    return result
 
 @router.get("/", response_model=List[StepLogResponse])
 def read_all_step_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    
+    step_logger.info(
+        f"STEP_LOG READ_ALL | requested_by={current_user.id} | role={current_user.role}"
+    )
+
     return step_log_crud.get_all_step_logs(db)
 
 @router.get("/{step_log_id}", response_model=StepLogResponse)
@@ -40,7 +53,14 @@ def read_step_log(
 ):
     step_log = step_log_crud.get_step_log(db, step_log_id)
     if not step_log:
+        step_logger.warning(
+            f"STEP_LOG READ FAILED | step_log_id={step_log_id} | requested_by={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Step Log not found")
+
+    step_logger.info(
+        f"STEP_LOG READ | step_log_id={step_log_id} | requested_by={current_user.id}"
+    )
     return step_log
 
 @router.get("/user/{user_id}", response_model=List[StepLogResponse])
@@ -62,18 +82,20 @@ def update_step_log(
 ):
     step_log = step_log_crud.get_step_log(db, step_log_id)
     if not step_log:
+        step_logger.warning(
+            f"STEP_LOG UPDATE FAILED | step_log_id={step_log_id} | user_id={current_user.id} | reason=not_found"
+        )
         raise HTTPException(status_code=404, detail="Step Log not found")
     
     # Non-admins may only update their own step logs
     if getattr(current_user, "role", "user") != 'admin' and step_log.user_id != current_user.id:
+        step_logger.warning(
+            f"STEP_LOG UPDATE FORBIDDEN | step_log_id={step_log_id} | attempted_by={current_user.id}"
+        )
         raise HTTPException(status_code=403, detail="Not authorized to update this step log")
-
-    # Debug logging for auditing
-    logging.info(
-        "User %s updating step log %s with data: %s",
-        current_user.id,
-        step_log_id,
-        step_log_data.model_dump(exclude_unset=True)
+    
+    step_logger.info(
+        f"STEP_LOG UPDATE ATTEMPT | step_log_id={step_log_id} | user_id={current_user.id} | role={current_user.role} | changes={step_log_data.model_dump(exclude_unset=True)}"
     )
 
     # Admins can update any record; users restricted by user_id
@@ -81,13 +103,11 @@ def update_step_log(
         updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data)
     else:
         updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data, user_id=current_user.id)
-    # Print updated object for debugging
-    try:
-        print("[DEBUG] Updated step log:", StepLogResponse.model_validate(updated_step_log).model_dump(by_alias=True))
-    except Exception:
-        # Fallback minimal print to avoid breaking the request on print issues
-        print("[DEBUG] Updated step log (fallback): id=", getattr(updated_step_log, "id", None))
-    return updated_step_log
+
+    step_logger.info(
+        f"STEP_LOG UPDATED | step_log_id={updated_step_log.id} | updated_by={current_user.id}"
+    )
+
     return updated_step_log
 
 # Removed duplicate PUT "/" endpoint to prevent 307 redirects and route ambiguity
@@ -100,8 +120,16 @@ def delete_step_log(
 ):
     step_log = step_log_crud.get_step_log(db, step_log_id)
     if not step_log:
+        step_logger.warning(
+            f"STEP_LOG DELETE FAILED | step_log_id={step_log_id} | user_id={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Step Log not found")
-    success = step_log_crud.delete_step_log(db, step_log_id)
+
+    step_log_crud.delete_step_log(db, step_log_id)
+
+    step_logger.info(
+        f"STEP_LOG DELETED | step_log_id={step_log_id} | deleted_by={current_user.id}"
+    )
     return {"deleted": True}
 
 @router.get("/challenge/{challenge_id}/user/{user_id}", response_model=List[StepWeekResponse])

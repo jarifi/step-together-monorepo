@@ -15,6 +15,8 @@ from app.crud.challenge import get_active_challenge
 from app.models.user import User
 from app.schema.user import UserLogin, PasswordChange, PasswordResetConfirm, PasswordResetRequest
 
+from logfile import auth_logger
+
 
 router = APIRouter()
 
@@ -29,23 +31,37 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, user.email)
 
     if not db_user:
+        auth_logger.warning(
+            f"LOGIN FAILED | email={user.email} | reason=user_not_found"
+        )
         raise HTTPException(status_code=400, detail="Benutzer nicht gefunden.")
     
     if db_user.is_deleted:
         raise HTTPException(status_code=403, detail="Konto deaktiviert.")
     
     if db_user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+
+        auth_logger.error(
+            f"LOGIN BLOCKED | user_id={db_user.id} | email={user.email} | reason=too_many_attempts"
+        )
+
         raise HTTPException(status_code=403, detail="Konto gesperrt wegen zu vieler fehlgeschlagener Anmeldeversuche.")
     
     if not verify_password(user.password, db_user.hashed_password):
         db_user.failed_login_attempts += 1
         db.commit()
-        db.refresh(db_user)
+        # db.refresh(db_user)
+
+        auth_logger.warning(
+            f"LOGIN FAILED | user_id={db_user.id} | email={user.email} | reason=wrong_password | attempts={db_user.failed_login_attempts}"
+        )
+
         raise HTTPException(status_code=400, detail="Ungültige Anmeldedaten.")
     
     if db_user.failed_login_attempts > 0:
         db_user.failed_login_attempts = 0
         db.commit()
+
 
     team = get_team_by_user_id(db, db_user.id)
     team_id = team.id if team else None
@@ -54,6 +70,10 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if team_id:
         active_challenge = get_active_challenge(db, team_id)
         challenge_id = active_challenge.id if active_challenge else None
+
+    auth_logger.info(
+        f"LOGIN SUCCESS | user_id={db_user.id} | email={user.email} | team_id={team_id}"
+    )
 
     # Generate access token
     access_token = create_access_token(
