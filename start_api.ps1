@@ -1,3 +1,5 @@
+
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
 # Move to the project directory
 Set-Location "C:\Users\PC\python-projekte\step_together_api"
 
