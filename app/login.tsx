@@ -18,8 +18,10 @@ import { router } from 'expo-router';
 import { useUser } from '../context/UserContext';
 import { saveTokens, saveUserId, saveUserRole } from '../lib/auth';
 
-const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
+
+const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
+console.log("DEBUG: Current API URL is:", API_BASE_URL);
 export default function LoginScreen() {
   const [email, setEmail] = useState('bet@bfi.at');
   const [password, setPassword] = useState('StrongPassword123');
