@@ -81,7 +81,13 @@ def update_step_log(
         updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data)
     else:
         updated_step_log = step_log_crud.update_step_log(db, step_log_id, step_log_data, user_id=current_user.id)
-
+    # Print updated object for debugging
+    try:
+        print("[DEBUG] Updated step log:", StepLogResponse.model_validate(updated_step_log).model_dump(by_alias=True))
+    except Exception:
+        # Fallback minimal print to avoid breaking the request on print issues
+        print("[DEBUG] Updated step log (fallback): id=", getattr(updated_step_log, "id", None))
+    return updated_step_log
     return updated_step_log
 
 # Removed duplicate PUT "/" endpoint to prevent 307 redirects and route ambiguity
