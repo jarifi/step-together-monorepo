@@ -64,3 +64,12 @@ npm install react-native-reanimated@~3.10.1 react-native-worklets@0.5.1 --legacy
 # Allow scripts tu run
 
 (Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
+
+# Workaround for IP Problems
+
+Remove-Item -Recurse -Force $env:TEMP\metro-cache
+Remove-Item -Recurse -Force $env:TEMP\haste-map-\*
+Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+npm install
+npx react-native start --reset-cache
+npx expo start -c --lan
