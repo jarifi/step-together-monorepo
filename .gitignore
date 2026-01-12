@@ -91,3 +91,4 @@ gunicorn.log
 # Windows
 Thumbs.db
 ehthumbs.db
+start_api.ps1

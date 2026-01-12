@@ -1,7 +1,7 @@
 
 (Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
 # Move to the project directory
-Set-Location "C:\Users\PC\python-projekte\step_together_api"
+Set-Location "C:\Users\bfi.BFI-255FN73\python-projekte\step_together_api"
 
 # Activate the virtual environment
 # We use the call operator (&) to run the script
