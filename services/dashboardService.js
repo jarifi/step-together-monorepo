@@ -9,6 +9,34 @@ import {
 } from "./dto/dashboardDto";
 
 // ---------------------------------------------------------------------------
+// SAFE HELPERS
+// ---------------------------------------------------------------------------
+
+const toNonNegativeInt = (value) => {
+  const s = String(value ?? "").trim();
+  const digitsOnly = s.replace(/[^\d]/g, "");
+  const n = digitsOnly === "" ? 0 : parseInt(digitsOnly, 10);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+};
+
+const toDateOnly = (isoLike) => {
+  const d = fromIsoLocal(isoLike);
+  return d ? toIsoDate(d) : null;
+};
+
+const getStepLogId = (obj) =>
+  obj?.id ?? obj?.step_log_id ?? obj?.stepLogId ?? obj?.stepLogID ?? null;
+
+const toIsoUtcMidnight = (isoLike) => {
+  const d = fromIsoLocal(isoLike);
+  if (!d) return null;
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
+};
+
+// ---------------------------------------------------------------------------
 // DASHBOARD INIT
 // ---------------------------------------------------------------------------
 
@@ -36,10 +64,7 @@ export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) =
   if (!fromISO || !toISO) throw new Error("from/to ISO required");
 
   const path = `/step_logs/challenge/${challengeId}/user/${userId}?from=${fromISO}&to=${toISO}`;
-  
-  const result = await apiGet(path);
-  
-  return result;
+  return await apiGet(path);
 };
 
 // ---------------------------------------------------------------------------
@@ -64,53 +89,73 @@ export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
     toIsoDate(weekEnd)
   );
 
- 
-  const mapped = (logs ?? []).map((x) => {
+  return (logs ?? []).map((x) => {
     const d = fromIsoLocal(x.date);
-    const result = {
-      date: toIsoDate(d),
-      dayOfWeek: x.dayOfWeek || d.toLocaleDateString("en-US", { weekday: "long" }),
-      numberOfSteps: Number(x.numberOfSteps || 0),
-      step_log_id: x?.id ?? null,
+    const dateOnly = toDateOnly(x.date);
+
+    return {
+      date: dateOnly ?? (d ? toIsoDate(d) : null),
+      dayOfWeek:
+        x.dayOfWeek || (d ? d.toLocaleDateString("en-US", { weekday: "long" }) : ""),
+      numberOfSteps: Number(x.numberOfSteps ?? 0),
+      step_log_id: getStepLogId(x),
     };
-    return result;
   });
-  return mapped;
 };
 
 // ---------------------------------------------------------------------------
-// UPSERT STEP LOG
+// UPSERT STEP LOG (ABSOLUTE TOTAL!) + avoid iOS issues with 307/308 redirects
 // ---------------------------------------------------------------------------
 
-export const upsertStepsForDate = async (
-  userId,
-  dateISO,
-  absoluteSteps,
-  context // { challengeId, teamId }
-) => {
+const isRedirectStatus = (status) => status === 307 || status === 308;
+
+const putNoRedirect = async (pathNoSlash, body) => {
+  try {
+    // try without trailing slash
+    return await apiPut(pathNoSlash, body);
+  } catch (e) {
+    if (isRedirectStatus(e?.status)) {
+      // retry with trailing slash
+      return await apiPut(`${pathNoSlash}/`, body);
+    }
+    throw e;
+  }
+};
+
+const postNoRedirect = async (pathNoSlash, body) => {
+  try {
+    return await apiPost(pathNoSlash, body);
+  } catch (e) {
+    if (isRedirectStatus(e?.status)) {
+      return await apiPost(`${pathNoSlash}/`, body);
+    }
+    throw e;
+  }
+};
+
+export const upsertStepsForDate = async (userId, dateISO, absoluteSteps, context) => {
   if (!userId) throw new Error("userId required");
   if (!dateISO) throw new Error("dateISO required");
 
-  const numberOfSteps = Math.max(0, Number(absoluteSteps || 0));
-  console.log(`Upsert steps for user ${userId} on ${dateISO}: ${numberOfSteps} steps`);
+  const numberOfSteps = toNonNegativeInt(absoluteSteps);
 
-  // Check for existing StepLog
+  // Check for existing StepLog for that day
   const all = await listUserStepLogs(userId);
   const existing = (all ?? []).find((log) => inSameDayIso(log.date, dateISO));
+  const existingId = getStepLogId(existing);
 
-  // --- UPDATE ---------------------------------------------------------------
-  if (existing?.id) {
-    console.log("🟡 Taking UPDATE path for existing log:", existing.id);
-    return await apiPut(`/step_logs/${existing.id}`, {
-      numberOfSteps,
-    });
-  } else {
-    console.log("🟡 Taking CREATE path - no existing log found");
-    return await apiPost(`/step_logs`, {
-      challengeId: context.challengeId,
-      teamId: context.teamId,
-      date: toIsoDateTimeMidnight(dateISO),
-      numberOfSteps,
-    });
+  // --- UPDATE ---
+  if (existingId) {
+    return await putNoRedirect(`/step_logs/${existingId}`, { numberOfSteps });
   }
+
+  // --- CREATE ---
+  const dateUtcMidnight = toIsoUtcMidnight(dateISO) ?? toIsoDateTimeMidnight(dateISO);
+
+  return await postNoRedirect(`/step_logs/`, {
+    challengeId: context?.challengeId,
+    teamId: context?.teamId,
+    date: dateUtcMidnight,
+    numberOfSteps,
+  });
 };

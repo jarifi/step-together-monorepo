@@ -242,6 +242,16 @@ const Dashboard: React.FC = () => {
     return Number(d || 0);
   }, [vm?.challenge]);
 
+
+  // ---------- Date helpers (timezone-safe) ----------
+const toIsoUtcMidnight = (d: Date) => {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
+};
+
+
   // ========= Initial load & Retry =========
   const initFromMapped = (mapped: HomeInitDto | null) => {
     if (!mapped) {
@@ -388,68 +398,77 @@ const Dashboard: React.FC = () => {
   ]);
 
   // ---- Save Steps ----
-  const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
-    console.log('🟦 saveAbsoluteStepsForSelectedDay START:', newValue);
-    if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
+const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
+  console.log('🟦 saveAbsoluteStepsForSelectedDay START:', newValue);
 
-    const dateSafe = clampDate(displayDate, minDate, maxDate);
-    if (stripTime(dateSafe) > stripTime(new Date())) return; // keine Zukunft
+  if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
 
-    const idx = (dateSafe.getDay() + 6) % 7;
-    const dateISO = toISO(dateSafe);
+  const dateSafe = clampDate(displayDate, minDate, maxDate);
+  if (stripTime(dateSafe) > stripTime(new Date())) return; // keine Zukunft
 
-    const prev = [...weekSteps];
-    const next = [...weekSteps];
-    const beforeSave = prev[idx] ?? 0;
+  const idx = (dateSafe.getDay() + 6) % 7;
 
-    next[idx] = Math.max(0, Math.floor(newValue));
-    setWeekSteps(next);
-    setStepsToday(next[idx]);
+  // IMPORTANT: send UTC-midnight ISO to backend to avoid iPhone timezone shifting the date
+  const dateISO = toIsoUtcMidnight(dateSafe);
 
-    try {
-      const apiResponse = await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
-        challengeId: vm.challenge.id,
-        teamId: vm.team.id,
-      });
+  const prev = [...weekSteps];
+  const next = [...weekSteps];
+
+  next[idx] = Math.max(0, Math.floor(newValue));
+
+  // optimistic update
+  setWeekSteps(next);
+  setStepsToday(next[idx]);
+
+  try {
+    console.log('🟦 CALL upsertStepsForDate:', {
+      userId: vm.user.id,
+      challengeId: vm.challenge.id,
+      teamId: vm.team.id,
+      dateISO,
+      numberOfSteps: next[idx],
+    });
+
+    await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
+      challengeId: vm.challenge.id,
+      teamId: vm.team.id,
+    });
+
+    // Refresh once to sync UI with backend
+    await refreshWeek();
+  } catch (e) {
+    setWeekSteps(prev);
+    setStepsToday(prev[idx] ?? 0);
+    console.warn('Save steps failed:', e);
+  }
+};
 
 
+ const applyStepDelta = async (delta: number) => {
+  const dateSafe = clampDate(displayDate, minDate, maxDate);
+  if (stripTime(dateSafe) > stripTime(new Date())) return;
 
-      const beforeRefresh = [...weekSteps];
-      await refreshWeek();
+  const idx = (dateSafe.getDay() + 6) % 7;
+  const current = weekSteps[idx] ?? 0;
 
-      // Commented out loadInitial() as it might be causing the extra steps
-      // const beforeLoadInitial = [...weekSteps];
-      // await loadInitial();
-      // console.log('🟦 AFTER loadInitial - Before:', beforeLoadInitial[idx], 'After:', weekSteps[idx]);
+  console.log('🟨 applyStepDelta START', { delta, idx, current });
 
-    } catch (e) {
-      setWeekSteps(prev);
-      setStepsToday(prev[idx] ?? 0);
-      console.warn('Save steps failed:', e);
-    }
-  };
+  if (delta > 0) {
+    const add = Math.min(delta, MAX_STEP_DELTA);
+    const newTotal = current + add;
+    console.log('🟨 ADDING', { current, add, newTotal });
+    await saveAbsoluteStepsForSelectedDay(newTotal);
+    return;
+  }
 
-  const applyStepDelta = async (delta: number) => {
-    const dateSafe = clampDate(displayDate, minDate, maxDate);
-    if (stripTime(dateSafe) > stripTime(new Date())) return;
+  if (delta < 0) {
+    const remove = Math.min(current, Math.abs(delta));
+    const newTotal = current - remove;
+    console.log('🟨 REMOVING', { current, remove, newTotal });
+    await saveAbsoluteStepsForSelectedDay(newTotal);
+  }
+};
 
-    const idx = (dateSafe.getDay() + 6) % 7;
-    const current = weekSteps[idx] ?? 0;
-
-    console.log('🟨 applyStepDelta START - Delta:', delta, 'Current steps at index', idx, ':', current);
-
-    if (delta > 0) {
-      const add = Math.min(delta, MAX_STEP_DELTA);
-      const newTotal = current + add;
-      console.log('🟨 ADDING - Current:', current, '+ Delta:', add, '= New total:', newTotal);
-      await saveAbsoluteStepsForSelectedDay(newTotal);
-    } else if (delta < 0) {
-      const remove = Math.min(current, Math.abs(delta));
-      const newTotal = current - remove;
-      console.log('🟨 REMOVING - Current:', current, '- Delta:', remove, '= New total:', newTotal);
-      await saveAbsoluteStepsForSelectedDay(newTotal);
-    }
-  };
 
   // ========= Derived =========
   const weeklyMax = Math.max(1, ...weekSteps);
@@ -971,7 +990,9 @@ const Dashboard: React.FC = () => {
                     const num = parseInt(stepInput, 10);
                     const dateSafe = clampDate(displayDate, minDate, maxDate);
                     const idx = (dateSafe.getDay() + 6) % 7;
-                    const current = weekSteps[idx] ?? 0;
+                    const current = Number(weekSteps[idx] ?? 0);
+
+
                     if (!isNaN(num) && num > 0 && num <= current) {
                       setModalError(null);
                       await applyStepDelta(-num);

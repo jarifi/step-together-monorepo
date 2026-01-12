@@ -1,11 +1,7 @@
 // file: services/api.js
 
 import Constants from 'expo-constants';
-import {
-  getAccessToken,
-  refreshAccessToken,
-  removeTokens
-} from '../lib/auth';
+import { getAccessToken, refreshAccessToken, removeTokens } from '../lib/auth';
 
 const API_BASE_URL = String(Constants.expoConfig?.extra?.apiBaseUrl ?? '').replace(/\/+$/, '');
 
@@ -15,7 +11,6 @@ let refreshPromise = null; // Promise that resolves when refresh finished
 
 const waitForRefresh = async () => {
   if (!isRefreshing) return;
-  // wait for existing refreshPromise to settle
   try {
     await refreshPromise;
   } catch {
@@ -26,7 +21,6 @@ const waitForRefresh = async () => {
 // --- Utility: join path to base ---
 const buildUrl = (path) => {
   if (!path) throw new Error('Path is required');
-  // allow path with or without leading slash
   const p = String(path).replace(/^\/+/, '');
   return `${API_BASE_URL}/${p}`;
 };
@@ -37,24 +31,43 @@ const tryParseJson = async (res) => {
   try {
     return text ? JSON.parse(text) : null;
   } catch {
-    // fallback: return raw text
     return text || null;
   }
+};
+
+// --- Debug helpers ---
+const safeBodyPreview = (body) => {
+  if (!body) return '';
+  if (typeof body === 'string') return body.length > 300 ? body.slice(0, 300) + '…' : body;
+  if (body instanceof FormData) return '[FormData]';
+  try {
+    const s = JSON.stringify(body);
+    return s.length > 300 ? s.slice(0, 300) + '…' : s;
+  } catch {
+    return '[Unserializable body]';
+  }
+};
+
+const logReq = (url, options) => {
+  const method = (options?.method ?? 'GET').toUpperCase();
+  const auth = options?.headers?.Authorization ? 'yes' : 'no';
+  console.log(`➡️ [API] ${method} ${url} (auth=${auth}) body=${safeBodyPreview(options?.body)}`);
+};
+
+const logRes = (url, res) => {
+  console.log(`⬅️ [API] ${res.status} ${res.statusText || ''} ${url}`);
 };
 
 // --- Core fetch with auth and automatic refresh/retry ---
 const authedFetch = async (path, options = {}, retry = true) => {
   if (!API_BASE_URL) throw new Error('Missing API_BASE_URL (expo constants)');
 
-  // Build URL
   const url = path.startsWith('http') ? path : buildUrl(path);
 
-  // Ensure headers object
   options.headers = options.headers ? { ...options.headers } : {};
 
   // Always load the latest token from storage
   let token = await getAccessToken();
-
   if (token) {
     options.headers.Authorization = `Bearer ${token}`;
   }
@@ -67,53 +80,83 @@ const authedFetch = async (path, options = {}, retry = true) => {
     options.headers.Accept = 'application/json';
   }
 
-  const res = await fetch(url, options);
+  // Always explicitly follow redirects (default is 'follow', but log clarity helps)
+  if (!options.redirect) options.redirect = 'follow';
+
+  // ---- REQUEST LOG ----
+  logReq(url, options);
+
+  let res;
+  try {
+    res = await fetch(url, options);
+  } catch (fetchErr) {
+    console.error('❌ [API] fetch() threw (network/SSL/etc):', fetchErr, 'URL:', url);
+    throw fetchErr;
+  }
+
+  // ---- RESPONSE LOG ----
+  logRes(url, res);
 
   // If 401 and retry allowed => try refresh (single concurrent refresh)
   if (res.status === 401 && retry) {
-    // If there's already a refresh happening, wait for it
+    console.warn('🟠 [API] 401 received, attempting token refresh…');
+
     if (isRefreshing) {
+      console.warn('🟠 [API] refresh already in progress; waiting…');
       await waitForRefresh();
     } else {
-      // start refresh
       isRefreshing = true;
       refreshPromise = (async () => {
         try {
           const newToken = await refreshAccessToken(API_BASE_URL);
           if (!newToken) {
-            // Refresh failed -> clear stored tokens
             await removeTokens();
             throw new Error('Unable to refresh token');
           }
+          console.warn('🟢 [API] token refresh success');
           return newToken;
         } finally {
           isRefreshing = false;
           refreshPromise = null;
         }
       })();
+
       try {
         await refreshPromise;
       } catch (err) {
-        // refresh failed: rethrow below after cleanup
+        console.error('🔴 [API] token refresh failed:', err);
       }
     }
 
-    // After refresh attempt, read token again
     const newToken = await getAccessToken();
     if (!newToken) {
-      // nothing we can do — credentials invalid
       const payload = await tryParseJson(res);
       const err = new Error('Unauthorized');
       err.status = 401;
       err.payload = payload;
+      console.error('🔴 [API] retry aborted: no new token', payload);
       throw err;
     }
 
     // Retry the original request exactly once with new token
-    options.headers = { ...options.headers, Authorization: `Bearer ${newToken}` };
-    const retryRes = await fetch(url, options);
+    const retryOptions = {
+      ...options,
+      headers: { ...options.headers, Authorization: `Bearer ${newToken}` },
+    };
 
-    // Parse payload
+    console.warn('🟡 [API] retrying request once after refresh…');
+    logReq(url, retryOptions);
+
+    let retryRes;
+    try {
+      retryRes = await fetch(url, retryOptions);
+    } catch (fetchErr2) {
+      console.error('❌ [API] retry fetch() threw:', fetchErr2, 'URL:', url);
+      throw fetchErr2;
+    }
+
+    logRes(url, retryRes);
+
     const payload = await tryParseJson(retryRes);
     if (!retryRes.ok) {
       const err = new Error(
@@ -121,6 +164,7 @@ const authedFetch = async (path, options = {}, retry = true) => {
       );
       err.status = retryRes.status;
       err.payload = payload;
+      console.error('🔴 [API] retry failed:', err.status, payload);
       throw err;
     }
     return payload;
@@ -130,13 +174,13 @@ const authedFetch = async (path, options = {}, retry = true) => {
   const payload = await tryParseJson(res);
 
   if (!res.ok) {
-    // If server responded non-OK, create error with status + payload
     const err = new Error(
       (payload && (payload.message || payload.detail)) ||
         (Array.isArray(payload?.detail) ? JSON.stringify(payload.detail) : `HTTP ${res.status}`)
     );
     err.status = res.status;
     err.payload = payload;
+    console.error('🔴 [API] request failed:', err.status, payload);
     throw err;
   }
 
@@ -144,10 +188,7 @@ const authedFetch = async (path, options = {}, retry = true) => {
 };
 
 // --- Public API helpers ---
-
-export const apiGet = async (path) => {
-  return authedFetch(path, { method: 'GET' }, true);
-};
+export const apiGet = async (path) => authedFetch(path, { method: 'GET' }, true);
 
 export const apiPost = async (path, bodyObj = {}) => {
   const body = bodyObj instanceof FormData ? bodyObj : JSON.stringify(bodyObj);
@@ -161,15 +202,25 @@ export const apiPut = async (path, bodyObj = {}) => {
   return authedFetch(path, { method: 'PUT', headers, body }, true);
 };
 
-export const apiDelete = async (path) => {
-  return authedFetch(path, { method: 'DELETE' }, true);
-};
+export const apiDelete = async (path) => authedFetch(path, { method: 'DELETE' }, true);
 
 // Optional helper: call non-auth endpoint (public)
 export const publicGet = async (path) => {
   if (!API_BASE_URL) throw new Error('Missing API_BASE_URL (expo constants)');
   const url = path.startsWith('http') ? path : buildUrl(path);
-  const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+
+  console.log(`➡️ [API] GET (public) ${url}`);
+
+  let res;
+  try {
+    res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  } catch (fetchErr) {
+    console.error('❌ [API] public fetch() threw:', fetchErr, 'URL:', url);
+    throw fetchErr;
+  }
+
+  logRes(url, res);
+
   const payload = await tryParseJson(res);
   if (!res.ok) {
     const err = new Error((payload && payload.message) || `HTTP ${res.status}`);
