@@ -38,10 +38,6 @@ def read_all_step_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    
-    step_logger.info(
-        f"STEP_LOG READ_ALL | requested_by={current_user.id} | role={current_user.role}"
-    )
 
     return step_log_crud.get_all_step_logs(db)
 
@@ -58,9 +54,6 @@ def read_step_log(
         )
         raise HTTPException(status_code=404, detail="Step Log not found")
 
-    step_logger.info(
-        f"STEP_LOG READ | step_log_id={step_log_id} | requested_by={current_user.id}"
-    )
     return step_log
 
 @router.get("/user/{user_id}", response_model=List[StepLogResponse])
@@ -142,8 +135,11 @@ def read_step_logs_by_user_and_date_range(
     current_user: User = Depends(get_current_user)
 ):
     if current_user.id != user_id:
+        step_logger.warning(
+            f"STEP_LOG READ DENIED | requested_user={user_id} | by_user={current_user.id} | challenge_id={challenge_id}"
+        )
         raise HTTPException(status_code=403, detail="Not authorized to view this user's steps")
-    
+        
     return step_log_crud.get_step_logs_by_user_and_date_range(
         db=db,
         user_id=user_id,

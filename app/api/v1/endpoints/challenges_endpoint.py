@@ -14,6 +14,8 @@ from app.crud import challenge as challenge_crud
 from app.core.security import get_current_user
 from app.models.user import User
 
+from logfile import challenge_logger
+
 router = APIRouter(tags=["challenges"])
 
 
@@ -27,7 +29,14 @@ def create_challenge(
     challenge_data = challenge.model_copy(
         update={"creator_id": current_user.id}
     )
-    return challenge_crud.create_challenge(db, challenge_data)
+
+    result = challenge_crud.create_challenge(db, challenge_data)
+
+    challenge_logger.info(
+        f"CHALLENGE CREATED | challenge_id={result.id} | created_by={current_user.id}"
+    )
+
+    return result
 
 
 @router.get("/", response_model=List[ChallengeResponse])
@@ -59,6 +68,9 @@ def read_challenge(
 ):
     challenge = challenge_crud.get_challenge(db, challenge_id)
     if not challenge:
+        challenge_logger.info(
+            f"CHALLENGE READ | challenge_id={challenge_id} | requested_by={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Challenge not found")
     return challenge
 
@@ -70,11 +82,25 @@ def update_challenge(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    
+    challenge_logger.info(
+        f"CHALLENGE UPDATE ATTEMPT | challenge_id={challenge_id} | user_id={current_user.id} | changes={challenge_data.model_dump(exclude_unset=True)}"
+    )
+
     updated_challenge = challenge_crud.update_challenge(
         db, challenge_id, challenge_data
     )
+
     if not updated_challenge:
+        challenge_logger.warning(
+            f"CHALLENGE UPDATE FAILED | challenge_id={challenge_id} | user_id={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Challenge not found")
+    
+    challenge_logger.info(
+        f"CHALLENGE UPDATED | challenge_id={challenge_id} | updated_by={current_user.id}"
+    )
+
     return updated_challenge
 
 
@@ -86,7 +112,15 @@ def delete_challenge(
 ):
     success = challenge_crud.delete_challenge(db, challenge_id)
     if not success:
+        challenge_logger.warning(
+            f"CHALLENGE DELETE FAILED | challenge_id={challenge_id} | user_id={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Challenge not found")
+    
+    challenge_logger.info(
+        f"CHALLENGE DELETED | challenge_id={challenge_id} | deleted_by={current_user.id}"
+    )
+
     return None
 
 
@@ -98,5 +132,8 @@ def read_challenge_teams(
 ):
     teams = challenge_crud.get_teams_for_challenge(db, challenge_id)
     if teams is None:
+        challenge_logger.warning(
+            f"CHALLENGE TEAMS READ FAILED | challenge_id={challenge_id} | requested_by={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Challenge not found")
     return teams

@@ -10,6 +10,8 @@ from app.crud import team_member as team_member_crud
 from app.core.security import get_current_user
 from app.models.user import User
 
+from logfile import team_member_logger
+
 router = APIRouter(tags=["team_members"])
 
 
@@ -19,11 +21,17 @@ def create_team_member(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return team_member_crud.create_team_member(
+    created = team_member_crud.create_team_member(
         db=db,
         team_id=member.team_id,
         user_id=current_user.id
     )
+    
+    team_member_logger.info(
+        f"TEAM_MEMBER CREATED | team_id={member.team_id} | user_id={current_user.id} | member_id={created.id}"
+    )
+
+    return created
 
 
 @router.get("/", response_model=List[TeamMemberResponse])
@@ -50,6 +58,9 @@ def read_team_member(
 ):
     member = team_member_crud.get_team_member(db, member_id)
     if not member:
+        team_member_logger.warning(
+            f"TEAM_MEMBER READ FAILED | member_id={member_id} | requested_by={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Team member not found")
     return member
 
@@ -62,5 +73,13 @@ def delete_team_member(
 ):
     success = team_member_crud.delete_team_member(db, member_id)
     if not success:
+        team_member_logger.warning(
+            f"TEAM_MEMBER DELETE FAILED | member_id={member_id} | attempted_by={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Team member not found")
+    
+    team_member_logger.info(
+        f"TEAM_MEMBER DELETED | member_id={member_id} | deleted_by={current_user.id}"
+    )
+
     return {"deleted": True}

@@ -17,6 +17,8 @@ from app.models.step_log import StepLog
 
 from app.schema.team_member import TeamMemberSimple
 
+from logfile import team_logger
+
 router = APIRouter(tags=["teams"])
 
 @router.post("/", response_model=TeamSchema, status_code=status.HTTP_201_CREATED)
@@ -25,7 +27,15 @@ def create_team(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),  # Auth required
 ):
-    return team_crud.create_team(db, team, creator_id=current_user.id)
+    
+    created_team = team_crud.create_team(db, team, creator_id=current_user.id)
+    
+    team_logger.info(
+        f"TEAM CREATED | team_id={created_team.id} | creator_id={current_user.id}"
+    )
+    
+
+    return created_team
 
 @router.get("/", response_model=List[TeamSchema])
 def read_teams(
@@ -44,6 +54,9 @@ def read_team(
 ):
     team = team_crud.get_team(db, team_id)
     if not team:
+        team_logger.warning(
+            f"TEAM READ FAILED | team_id={team_id} | user_id={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Team not found")
     return team
 
@@ -56,8 +69,16 @@ def update_team(
 ):
     team = team_crud.get_team(db, team_id)
     if not team:
+        team_logger.warning(
+            f"TEAM READ FAILED | team_id={team_id} | user_id={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Team not found")
     updated_team = team_crud.update_team(db, team_id, team_update)
+
+    team_logger.info(
+        f"TEAM UPDATED | team_id={team_id} | updated_by={current_user.id} | data={team_update.model_dump(exclude_unset=True)}"
+    )
+
     return updated_team
 
 @router.delete("/{team_id}", status_code=status.HTTP_200_OK)
@@ -68,12 +89,21 @@ def delete_team(
 ):
     team = team_crud.get_team(db, team_id)
     if not team:
+        team_logger.warning(
+            f"TEAM READ FAILED | team_id={team_id} | user_id={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Team not found")
     if team.creator_id != current_user.id:
+        team_logger.warning(
+            f"TEAM DELETE DENIED | team_id={team_id} | user_id={current_user.id}"
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this team")
-    success = team_crud.delete_team(db, team_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Team not found")
+    team_crud.delete_team(db, team_id)
+
+    team_logger.info(
+        f"TEAM DELETED | team_id={team_id} | deleted_by={current_user.id}"
+    )
+
     return {"deleted": True}
 
 @router.get("/members/active_challenge/{team_id}/{challenge_id}", response_model=List[TeamMemberChallengeSteps])
@@ -87,6 +117,9 @@ def get_team_members_challenge_steps(
         db.query(ChallengeTeam).filter(ChallengeTeam.team_id == team_id, ChallengeTeam.challenge_id == challenge_id,).first()
     )
     if not challenge_team:
+        team_logger.warning(
+            f"TEAM_MEMBERS ACTIVE_CHALLENGE FAILED | team_id={team_id} | challenge_id={challenge_id} | requested_by={current_user.id} | reason=team_not_in_challenge"
+        )
         raise HTTPException(status_code=404, detail="This team is not part of the challange") 
     results = (
         db.query(
@@ -118,10 +151,16 @@ def add_user_to_team(
 ):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
+        team_logger.warning(
+            f"TEAM MEMBER ADD FAILED | team_id={team_id} | attempted_by={current_user.id} | reason=team_not_found"
+        )
         raise HTTPException(status_code=404, detail="Team not found.")
     
     user = db.query(User).filter(User.id == request.user_id).first()
     if not user:
+        team_logger.warning(
+            f"TEAM MEMBER ADD FAILED | team_id={team_id} | attempted_by={current_user.id} | added_user={request.user_id} | reason=user_not_found"
+        )
         raise HTTPException(status_code=404, detail="User not found.")
     
     existing = (
@@ -130,12 +169,19 @@ def add_user_to_team(
         .first()
     )
     if existing:
+        team_logger.warning(
+            f"TEAM MEMBER ADD FAILED | team_id={team_id} | attempted_by={current_user.id} | added_user={request.user_id} | reason=already_member"
+        )
         raise HTTPException(status_code=400, detail="User is already a member of this team.")
     
     new_member = TeamMember(team_id=team_id, user_id=request.user_id)
     db.add(new_member)
     db.commit()
-    db.refresh(new_member)
+    #db.refresh(new_member)
+
+    team_logger.info(
+        f"TEAM MEMBER ADDED | team_id={team_id} | added_user={request.user_id} | by_user={current_user.id}"
+    )
 
     return {"message": f"User {request.user_id} joined team {team_id}"}
 

@@ -15,6 +15,9 @@ from app.crud.challenge import get_active_challenge
 from app.crud.step_log import get_steps_for_current_week
 from app.crud.user import get_user
 from app.schema.HomeInitResponse import UserDashboardResponse
+
+from logfile import user_logger
+
 # Define the APIRouter for user-related endpoints
 router = APIRouter(tags=["users"])
 
@@ -69,6 +72,9 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     """
     db_user = user_crud.get_user(db, user_id)
     if not db_user:
+        user_logger.warning(
+            f"USER READ FAILED | user_id={user_id}"
+        )
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
@@ -79,7 +85,14 @@ def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
     Create a new user.
     Expected path: /api/v1/users/
     """
-    return user_crud.create_user(db, user)
+
+    created_user = user_crud.create_user(db, user)
+
+    user_logger.info(
+        f"USER CREATED | user_id={created_user.id}"
+    )
+
+    return created_user
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -95,10 +108,12 @@ def update_existing_user(
     - Admins: can update ANY user
     """
 
-    print("Current User ID:", current_user.id, "Role:", current_user.role)
-
     # Check permission
     if current_user.role != "admin" and current_user.id != user_id:
+        user_logger.warning(
+            f"USER UPDATE FORBIDDEN | target_user_id={user_id} | attempted_by={current_user.id}"
+        )
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this user's profile"
@@ -107,7 +122,14 @@ def update_existing_user(
     # Update user
     updated_user = user_crud.update_user(db, user_id, user_data)
     if not updated_user:
+        user_logger.warning(
+            f"USER UPDATE FAILED | user_id={user_id} | reason=not_found"
+        )
         raise HTTPException(status_code=404, detail="User not found")
+    
+    user_logger.info(
+        f"USER UPDATED | target_user_id={user_id} | updated_by={current_user.id} | changes={user_data.model_dump(exclude_unset=True)}"
+    )
 
     return updated_user
 
@@ -128,7 +150,15 @@ def delete_existing_user(
     #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this user's account")
     success = user_crud.delete_user(db, user_id)
     if not success:
+        user_logger.warning(
+            f"USER DELETE FAILED | user_id={user_id} | attempted_by={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="User not found")
+    
+    user_logger.info(
+        f"USER DELETED | user_id={user_id} | deleted_by={current_user.id}"
+    )
+
     return {"deleted": True}
 
 @router.get("/user/dashboard/init", response_model=UserDashboardResponse)
@@ -168,6 +198,10 @@ async def upload_profile_picture(
 
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
+
+    user_logger.info(
+        f"PROFILE PICTURE UPLOAD | user_id={current_user.id} | content_type={file.content_type}"
+    )
 
     return {
         "message": "Profile picture uploaded successfully",
