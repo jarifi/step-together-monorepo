@@ -1,6 +1,6 @@
 // file: app/login.tsx
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -16,58 +16,46 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 
 import { useUser } from '../context/UserContext';
+import { useLogin } from '../hooks/useLogin';
 import { saveTokens, saveUserId, saveUserRole } from '../lib/auth';
+import { isValidEmail } from '../services/authClient';
 
 
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
-console.log("DEBUG: Current API URL is:", API_BASE_URL);
+if (__DEV__) {
+  console.log("DEBUG: Current API URL is:", API_BASE_URL);
+}
 export default function LoginScreen() {
   const [email, setEmail] = useState('bet@bfi.at');
   const [password, setPassword] = useState('StrongPassword123');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { setUser, setToken, setUserId } = useUser();
 
+  const { mutateAsync: loginMutate, isPending } = useLogin({ baseUrl: API_BASE_URL });
+
   const handleLogin = async () => {
+    if (isPending) return;
     setErrorMessage(null);
 
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    // Minimal client-side validation to avoid unnecessary requests
+    const emailLooksValid = isValidEmail(trimmedEmail);
+    if (!emailLooksValid) {
+      showError('Bitte gültige E-Mail eingeben');
+      return;
+    }
+    if (!trimmedPassword) {
+      showError('Bitte gültiges Passwort eingeben');
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        let message = 'Login fehlgeschlagen';
-
-        if (Array.isArray(data.detail)) {
-          message = data.detail
-            .map((d: any) => {
-              const field = d.loc?.[1];
-              if (field === 'email') return 'Bitte gültige E-Mail eingeben';
-              if (field === 'password') return 'Bitte gültiges Passwort eingeben';
-              return d.msg;
-            })
-            .join('\n');
-        } else if (data.detail) {
-          message = data.detail;
-        }
-
-        showError(message);
-        return;
-      }
-
-      if (!data.accessToken || !data.refreshToken || !data.userId) {
-        showError('Login fehlgeschlagen');
-        return;
-      }
+      const data = await loginMutate({ email: trimmedEmail, password: trimmedPassword });
 
       await saveTokens(data.accessToken, data.refreshToken);
       await saveUserId(String(data.userId));
@@ -75,36 +63,51 @@ export default function LoginScreen() {
       setToken(data.accessToken);
       setUserId(String(data.userId));
 
-      // Save user role from the root level of response
       if (data.role) {
         await saveUserRole(data.role);
-        console.log('✅ Login - Role saved to AsyncStorage:', data.role);
-      } else {
+        if (__DEV__) {
+          console.log('✅ Login - Role saved:', data.role);
+        }
+      } else if (__DEV__) {
         console.log('⚠️ Login - No role found in response data');
       }
 
-      // The response doesn't contain a user object, so create one
       const userObject = {
         id: data.userId,
-        email: email, // Use the email from login form
+        email: trimmedEmail,
         role: data.role,
         teamId: data.teamId,
-        activeChallengeId: data.activeChallengeId
+        activeChallengeId: data.activeChallengeId,
       };
 
       setUser(userObject);
-      console.log('🔍 Login - User data created:', userObject);
+      if (__DEV__) {
+        console.log('🔍 Login - User data created:', userObject);
+      }
 
       router.replace('/dashboard');
     } catch (err: any) {
-      showError(err.message ?? 'Unbekannter Fehler');
+      const message = err?.message ?? 'Unbekannter Fehler';
+      showError(message);
     }
   };
 
   const showError = (message: string) => {
     setErrorMessage(message);
-    setTimeout(() => setErrorMessage(null), 3000);
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current as unknown as number);
+    }
+    errorTimerRef.current = setTimeout(() => setErrorMessage(null), 3000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current as unknown as number);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <View style={styles.background}>
@@ -130,7 +133,10 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
             keyboardType="email-address"
+            testID="login-email"
           />
 
           <TextInput
@@ -140,14 +146,24 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            testID="login-password"
           />
 
           {errorMessage && (
-            <Text style={styles.error}>{errorMessage}</Text>
+            <Text style={styles.error} testID="login-error">{errorMessage}</Text>
           )}
 
-          <Pressable style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Einloggen</Text>
+          <Pressable
+            style={[styles.button, isPending && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={isPending}
+            accessibilityState={{ disabled: isPending }}
+            accessibilityRole="button"
+            testID="login-submit"
+          >
+            <Text style={styles.buttonText}>{isPending ? 'Wird eingeloggt…' : 'Einloggen'}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -210,6 +226,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 8,
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
   },
 
   buttonText: {

@@ -1,5 +1,6 @@
 //file: app/_layout.tsx
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -10,6 +11,7 @@ import { useColorScheme } from '../hooks/useColorScheme';
 import { isLoggedIn } from '../lib/auth';
 
 export default function RootLayout() {
+  const queryClient = new QueryClient();
   const colorScheme = useColorScheme();
   const pathname = usePathname();
 
@@ -40,16 +42,18 @@ export default function RootLayout() {
 
   return (
     <UserProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {showSidebar && <Sidebar />}
-        <Stack initialRouteName="login">
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="dashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
-        <Toast />
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          {showSidebar && <Sidebar />}
+          <Stack initialRouteName="login">
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="dashboard" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style="auto" />
+          <Toast />
+        </ThemeProvider>
+      </QueryClientProvider>
     </UserProvider>
   );
 }
