@@ -38,15 +38,13 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
   }, [SIDEBAR_WIDTH, onWidthChange]);
 
   const { user, setUser, setToken, setUserId } = useUser();
-
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [isOpenLocal, setIsOpenLocal] = useState(false);
 
-  // Tablet: always open
   const isOpen = isTablet ? true : (isOpenExternal ?? isOpenLocal);
 
-  const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+  const slideAnim = useRef(new Animated.Value(isTablet ? 0 : -SIDEBAR_WIDTH)).current;
 
   useEffect(() => {
     const loadRole = async () => {
@@ -57,15 +55,20 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
   }, []);
 
   useEffect(() => {
+    if (isTablet) {
+      slideAnim.setValue(0);
+      return;
+    }
+
     Animated.timing(slideAnim, {
       toValue: isOpen ? 0 : -SIDEBAR_WIDTH,
       duration: 260,
       useNativeDriver: true,
     }).start();
-  }, [SIDEBAR_WIDTH, isOpen, slideAnim]);
+  }, [SIDEBAR_WIDTH, isOpen, slideAnim, isTablet]);
 
   const toggleSidebar = () => {
-    if (isTablet) return; 
+    if (isTablet) return;
 
     if (onToggle) {
       onToggle();
@@ -81,7 +84,6 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
       if (isOpen) onToggle();
       return;
     }
-
     setIsOpenLocal(false);
   };
 
@@ -136,7 +138,7 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
 
   return (
     <>
-      {/* Header burger only on phone */}
+      {/* Burger only on phone */}
       {!isTablet && (
         <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
           <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
@@ -188,8 +190,7 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
 
           <View style={styles.separator} />
 
-          {userRole === 'admin' &&
-            renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
+          {userRole === 'admin' && renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
 
           {renderNavLink('/settings/settings', 'Einstellungen', 'settings', MaterialIcons)}
 

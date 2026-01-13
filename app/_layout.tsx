@@ -29,7 +29,7 @@ export default function RootLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
 
-  // animated push for content
+  // animated push for content (TABLET ONLY)
   const contentLeft = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -56,14 +56,18 @@ export default function RootLayout() {
   }, [pathname]);
 
   useEffect(() => {
-    const target = showSidebar ? (isTablet ? sidebarWidth : sidebarOpen ? sidebarWidth : 0) : 0;
+    const target = showSidebar ? (isTablet ? sidebarWidth : 0) : 0;
 
     Animated.timing(contentLeft, {
       toValue: target,
       duration: 260,
-      useNativeDriver: false, 
+      useNativeDriver: false,
     }).start();
-  }, [showSidebar, isTablet, sidebarOpen, sidebarWidth, contentLeft]);
+  }, [showSidebar, isTablet, sidebarWidth, contentLeft]);
+
+  useEffect(() => {
+    if (isTablet) setSidebarOpen(false);
+  }, [isTablet]);
 
   const showPill = useMemo(() => {
     if (!showSidebar) return false;
@@ -80,7 +84,7 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           {showSidebar && (
             <Sidebar
-              isOpen={sidebarOpen}
+              isOpen={isTablet ? true : sidebarOpen}
               onToggle={() => setSidebarOpen((v) => !v)}
               onWidthChange={setSidebarWidth}
             />
