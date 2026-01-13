@@ -2,13 +2,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Image,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
 import { updateUser } from '../../services/userService';
@@ -27,7 +29,7 @@ const ProfileUpdateScreen: React.FC = () => {
 
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [stepLength, setStepLength] = useState<string>(''); 
+  const [stepLength, setStepLength] = useState<string>('');
   const [role, setRole] = useState<string>('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -114,7 +116,7 @@ const ProfileUpdateScreen: React.FC = () => {
     }
   };
 
-  const initials: string =
+  const initials =
     name
       ?.split(' ')
       .filter(Boolean)
@@ -129,124 +131,132 @@ const ProfileUpdateScreen: React.FC = () => {
       : undefined;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        {/* ========= USER-HEADER MIT INFOS ========= */}
-        <View style={styles.profileHeader}>
-          <Pressable style={styles.avatarCircle} onPress={handlePickImage}>
-            {imageUri ? (
-              <Image
-                source={{ uri: imageUri }}
-                style={styles.avatarImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Text style={styles.avatarInitials}>{initials || '??'}</Text>
-            )}
-          </Pressable>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+      >
+        <View style={styles.card}>
+          {/* ========= USER-HEADER ========= */}
+          <View style={styles.profileHeader}>
+            <Pressable style={styles.avatarCircle} onPress={handlePickImage}>
+              {imageUri ? (
+                <Image
+                  source={{ uri: imageUri }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarInitials}>{initials || '??'}</Text>
+              )}
+            </Pressable>
 
-          <Text style={styles.profileName}>{name || 'Dein Name'}</Text>
+            <Text style={styles.profileName}>{name || 'Dein Name'}</Text>
 
-          <View style={styles.emailBadge}>
-            <Text style={styles.emailBadgeText}>
-              {email || 'email@example.com'}
-            </Text>
-          </View>
-
-          {/* nur Infos (read-only) */}
-          <View style={styles.extraInfoBox}>
-            {user?.id != null && (
-              <Text style={styles.extraInfoText}>User-ID: {user.id}</Text>
-            )}
-            {createdAtText && (
-              <Text style={styles.extraInfoText}>
-                Registriert: {createdAtText}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {/* ========= EDIT-FORM ========= */}
-        <View style={styles.formSection}>
-          {/* Name */}
-          <View style={styles.fieldWrapper}>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Name"
-              style={styles.input}
-              editable={!loading}
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          {/* E-Mail */}
-          <View style={styles.fieldWrapper}>
-            <Text style={styles.label}>E-Mail</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="E-Mail"
-              style={styles.input}
-              editable={!loading}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          {/* Schrittlänge */}
-          <View style={styles.fieldWrapper}>
-            <Text style={styles.label}>Schrittlänge (Meter)</Text>
-            <TextInput
-              value={stepLength}
-              onChangeText={setStepLength}
-              placeholder="z.B. 0.78"
-              style={styles.input}
-              editable={!loading}
-              keyboardType="decimal-pad"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          {/* Passwort ändern */}
-          <Pressable style={styles.passwordRow} onPress={() => { router.push('/settings/password')}}>
-            <View>
-              <Text style={styles.passwordLabel}>Passwort ändern</Text>
-              <Text style={styles.passwordHint}>
-                Sicherheit deines Kontos verwalten
+            <View style={styles.emailBadge}>
+              <Text style={styles.emailBadgeText}>
+                {email || 'email@example.com'}
               </Text>
             </View>
-            <Text style={styles.passwordChevron}>›</Text>
-          </Pressable>
 
-          {/* Update-Button */}
-          <Pressable
-            onPress={handleUpdate}
-            disabled={loading}
-            style={[styles.updateButton, loading && styles.disabledButton]}
-          >
-            <Text style={styles.updateText}>
-              {loading ? 'Aktualisierung...' : 'Aktualisieren'}
-            </Text>
-          </Pressable>
+            <View style={styles.extraInfoBox}>
+              {user?.id != null && (
+                <Text style={styles.extraInfoText}>User-ID: {user.id}</Text>
+              )}
+              {createdAtText && (
+                <Text style={styles.extraInfoText}>
+                  Registriert: {createdAtText}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* ========= FORM ========= */}
+          <View style={styles.formSection}>
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                style={styles.input}
+                editable={!loading}
+                placeholder="Name"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.label}>E-Mail</Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                style={styles.input}
+                editable={!loading}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholder="E-Mail"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.label}>Schrittlänge (Meter)</Text>
+              <TextInput
+                value={stepLength}
+                onChangeText={setStepLength}
+                style={styles.input}
+                editable={!loading}
+                keyboardType="decimal-pad"
+                placeholder="z.B. 0.78"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <Pressable
+              style={styles.passwordRow}
+              onPress={() => router.push('/settings/password')}
+            >
+              <View>
+                <Text style={styles.passwordLabel}>Passwort ändern</Text>
+                <Text style={styles.passwordHint}>
+                  Sicherheit deines Kontos verwalten
+                </Text>
+              </View>
+              <Text style={styles.passwordChevron}>›</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleUpdate}
+              disabled={loading}
+              style={[styles.updateButton, loading && styles.disabledButton]}
+            >
+              <Text style={styles.updateText}>
+                {loading ? 'Aktualisierung...' : 'Aktualisieren'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 export default ProfileUpdateScreen;
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: '#f0f5efff',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 50,
+    paddingBottom: 32,
     alignItems: 'center',
-    justifyContent: 'flex-start',
   },
   card: {
     width: '100%',
