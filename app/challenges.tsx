@@ -145,7 +145,7 @@ export default function OpenChallengesScreen() {
           <View style={styles.accentLine} />
           <Text style={styles.heroTitle}>Challenges</Text>
           <Text style={styles.heroSub}>
-            Offene & kommende Wettbewerbe. Beweg dich gemeinsam mit anderen.
+             Beweg dich gemeinsam mit anderen.
           </Text>
 
           {Tabs}
@@ -177,8 +177,6 @@ export default function OpenChallengesScreen() {
   if (loadingInitial && challenges.length === 0) {
     return (
       <View style={styles.loadingWrap}>
-        <View pointerEvents="none" style={styles.bgBlobA} />
-        <View pointerEvents="none" style={styles.bgBlobB} />
         <ActivityIndicator size="large" />
         <Text style={styles.loadingText}>Lade Challenges…</Text>
       </View>
@@ -254,26 +252,6 @@ const styles = StyleSheet.create({
     maxWidth: IS_WEB ? 960 : 520,
     alignSelf: 'center',
     paddingHorizontal: 16,
-  },
-
-  // Background decor
-  bgBlobA: {
-    position: 'absolute',
-    top: -60,
-    right: -90,
-    width: 240,
-    height: 240,
-    borderRadius: 140,
-    backgroundColor: 'rgba(85,128,92,0.10)',
-  },
-  bgBlobB: {
-    position: 'absolute',
-    bottom: -110,
-    left: -110,
-    width: 300,
-    height: 300,
-    borderRadius: 170,
-    backgroundColor: 'rgba(15,20,17,0.06)',
   },
 
   // Loading

@@ -2,27 +2,52 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import { Link, router, usePathname } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '../context/UserContext';
 import { getUserRole, removeTokens } from '../lib/auth';
 
-const screenWidth = Dimensions.get('window').width;
-const SIDEBAR_WIDTH = screenWidth * 0.75;
+type SidebarProps = {
+  isOpen?: boolean;
+  onToggle?: () => void;
+  onWidthChange?: React.Dispatch<React.SetStateAction<number>>;
+};
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChange }: SidebarProps) {
   const insets = useSafeAreaInsets();
-  const [isOpen, setIsOpen] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const pathname = usePathname();
+  const { width } = useWindowDimensions();
 
-  // Starting position is exactly the negative width of the sidebar
-  const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+  const isTablet = width >= 768;
+
+  const SIDEBAR_WIDTH = useMemo(() => {
+    if (isTablet) return Math.min(340, Math.round(width * 0.33));
+    return Math.round(width * 0.78);
+  }, [isTablet, width]);
+
+  useEffect(() => {
+    onWidthChange?.(SIDEBAR_WIDTH);
+  }, [SIDEBAR_WIDTH, onWidthChange]);
 
   const { user, setUser, setToken, setUserId } = useUser();
-  const pathname = usePathname();
 
-  // Load user role from AsyncStorage
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const [isOpenLocal, setIsOpenLocal] = useState(false);
+
+  // Tablet: always open
+  const isOpen = isTablet ? true : (isOpenExternal ?? isOpenLocal);
+
+  const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+
   useEffect(() => {
     const loadRole = async () => {
       const role = await getUserRole();
@@ -31,22 +56,33 @@ export default function Sidebar() {
     loadRole();
   }, []);
 
-  const toggleSidebar = () => {
+  useEffect(() => {
     Animated.timing(slideAnim, {
-      toValue: isOpen ? -SIDEBAR_WIDTH : 0,
-      duration: 300,
-      useNativeDriver: false, // Set to true if using translateX instead of left
+      toValue: isOpen ? 0 : -SIDEBAR_WIDTH,
+      duration: 260,
+      useNativeDriver: true,
     }).start();
-    setIsOpen(!isOpen);
+  }, [SIDEBAR_WIDTH, isOpen, slideAnim]);
+
+  const toggleSidebar = () => {
+    if (isTablet) return; 
+
+    if (onToggle) {
+      onToggle();
+      return;
+    }
+    setIsOpenLocal((v) => !v);
   };
 
   const closeSidebar = () => {
-    Animated.timing(slideAnim, {
-      toValue: -SIDEBAR_WIDTH,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-    setIsOpen(false);
+    if (isTablet) return;
+
+    if (onToggle) {
+      if (isOpen) onToggle();
+      return;
+    }
+
+    setIsOpenLocal(false);
   };
 
   const handleLogout = async () => {
@@ -60,21 +96,19 @@ export default function Sidebar() {
 
   const initials = user?.name
     ? user.name
-      .split(' ')
-      .filter(Boolean)
-      .map((n: string) => n[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase()
+        .split(' ')
+        .filter(Boolean)
+        .map((n: string) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
     : 'U';
 
   const displayName = user?.name || 'Nutzer nicht gefunden';
   const displayEmail = user?.email || 'Profil bearbeiten';
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-  /** Helper function to render links */
   function renderNavLink(
     href: string,
     label: string,
@@ -89,7 +123,7 @@ export default function Sidebar() {
         icon={
           <IconComponent
             name={iconName as any}
-            size={screenWidth < 380 ? 22 : 24}
+            size={width < 380 ? 22 : 24}
             color={active ? '#F7F8F5' : '#4B5563'}
             style={styles.navIcon}
           />
@@ -102,18 +136,26 @@ export default function Sidebar() {
 
   return (
     <>
-      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
-        <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
-          <Text style={{ color: 'white', fontSize: 35 }}>☰</Text>
-        </Pressable>
-      </View>
+      {/* Header burger only on phone */}
+      {!isTablet && (
+        <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+          <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
+            <Text style={{ color: 'white', fontSize: 35 }}>☰</Text>
+          </Pressable>
+        </View>
+      )}
 
-      {isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
+      {/* Overlay only on phone */}
+      {!isTablet && isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
       <Animated.View
         style={[
           styles.sidebar,
-          { left: slideAnim, paddingTop: insets.top + 20 },
+          {
+            width: SIDEBAR_WIDTH,
+            paddingTop: insets.top + 20,
+            transform: [{ translateX: slideAnim }],
+          },
         ]}
       >
         {user ? (
@@ -133,9 +175,7 @@ export default function Sidebar() {
             </View>
           </Pressable>
         ) : (
-          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>
-            Kein User geladen
-          </Text>
+          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>Kein User geladen</Text>
         )}
 
         <View style={styles.linkContainer}>
@@ -143,24 +183,19 @@ export default function Sidebar() {
 
           <View style={styles.separator} />
 
-          {renderNavLink('/myChallenge', 'Meine Challenge', 'emoji-events', MaterialIcons)}
           {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
           {renderNavLink('/challenges', 'Alle Challenges', 'flag', MaterialIcons)}
 
           <View style={styles.separator} />
 
-          {userRole === 'admin' && renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
+          {userRole === 'admin' &&
+            renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
 
           {renderNavLink('/settings/settings', 'Einstellungen', 'settings', MaterialIcons)}
 
           <Pressable style={styles.navLink} onPress={handleLogout}>
             <View style={[styles.navInner, styles.navDanger]}>
-              <Feather
-                name="log-out"
-                size={20}
-                color="#B91C1C"
-                style={styles.navIcon}
-              />
+              <Feather name="log-out" size={20} color="#B91C1C" style={styles.navIcon} />
               <Text style={styles.navDangerText}>Logout</Text>
             </View>
           </Pressable>
@@ -184,20 +219,9 @@ function NavLink({ href, label, icon, style, active, onNavigate }: NavLinkProps)
   return (
     <Link href={href} asChild>
       <Pressable style={styles.navLink} onPress={onNavigate}>
-        <View
-          style={[
-            styles.navInner,
-            active ? styles.navLinkActive : styles.navLinkInactive,
-          ]}
-        >
+        <View style={[styles.navInner, active ? styles.navLinkActive : styles.navLinkInactive]}>
           {icon}
-          <Text
-            style={[
-              styles.navLinkText,
-              active ? styles.navLinkTextActive : null,
-              style,
-            ]}
-          >
+          <Text style={[styles.navLinkText, active ? styles.navLinkTextActive : null, style]}>
             {label}
           </Text>
         </View>
@@ -241,7 +265,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    width: SIDEBAR_WIDTH,
+    left: 0,
     backgroundColor: '#F7F8F5',
     padding: 20,
     zIndex: 999,
@@ -259,7 +283,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 15,
     borderRadius: 18,
-    backgroundColor: '#EAF1E6'
+    backgroundColor: '#EAF1E6',
   },
   profileCircle: {
     width: 52,
@@ -269,45 +293,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#F7F8F5'
+    borderColor: '#F7F8F5',
   },
   profileInitials: {
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 18,
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   profileName: {
     color: '#2F3E34',
     fontWeight: '700',
-    fontSize: 16
+    fontSize: 16,
   },
   profileEmail: {
     color: '#6B7280',
     fontSize: 12,
-    marginTop: 2
+    marginTop: 2,
   },
   linkContainer: {
     flex: 1,
-    paddingTop: 2
+    paddingTop: 2,
   },
   navLink: {
     marginVertical: 1,
-    borderRadius: 16
+    borderRadius: 16,
   },
   navInner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 20
+    borderRadius: 20,
   },
   navLinkInactive: {},
   navLinkActive: {
-    backgroundColor: '#6B8F71'
+    backgroundColor: '#6B8F71',
   },
   navIcon: {
-    marginRight: 10
+    marginRight: 10,
   },
   navLinkText: {
     color: '#2F3E34',
@@ -316,10 +340,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   navLinkTextActive: {
-    color: '#F7F8F5'
+    color: '#F7F8F5',
   },
   navDanger: {
-    backgroundColor: '#F5DCDC'
+    backgroundColor: '#F5DCDC',
   },
   navDangerText: {
     color: '#B91C1C',
