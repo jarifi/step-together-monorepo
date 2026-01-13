@@ -5,9 +5,17 @@ import { apiDelete, apiGet, apiPost, apiPut } from './api';
 // CHALLENGES
 // ---------------------------------------------------------------------------
 
-export const getChallenges = async (skip = 0, limit = 10) => {
+export const getChallenges = async (skip = 0, limit = 10, state) => {
   try {
-    return await apiGet(`/challenges/?skip=${skip}&limit=${limit}`);
+    const params = new URLSearchParams();
+    params.set('skip', String(skip));
+    params.set('limit', String(limit));
+
+    if (state) {
+      params.set('state', String(state));
+    }
+
+    return await apiGet(`/challenges/?${params.toString()}`);
   } catch (err) {
     console.error('Error fetching challenges:', err);
     return [];

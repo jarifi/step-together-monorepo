@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -19,6 +20,8 @@ type Challenge = {
   [key: string]: any;
 };
 
+type TabKey = 'active' | 'incoming' | 'closed';
+
 const IS_WEB = Platform.OS === 'web';
 const CARD_RADIUS = 26;
 
@@ -26,6 +29,7 @@ export default function OpenChallengesScreen() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [tab, setTab] = useState<TabKey>('active');
 
   const skipRef = useRef(0);
   const hasMoreRef = useRef(true);
@@ -34,10 +38,26 @@ export default function OpenChallengesScreen() {
   const limit = 10;
   const router = useRouter();
 
-  const visibleChallenges = useMemo(
-    () => challenges.filter((c) => ['open', 'incoming'].includes(String(c?.state ?? ''))),
+  const activeChallenges = useMemo(
+    () => challenges.filter((c) => String(c?.state ?? '') === 'open'),
     [challenges]
   );
+
+  const incomingChallenges = useMemo(
+    () => challenges.filter((c) => String(c?.state ?? '') === 'incoming'),
+    [challenges]
+  );
+
+  const closedChallenges = useMemo(
+    () => challenges.filter((c) => String(c?.state ?? '') === 'closed'),
+    [challenges]
+  );
+
+  const visibleChallenges = useMemo(() => {
+    if (tab === 'active') return activeChallenges;
+    if (tab === 'incoming') return incomingChallenges;
+    return closedChallenges;
+  }, [tab, activeChallenges, incomingChallenges, closedChallenges]);
 
   const loadChallenges = useCallback(
     async (isInitial = false) => {
@@ -77,6 +97,47 @@ export default function OpenChallengesScreen() {
     }, [loadChallenges])
   );
 
+  const Tabs = useMemo(() => {
+    return (
+      <View style={styles.tabsWrap}>
+        <View style={styles.tabsPill}>
+          <Pressable
+            onPress={() => setTab('active')}
+            style={[styles.tabBtn, tab === 'active' && styles.tabBtnActive]}
+          >
+            <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>
+              Aktiv ({activeChallenges.length})
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setTab('incoming')}
+            style={[styles.tabBtn, tab === 'incoming' && styles.tabBtnActive]}
+          >
+            <Text style={[styles.tabText, tab === 'incoming' && styles.tabTextActive]}>
+              Kommend ({incomingChallenges.length})
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setTab('closed')}
+            style={[styles.tabBtn, tab === 'closed' && styles.tabBtnActive]}
+          >
+            <Text style={[styles.tabText, tab === 'closed' && styles.tabTextActive]}>
+              Geschlossen ({closedChallenges.length})
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.tabHint}>
+          {tab === 'active' && 'Alle aktuell laufenden Challenges.'}
+          {tab === 'incoming' && 'Alle Challenges, die bald starten.'}
+          {tab === 'closed' && 'Alle abgeschlossenen Challenges.'}
+        </Text>
+      </View>
+    );
+  }, [tab, activeChallenges.length, incomingChallenges.length, closedChallenges.length]);
+
   const ListHeader = useMemo(() => {
     return (
       <View style={styles.centered}>
@@ -87,29 +148,31 @@ export default function OpenChallengesScreen() {
             Offene & kommende Wettbewerbe. Beweg dich gemeinsam mit anderen.
           </Text>
 
-          <View style={styles.heroRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{visibleChallenges.length} aktiv</Text>
-            </View>
-          </View>
+          {Tabs}
+          {/* ✅ removed the small badge ("1 aktiv") */}
         </View>
       </View>
     );
-  }, [visibleChallenges.length]);
+  }, [Tabs]);
 
   const Empty = useMemo(() => {
+    const map = {
+      active: ['Keine aktiven Challenges', 'Momentan sind keine aktiven Challenges verfügbar.'],
+      incoming: ['Keine kommenden Challenges', 'Momentan sind keine kommenden Challenges verfügbar.'],
+      closed: ['Keine geschlossenen Challenges', 'Momentan sind keine geschlossenen Challenges verfügbar.'],
+    } as const;
+
+    const [title, text] = map[tab];
+
     return (
       <View style={styles.centered}>
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyEmoji}>🫥</Text>
-          <Text style={styles.emptyTitle}>Keine Challenges</Text>
-          <Text style={styles.emptyText}>
-            Momentan sind keine offenen oder kommenden Challenges verfügbar.
-          </Text>
+          <Text style={styles.emptyTitle}>{title}</Text>
+          <Text style={styles.emptyText}>{text}</Text>
         </View>
       </View>
     );
-  }, []);
+  }, [tab]);
 
   if (loadingInitial && challenges.length === 0) {
     return (
@@ -261,40 +324,47 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     marginBottom: 14,
   },
-  heroRow: {
+
+  // Tabs
+  tabsWrap: {
+    marginBottom: 0,
+  },
+  tabsPill: {
     flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.accentSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  badgeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.accent,
-  },
-  badgeSoft: {
-    alignSelf: 'flex-start',
     backgroundColor: 'rgba(15,20,17,0.04)',
     borderWidth: 1,
     borderColor: 'rgba(15,20,17,0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: 999,
+    padding: 4,
+    gap: 6,
   },
-  badgeSoftText: {
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...(shadow ?? {}),
+  },
+  tabText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: COLORS.sub,
+  },
+  tabTextActive: {
+    color: COLORS.text,
+  },
+  tabHint: {
+    marginTop: 8,
+    fontSize: 13,
     color: COLORS.sub,
   },
 
-  // Cards
   cardSurface: {
     backgroundColor: COLORS.surface,
     borderRadius: CARD_RADIUS,
@@ -304,7 +374,6 @@ const styles = StyleSheet.create({
     ...(shadow ?? {}),
   },
 
-  // Empty
   emptyCard: {
     marginTop: 6,
     backgroundColor: COLORS.surface,

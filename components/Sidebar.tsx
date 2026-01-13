@@ -145,7 +145,7 @@ export default function Sidebar() {
 
           {renderNavLink('/myChallenge', 'Meine Challenge', 'emoji-events', MaterialIcons)}
           {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
-          {renderNavLink('/challenges', 'Challenges', 'flag', MaterialIcons)}
+          {renderNavLink('/challenges', 'Alle Challenges', 'flag', MaterialIcons)}
 
           <View style={styles.separator} />
 
