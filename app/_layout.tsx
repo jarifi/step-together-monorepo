@@ -16,6 +16,11 @@ import { isLoggedIn } from '../lib/auth';
 
 const queryClient = new QueryClient();
 
+// Height of your phone-only burger header (the absolute header in Sidebar.tsx).
+// This reserves space ONLY on phone so pages don't start underneath it.
+// Adjust if your header is taller/shorter.
+const PHONE_HEADER_HEIGHT = 72;
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
@@ -76,6 +81,12 @@ export default function RootLayout() {
     return onDashboard || onMyChallenge;
   }, [showSidebar, pathname]);
 
+  // ✅ Only add top space on phones (because only phones show the burger header).
+  // On tablet/desktop, there is no burger header, so we MUST NOT reserve space.
+  const contentTopPadding = useMemo(() => {
+    return showSidebar && !isTablet ? PHONE_HEADER_HEIGHT : 0;
+  }, [showSidebar, isTablet]);
+
   if (!authChecked) return null;
 
   return (
@@ -90,11 +101,35 @@ export default function RootLayout() {
             />
           )}
 
-          <Animated.View style={[styles.contentWrap, { marginLeft: contentLeft }]}>
+          <Animated.View
+            style={[
+              styles.contentWrap,
+              {
+                marginLeft: contentLeft,
+                paddingTop: contentTopPadding,
+              },
+            ]}
+          >
             <Stack initialRouteName="login">
+              <Stack.Screen name="users/update" options={{ headerShown: false }} />
               <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="admin" options={{ headerShown: false }} />
+              <Stack.Screen name="teams/index" options={{ headerShown: false }} />
+              <Stack.Screen name="teams/create" options={{ headerShown: false }} />
+              <Stack.Screen name="teams/members" options={{ headerShown: false }} />
+              <Stack.Screen name="users/index" options={{ headerShown: false }} />
+              <Stack.Screen name="myChallenge" options={{ headerShown: false }} />
+              <Stack.Screen name="allChallenges/index" options={{ headerShown: false }} />
+              <Stack.Screen name="allChallenges/create" options={{ headerShown: false }} />
+              <Stack.Screen name="allChallenges/details" options={{ headerShown: false }} />
               <Stack.Screen name="dashboard" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
+              <Stack.Screen name="userHistory" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges" options={{ headerShown: false }} />
+              <Stack.Screen name="profileInfo" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/profile" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/help" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/about" options={{ headerShown: false }} />
             </Stack>
 
             {showPill && <BottomBar pathname={pathname} />}
