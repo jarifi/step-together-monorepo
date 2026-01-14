@@ -6,6 +6,8 @@ import { getHomeInit } from '../services/dashboardService';
 import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
+        import {LeafletOSMMap} from '../components/LeafletOSMMap';
+
 
 const FIX_STEP_LENGTH_M = 0.78;
 
@@ -196,7 +198,7 @@ const MyChallenge: React.FC = () => {
     );
   }
 
-    const hasActiveChallenge =
+  const hasActiveChallenge =
     vm?.challenge?.id != null && vm?.challenge?.state === 'open';
 
   if (!hasActiveChallenge) {
@@ -304,162 +306,165 @@ const MyChallenge: React.FC = () => {
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
     >
 
-    {/* CHALLENGE PROGRESS */}
-    <View style={styles.progressCard}>
-      <View style={{ marginBottom: 12 }}>
-        {/* Team-Zeile */}
+      {/* CHALLENGE PROGRESS */}
+      <View style={styles.progressCard}>
+        <View style={{ marginBottom: 12 }}>
+          {/* Team-Zeile */}
+          <Text
+            style={[
+              styles.font,
+              {
+                fontSize: 25,
+                fontWeight: '600',
+                textAlign: 'center',
+                color: '#4B5C50',
+                marginTop: 2,
+              },
+            ]}
+          >
+            Team{' '}
+            <Text style={{ color: '#6e865cff', fontWeight: '800' }}>
+              {vm?.team?.name}
+            </Text>
+          </Text>
+
+          {/* Challenge-Name */}
+          <Text
+            style={[
+              styles.font,
+              {
+                fontSize: 18,
+                fontWeight: '700',
+                textAlign: 'center',
+                color: '#2F3E34',
+                marginTop: 12,
+              },
+            ]}
+          >
+            Challenge:{' '} {vm?.challenge?.name}
+          </Text>
+        </View>
+
+        {/* Skala + Fortschritt */}
+        <View style={styles.topScaleRow}>
+          <Text style={[styles.scaleTick, styles.font]}>Start</Text>
+          <Text style={[styles.scaleTick, styles.font]}>
+            Ziel: {challengeDistanceKm} km
+          </Text>
+        </View>
+
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${distancePct}%` }]} />
+        </View>
+
+        {/* Route darunter */}
         <Text
           style={[
             styles.font,
             {
-              fontSize: 25,
+              fontSize: 16,
               fontWeight: '600',
               textAlign: 'center',
-              color: '#4B5C50',
-              marginTop: 2,
-            },
-          ]}
-        >
-          Team{' '}
-          <Text style={{ color: '#6e865cff', fontWeight: '800' }}>
-            {vm?.team?.name}
-          </Text>
-        </Text>
-
-        {/* Challenge-Name */}
-        <Text
-          style={[
-            styles.font,
-            {
-              fontSize: 18,
-              fontWeight: '700',
-              textAlign: 'center',
+              marginBottom: 8,
+              marginTop: 6,
               color: '#2F3E34',
-              marginTop: 12,
             },
           ]}
         >
-          Challenge:{' '} {vm?.challenge?.name}
+          {startLocation} → {targetLocation}
         </Text>
-      </View>
 
-      {/* Skala + Fortschritt */}
-      <View style={styles.topScaleRow}>
-        <Text style={[styles.scaleTick, styles.font]}>Start</Text>
-        <Text style={[styles.scaleTick, styles.font]}>
-          Ziel: {challengeDistanceKm} km
+        {/* Mapp */}
+        <LeafletOSMMap start={startLocation} end={targetLocation} />
+
+        {/* Fortschritts-Text */}
+        <Text style={[styles.progressNote, styles.font]}>
+          <Text style={{ color: '#5F764E', fontWeight: '800' }}>
+            {distancePct}%
+          </Text>{' '}
+          der Strecke geschafft. ({fmt1.format(distanceKmDone)} /{' '}
+          {challengeDistanceKm} km)
+          {typeof daysLeft === 'number' && (
+            <>
+              {'\n'}
+              Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.
+            </>
+          )}
         </Text>
-      </View>
 
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${distancePct}%` }]} />
-      </View>
-
-      {/* Route darunter */}
-      <Text
-        style={[
-          styles.font,
-          {
-            fontSize: 16,
-            fontWeight: '600',
-            textAlign: 'center',
-            marginBottom: 8,
-            marginTop: 6,
-            color: '#2F3E34',
-          },
-        ]}
-      >
-        {startLocation} → {targetLocation}
-      </Text>
-
-      {/* Fortschritts-Text */}
-      <Text style={[styles.progressNote, styles.font]}>
-        <Text style={{ color: '#5F764E', fontWeight: '800' }}>
-          {distancePct}%
-        </Text>{' '}
-        der Strecke geschafft. ({fmt1.format(distanceKmDone)} /{' '}
-        {challengeDistanceKm} km)
-        {typeof daysLeft === 'number' && (
-          <>
-            {'\n'}
-            Noch <Text style={{ fontWeight: '900' }}>{daysLeft}</Text> Tage übrig.
-          </>
-        )}
-      </Text>
-
-      {/* TEAM RANKING */}
-      <View style={styles.teamSectionHeader}>
-        <Text style={[styles.teamSubtitle, styles.font]}>
-          <Text style={{ color: '#7FA58C', fontWeight: '700' }}>
-            Team-Mitglieder{' '}
-          </Text>
-          Ranking
-        </Text>
-      </View>
-
-      {rankingLoading && (
-        <View style={{ paddingVertical: 8 }}>
-          <ActivityIndicator />
-        </View>
-      )}
-
-      {rankingError && !rankingLoading && (
-        <Text
-          style={[
-            styles.font,
-            { color: '#B91C1C', marginVertical: 6, textAlign: 'center' },
-          ]}
-        >
-          {rankingError}
-        </Text>
-      )}
-
-      {noRanking && (
-        <Text
-          style={[
-            styles.font,
-            { color: '#6B7280', marginVertical: 6, textAlign: 'center' },
-          ]}
-        >
-          Noch keine Ranking-Daten vorhanden.
-        </Text>
-      )}
-
-      {hasRanking &&
-        rankings.map((u, idx) => (
-          <View
-            key={`${u.userId ?? 'x'}-${idx}`}
-            style={[styles.rankRow, u.isUser && styles.rankRowMe]}
-          >
-            <Text
-              style={[
-                styles.rankBadge,
-                styles.font,
-                u.rankColor ? { color: u.rankColor } : null,
-              ]}
-            >
-              {idx + 1}#
+        {/* TEAM RANKING */}
+        <View style={styles.teamSectionHeader}>
+          <Text style={[styles.teamSubtitle, styles.font]}>
+            <Text style={{ color: '#7FA58C', fontWeight: '700' }}>
+              Team-Mitglieder{' '}
             </Text>
-            <View style={styles.avatar} />
-            <View style={{ flex: 1 }}>
-              <View style={styles.rowBetween}>
-                <Text
-                  style={[styles.userName, styles.font]}
-                  numberOfLines={1}
-                >
-                  {u.name}
-                </Text>
-                {u.isUser ? (
-                  <Text style={[styles.youNote, styles.font]}>(Du)</Text>
-                ) : null}
-              </View>
-              <Text style={[styles.userSteps, styles.font]}>
-                {fmt.format(u.steps)}
-              </Text>
-            </View>
+            Ranking
+          </Text>
+        </View>
+
+        {rankingLoading && (
+          <View style={{ paddingVertical: 8 }}>
+            <ActivityIndicator />
           </View>
-        ))}
-    </View>
+        )}
+
+        {rankingError && !rankingLoading && (
+          <Text
+            style={[
+              styles.font,
+              { color: '#B91C1C', marginVertical: 6, textAlign: 'center' },
+            ]}
+          >
+            {rankingError}
+          </Text>
+        )}
+
+        {noRanking && (
+          <Text
+            style={[
+              styles.font,
+              { color: '#6B7280', marginVertical: 6, textAlign: 'center' },
+            ]}
+          >
+            Noch keine Ranking-Daten vorhanden.
+          </Text>
+        )}
+
+        {hasRanking &&
+          rankings.map((u, idx) => (
+            <View
+              key={`${u.userId ?? 'x'}-${idx}`}
+              style={[styles.rankRow, u.isUser && styles.rankRowMe]}
+            >
+              <Text
+                style={[
+                  styles.rankBadge,
+                  styles.font,
+                  u.rankColor ? { color: u.rankColor } : null,
+                ]}
+              >
+                {idx + 1}#
+              </Text>
+              <View style={styles.avatar} />
+              <View style={{ flex: 1 }}>
+                <View style={styles.rowBetween}>
+                  <Text
+                    style={[styles.userName, styles.font]}
+                    numberOfLines={1}
+                  >
+                    {u.name}
+                  </Text>
+                  {u.isUser ? (
+                    <Text style={[styles.youNote, styles.font]}>(Du)</Text>
+                  ) : null}
+                </View>
+                <Text style={[styles.userSteps, styles.font]}>
+                  {fmt.format(u.steps)}
+                </Text>
+              </View>
+            </View>
+          ))}
+      </View>
 
     </ScrollView>
   );
