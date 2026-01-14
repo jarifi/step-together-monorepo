@@ -5,7 +5,9 @@ import { Link, router, usePathname } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -21,7 +23,11 @@ type SidebarProps = {
   onWidthChange?: React.Dispatch<React.SetStateAction<number>>;
 };
 
-export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChange }: SidebarProps) {
+export default function Sidebar({
+  isOpen: isOpenExternal,
+  onToggle,
+  onWidthChange,
+}: SidebarProps) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
@@ -41,10 +47,11 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [isOpenLocal, setIsOpenLocal] = useState(false);
+  const isOpen = isTablet ? true : isOpenExternal ?? isOpenLocal;
 
-  const isOpen = isTablet ? true : (isOpenExternal ?? isOpenLocal);
-
-  const slideAnim = useRef(new Animated.Value(isTablet ? 0 : -SIDEBAR_WIDTH)).current;
+  const slideAnim = useRef(
+    new Animated.Value(isTablet ? 0 : -SIDEBAR_WIDTH)
+  ).current;
 
   useEffect(() => {
     const loadRole = async () => {
@@ -66,6 +73,20 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
       useNativeDriver: true,
     }).start();
   }, [SIDEBAR_WIDTH, isOpen, slideAnim, isTablet]);
+
+  // ✅ This is the “make tester match real iPhone” part:
+  // - On real iPhone, insets.top is correct (notch/status bar).
+  // - On some testers/emulators, insets.top can be 0; we add a fallback padding.
+  const topInset = useMemo(() => {
+    if (insets.top && insets.top > 0) return insets.top;
+
+    // Fallbacks only when safe-area is missing:
+    if (Platform.OS === 'android') return StatusBar.currentHeight ?? 0;
+
+    // iOS (or iOS-like tester) fallback when insets are 0
+    // 20 is classic status bar height; notch devices are handled by real insets.
+    return 20;
+  }, [insets.top]);
 
   const toggleSidebar = () => {
     if (isTablet) return;
@@ -140,9 +161,9 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
     <>
       {/* Burger only on phone */}
       {!isTablet && (
-        <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+        <View style={[styles.headerContainer, { paddingTop: topInset }]}>
           <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
-            <Text style={{ color: 'white', fontSize: 35 }}>☰</Text>
+            <Text style={{ color: 'white', fontSize: 45 }}>☰</Text>
           </Pressable>
         </View>
       )}
@@ -155,7 +176,7 @@ export default function Sidebar({ isOpen: isOpenExternal, onToggle, onWidthChang
           styles.sidebar,
           {
             width: SIDEBAR_WIDTH,
-            paddingTop: insets.top + 20,
+            paddingTop: topInset + 20,
             transform: [{ translateX: slideAnim }],
           },
         ]}
@@ -242,15 +263,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 5,
     backgroundColor: '#6B8F71',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    marginTop: -10,
   },
   burgerBtn: {
     backgroundColor: '#6B8F71',
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 25,
     borderRadius: 12,
   },
   overlay: {
