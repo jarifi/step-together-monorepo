@@ -6,7 +6,7 @@ import { getHomeInit } from '../services/dashboardService';
 import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
-        import {LeafletOSMMap} from '../components/LeafletOSMMap';
+
 
 
 const FIX_STEP_LENGTH_M = 0.78;
@@ -374,8 +374,6 @@ const MyChallenge: React.FC = () => {
           {startLocation} → {targetLocation}
         </Text>
 
-        {/* Mapp */}
-        <LeafletOSMMap start={startLocation} end={targetLocation} />
 
         {/* Fortschritts-Text */}
         <Text style={[styles.progressNote, styles.font]}>
