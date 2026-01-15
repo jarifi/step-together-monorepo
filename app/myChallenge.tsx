@@ -2,11 +2,11 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
+import { LeafletOSMMap } from '../components/LeafletOSMMap';
 import { getHomeInit } from '../services/dashboardService';
 import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
-
 
 
 const FIX_STEP_LENGTH_M = 0.78;
@@ -374,6 +374,8 @@ const MyChallenge: React.FC = () => {
           {startLocation} → {targetLocation}
         </Text>
 
+        {/* Mapp */}
+        <LeafletOSMMap start={startLocation} end={targetLocation} />
 
         {/* Fortschritts-Text */}
         <Text style={[styles.progressNote, styles.font]}>
