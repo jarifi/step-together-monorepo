@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jear77.steptogether",
+      "bundleIdentifier": "at.bfi.stmk.steptogether",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "This app needs access to devices on your local network.",
         "NSBonjourServices": ["_http._tcp", "_https._tcp"],

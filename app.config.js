@@ -13,14 +13,14 @@ export default ({ config }) => ({
     // CRITICAL ADDITIONS: Add required native identifiers for Android and iOS builds
     android: {
       // Required for Android builds, typically in the format: com.username.appslug
-      package: 'com.jear77.steptogether',
+      package: 'at.bfistmk.steptogether',
     },
     ios: {
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
       // Required for iOS builds
-      bundleIdentifier: 'com.jear77.steptogether',
+      bundleIdentifier: 'at.bfistmk.steptogether' ,
     },
     
     // CRITICAL FIX: Merge new 'extra' properties with existing ones
