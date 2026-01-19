@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
 
     // ---------- expired challenge warning banner ----------
     expiredWarningContainer: {
-        
+
         borderLeftWidth: 4,
         borderLeftColor: '#DC2626',
         borderRadius: 8,
@@ -315,14 +315,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#D1D5DB',
         marginRight: 25,
     },
-    rowBetween: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center' 
+    rowBetween: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center'
     },
-    youNote: { 
-        color: '#6B7280', 
-        fontSize: 18 
+    youNote: {
+        color: '#6B7280',
+        fontSize: 18
     },
     userName: {
         fontSize: 17,
@@ -350,10 +350,10 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 8,
     },
-    editBtnText: { 
-        color: '#FFFFFF', 
-        fontSize: 16, 
-        fontWeight: '700' 
+    editBtnText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700'
     },
 
     // ---------- modal styles ----------
@@ -397,14 +397,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginLeft: 12,
     },
-    fieldWrap: { 
-        marginBottom: 14 
+    fieldWrap: {
+        marginBottom: 14
     },
-    fieldLabel: { 
-        fontSize: 12, 
-        color: '#6B7280', 
-        marginBottom: 6, 
-        fontWeight: '700' 
+    fieldLabel: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginBottom: 6,
+        fontWeight: '700'
     },
     inputWrap: {
         flexDirection: 'row',
@@ -416,10 +416,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 10,
     },
-    inputBare: { 
-        flex: 1, 
-        fontSize: 16, 
-        color: '#2F3E34' 
+    inputBare: {
+        flex: 1,
+        fontSize: 16,
+        color: '#2F3E34'
     },
     actionsRow: {
         flexDirection: 'row',
@@ -434,10 +434,10 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         alignItems: 'center',
     },
-    primaryBtnText: { 
-        color: '#FFFFFF', 
-        fontWeight: '800', 
-        fontSize: 16 
+    primaryBtnText: {
+        color: '#FFFFFF',
+        fontWeight: '800',
+        fontSize: 16
     },
     secondaryBtn: {
         flex: 1,
@@ -448,18 +448,18 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         alignItems: 'center',
     },
-    secondaryBtnText: { 
-        color: '#2F3E34', 
-        fontWeight: '800', 
-        fontSize: 16 
+    secondaryBtnText: {
+        color: '#2F3E34',
+        fontWeight: '800',
+        fontSize: 16
     },
-    cancelGhost: { 
-        paddingVertical: 8, 
-        alignItems: 'center' 
+    cancelGhost: {
+        paddingVertical: 8,
+        alignItems: 'center'
     },
-    cancelGhostText: { 
-        color: '#6B7280', 
-        fontWeight: '700' 
+    cancelGhostText: {
+        color: '#6B7280',
+        fontWeight: '700'
     },
     expiredModalWarning: {
         backgroundColor: '#FEF2F2',
@@ -482,29 +482,34 @@ const styles = StyleSheet.create({
     },
 
     // ---------- calendar styles ----------
+
     calendarCard: {
         maxWidth: 400,
         maxHeight: 600,
         width: '100%',
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
-        padding: 18,
+        padding: 12,           
         shadowColor: '#000',
         shadowOpacity: 0.18,
         shadowRadius: 10,
         elevation: 5,
+        overflow: 'visible', 
     },
+
     calHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: 8,
     },
+
     calHeaderTitle: {
         fontSize: 18,
         fontWeight: '800',
         color: '#2F3E34',
     },
+
     navPill: {
         width: 34,
         height: 34,
@@ -513,39 +518,47 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+
     weekRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        width: '100%',      
         marginTop: 6,
         marginBottom: 6,
-        paddingHorizontal: 6,
     },
+
     weekCell: {
-        width: `${100 / 7}%`,
+        flex: 1,            
+        minWidth: 0,         
         textAlign: 'center',
         fontSize: 12,
         color: '#7B8A80',
         fontWeight: '700',
+        includeFontPadding: false,
     },
+
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        width: '100%',
         marginTop: 4,
         marginBottom: 16,
     },
+
     dayCellWrap: {
-        width: `${100 / 7}%`,
+        flexBasis: '14.2857%', 
         aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 12,
     },
+
     dayCellInner: {
         width: '100%',
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
     },
+
     dayCellText: {
         fontSize: 16,
         color: '#2F3E34',
@@ -554,23 +567,29 @@ const styles = StyleSheet.create({
         includeFontPadding: false,
         lineHeight: 16,
     },
+
     daySelectedWrap: {
         backgroundColor: '#D7E3DA',
     },
+
     dayOutText: {
         color: '#AEB7B1',
     },
+
     daySelectedText: {
         fontWeight: '800',
     },
+
     dayPastWrap: {
         backgroundColor: '#EEF3EF',
     },
+
     dayTodayWrap: {
         borderWidth: 2,
         borderColor: '#BFD4C5',
         borderRadius: 12,
     },
+
     applyBtn: {
         backgroundColor: '#415949',
         paddingVertical: 12,
@@ -578,20 +597,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 8,
     },
+
     applyBtnText: {
         color: '#86AD8E',
         fontWeight: '800',
         fontSize: 16,
     },
+
     cancelBtn: {
         backgroundColor: '#E8EFEA',
         paddingVertical: 10,
         borderRadius: 14,
         alignItems: 'center',
     },
+
     cancelBtnText: {
         color: '#2F3E34',
         fontWeight: '700',
     },
+
 });
 export default styles;
