@@ -11,8 +11,8 @@ import {
   View,
 } from 'react-native';
 
-import ChallengeCard from '../components/ChallengeCard';
-import { getChallenges } from '../services/challengeService';
+import ChallengeCard from '../../components/ChallengeCard';
+import { getChallenges } from '../../services/challengeService';
 
 type Challenge = {
   id: number | string;
@@ -24,6 +24,29 @@ type TabKey = 'active' | 'incoming' | 'closed';
 
 const IS_WEB = Platform.OS === 'web';
 const CARD_RADIUS = 26;
+
+const COLORS = {
+  bg: '#F4F7F4',
+  surface: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#55805c',
+  accentSoft: 'rgba(85,128,92,0.12)',
+};
+
+const shadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+  },
+  android: { elevation: 3 },
+});
+
+// ✅ This MUST match your filesystem route (app/allChallenges/details.tsx)
+const DETAILS_PATH = '/allChallenges/details';
 
 export default function OpenChallengesScreen() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -144,12 +167,8 @@ export default function OpenChallengesScreen() {
         <View style={styles.hero}>
           <View style={styles.accentLine} />
           <Text style={styles.heroTitle}>Challenges</Text>
-          <Text style={styles.heroSub}>
-             Beweg dich gemeinsam mit anderen.
-          </Text>
-
+          <Text style={styles.heroSub}>Beweg dich gemeinsam mit anderen.</Text>
           {Tabs}
-          {/* ✅ removed the small badge ("1 aktiv") */}
         </View>
       </View>
     );
@@ -173,6 +192,10 @@ export default function OpenChallengesScreen() {
       </View>
     );
   }, [tab]);
+
+  const goToDetails = (id: string) => {
+    router.push({ pathname: DETAILS_PATH, params: { id } });
+  };
 
   if (loadingInitial && challenges.length === 0) {
     return (
@@ -199,12 +222,7 @@ export default function OpenChallengesScreen() {
             <View style={styles.cardSurface}>
               <ChallengeCard
                 challenge={item}
-                onPress={() =>
-                  router.push({
-                    pathname: '/allChallenges/details',
-                    params: { id: String(item.id) },
-                  })
-                }
+                onPress={() => goToDetails(String(item.id))}
                 onUpdate={() => {}}
                 onDelete={() => {}}
                 showActions={false}
@@ -224,26 +242,6 @@ export default function OpenChallengesScreen() {
   );
 }
 
-const COLORS = {
-  bg: '#F4F7F4',
-  surface: '#FFFFFF',
-  text: '#0F1411',
-  sub: '#55605A',
-  border: 'rgba(15,20,17,0.10)',
-  accent: '#55805c',
-  accentSoft: 'rgba(85,128,92,0.12)',
-};
-
-const shadow = Platform.select({
-  ios: {
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-  },
-  android: { elevation: 3 },
-});
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
 
@@ -254,7 +252,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
-  // Loading
   loadingWrap: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -265,14 +262,12 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: 13, color: COLORS.sub },
 
-  // List
   listContent: {
     paddingBottom: 32,
     paddingTop: 8,
     gap: 16,
   },
 
-  // Hero
   hero: {
     backgroundColor: COLORS.surface,
     borderRadius: CARD_RADIUS,
@@ -303,10 +298,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
-  // Tabs
-  tabsWrap: {
-    marginBottom: 0,
-  },
+  tabsWrap: { marginBottom: 0 },
   tabsPill: {
     flexDirection: 'row',
     backgroundColor: 'rgba(15,20,17,0.04)',
@@ -329,19 +321,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     ...(shadow ?? {}),
   },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.sub,
-  },
-  tabTextActive: {
-    color: COLORS.text,
-  },
-  tabHint: {
-    marginTop: 8,
-    fontSize: 13,
-    color: COLORS.sub,
-  },
+  tabText: { fontSize: 13, fontWeight: '700', color: COLORS.sub },
+  tabTextActive: { color: COLORS.text },
+  tabHint: { marginTop: 8, fontSize: 13, color: COLORS.sub },
 
   cardSurface: {
     backgroundColor: COLORS.surface,
@@ -362,7 +344,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...(shadow ?? {}),
   },
-  emptyEmoji: { fontSize: 30, marginBottom: 10 },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '800',
