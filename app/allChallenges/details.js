@@ -50,7 +50,6 @@ export default function ChallengeDetailsScreen() {
     load();
   }, [id]);
 
-  // ----------- SORTIERTE TEAMS (mit Tie-Breaker) -----------
   const sortedTeams = useMemo(() => {
     if (!Array.isArray(teams)) return [];
 
@@ -58,30 +57,28 @@ export default function ChallengeDetailsScreen() {
       const stepsA = a.totalSteps ?? 0;
       const stepsB = b.totalSteps ?? 0;
 
-      // 1️⃣ Sortierung nach Schritten
       if (stepsB !== stepsA) return stepsB - stepsA;
 
-      // 2️⃣ Bei Gleichstand nach Name alphabetisch
       const nameA = (a.name ?? '').toLowerCase();
       const nameB = (b.name ?? '').toLowerCase();
       if (nameA < nameB) return -1;
       if (nameA > nameB) return 1;
 
-      // 3️⃣ Falls komplett gleich → nach ID
       return (a.id ?? 0) - (b.id ?? 0);
     });
   }, [teams]);
 
-  // Statusflags
   const isUpcoming = challenge?.state === 'upcoming';
-  const isOpen = challenge?.state === 'open';
   const isClosed = challenge?.state === 'closed';
 
-  // Gewinner/Führendes Team
   const leadingTeam = sortedTeams[0] ?? null;
 
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   if (!challenge) {
@@ -101,7 +98,6 @@ export default function ChallengeDetailsScreen() {
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <View style={[styles.card, styles.centered]}>
         <Text style={styles.title}>{challenge.name}</Text>
         <Text style={styles.sub}>
@@ -109,7 +105,6 @@ export default function ChallengeDetailsScreen() {
         </Text>
       </View>
 
-      {/* Führendes Team / Gewinner-Team */}
       {!isUpcoming && leadingTeam && (
         <View style={[styles.card, styles.centered]}>
           <Text style={styles.sectionHeader}>
@@ -124,20 +119,13 @@ export default function ChallengeDetailsScreen() {
         </View>
       )}
 
-      <Text style={[styles.sectionTitle, styles.centerText]}>
-        Teilnehmende Teams
-      </Text>
+      <Text style={[styles.sectionTitle, styles.centerText]}>Teilnehmende Teams</Text>
 
-      <Text style={styles.tapHint}>
-        Tippe ein Team an, um Details & Mitglieder zu sehen.
-      </Text>
+      <Text style={styles.tapHint}>Tippe ein Team an, um Details & Mitglieder zu sehen.</Text>
 
-      {/* Teamliste */}
       <View style={styles.card}>
         {sortedTeams.length === 0 ? (
-          <Text style={styles.emptyText}>
-            Es nehmen aktuell noch keine Teams teil.
-          </Text>
+          <Text style={styles.emptyText}>Es nehmen aktuell noch keine Teams teil.</Text>
         ) : (
           <View>
             {sortedTeams.map((item, index) => (
@@ -183,8 +171,6 @@ export default function ChallengeDetailsScreen() {
   );
 }
 
-// --------------------- STYLES ---------------------
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -193,13 +179,8 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
 
-  centered: {
-    alignItems: 'center',
-  },
-
-  centerText: {
-    textAlign: 'center',
-  },
+  centered: { alignItems: 'center' },
+  centerText: { textAlign: 'center' },
 
   card: {
     backgroundColor: '#FFFFFF',
@@ -284,16 +265,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 
-  teamName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111',
-  },
-
-  teamSteps: {
-    fontSize: 14,
-    color: '#666',
-  },
+  teamName: { fontSize: 16, fontWeight: '500', color: '#111' },
+  teamSteps: { fontSize: 14, color: '#666' },
 
   detailBox: {
     flexDirection: 'row',
@@ -304,17 +277,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
 
-  detailBoxText: {
-    fontSize: 13,
-    color: '#444',
-    marginRight: 4,
-  },
+  detailBoxText: { fontSize: 13, color: '#444', marginRight: 4 },
 
-  teamArrow: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#666',
-  },
+  teamArrow: { fontSize: 20, fontWeight: '600', color: '#666' },
 
   backButton: {
     marginTop: 10,
@@ -330,11 +295,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  backText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   errorText: {
     fontSize: 16,
