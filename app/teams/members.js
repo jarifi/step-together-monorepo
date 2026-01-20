@@ -2,12 +2,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { getTeamMembers } from '../../services/teamService';
 
@@ -19,25 +19,36 @@ export default function TeamMembersScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
+    const teamId = Array.isArray(id) ? id[0] : id;
+
+    if (!teamId) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
 
     const load = async () => {
       try {
-        const teamId = Array.isArray(id) ? id[0] : id;
         const data = await getTeamMembers(teamId);
         setMembers(data ?? []);
       } catch (error) {
         console.error('Fehler beim Laden der Teammitglieder:', error);
+        setMembers([]);
       } finally {
         setLoading(false);
       }
     };
 
+    setLoading(true);
     load();
   }, [id]);
 
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+    return (
+      <View style={[styles.container, styles.loadingWrap]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (
@@ -58,18 +69,15 @@ export default function TeamMembersScreen() {
           <Text style={styles.emptyText}>Dieses Team hat noch keine Mitglieder.</Text>
         ) : (
           members.map((m) => (
-            <View key={m.id} style={styles.memberRow}>
+            <View key={m.id ?? `${m.userId}-${m.joiningDate ?? ''}`} style={styles.memberRow}>
               <View style={styles.iconWrapper}>
                 <MaterialIcons name="person" size={22} color="#2f5c3a" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.memberName}>
-                  {m.name ?? `User #${m.userId}`}
-                </Text>
+                <Text style={styles.memberName}>{m.name ?? `User #${m.userId}`}</Text>
                 {m.joiningDate && (
                   <Text style={styles.memberSub}>
-                    Mitglied seit{' '}
-                    {new Date(m.joiningDate).toLocaleDateString()}
+                    Mitglied seit {new Date(m.joiningDate).toLocaleDateString()}
                   </Text>
                 )}
               </View>
@@ -91,6 +99,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f7f2ff',
     padding: 20,
     paddingTop: 60,
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centered: {
     alignItems: 'center',
