@@ -1,6 +1,6 @@
 // file: app/login.tsx
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -10,31 +10,31 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
 
-import Constants from 'expo-constants';
-import { router } from 'expo-router';
+import Constants from "expo-constants";
+import { router } from "expo-router";
 
-import { useUser } from '../context/UserContext';
-import { useLogin } from '../hooks/useLogin';
-import { saveTokens, saveUserId, saveUserRole } from '../lib/auth';
-import { isValidEmail } from '../services/authClient';
-
-
+import { useUser } from "../context/UserContext";
+import { useLogin } from "../hooks/useLogin";
+import { saveTokens, saveUserId, saveUserRole } from "../lib/auth";
+import { isValidEmail } from "../services/authClient";
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 if (__DEV__) {
   console.log("DEBUG: Current API URL is:", API_BASE_URL);
 }
 export default function LoginScreen() {
-  const [email, setEmail] = useState('bet@bfi.at');
-  const [password, setPassword] = useState('StrongPassword123');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { setUser, setToken, setUserId } = useUser();
 
-  const { mutateAsync: loginMutate, isPending } = useLogin({ baseUrl: API_BASE_URL });
+  const { mutateAsync: loginMutate, isPending } = useLogin({
+    baseUrl: API_BASE_URL,
+  });
 
   const handleLogin = async () => {
     if (isPending) return;
@@ -46,16 +46,19 @@ export default function LoginScreen() {
     // Minimal client-side validation to avoid unnecessary requests
     const emailLooksValid = isValidEmail(trimmedEmail);
     if (!emailLooksValid) {
-      showError('Bitte gültige E-Mail eingeben');
+      showError("Bitte gültige E-Mail eingeben");
       return;
     }
     if (!trimmedPassword) {
-      showError('Bitte gültiges Passwort eingeben');
+      showError("Bitte gültiges Passwort eingeben");
       return;
     }
 
     try {
-      const data = await loginMutate({ email: trimmedEmail, password: trimmedPassword });
+      const data = await loginMutate({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
 
       await saveTokens(data.accessToken, data.refreshToken);
       await saveUserId(String(data.userId));
@@ -66,10 +69,10 @@ export default function LoginScreen() {
       if (data.role) {
         await saveUserRole(data.role);
         if (__DEV__) {
-          console.log('✅ Login - Role saved:', data.role);
+          console.log("✅ Login - Role saved:", data.role);
         }
       } else if (__DEV__) {
-        console.log('⚠️ Login - No role found in response data');
+        console.log("⚠️ Login - No role found in response data");
       }
 
       const userObject = {
@@ -82,12 +85,12 @@ export default function LoginScreen() {
 
       setUser(userObject);
       if (__DEV__) {
-        console.log('🔍 Login - User data created:', userObject);
+        console.log("🔍 Login - User data created:", userObject);
       }
 
-      router.replace('/dashboard');
+      router.replace("/dashboard");
     } catch (err: any) {
-      const message = err?.message ?? 'Unbekannter Fehler';
+      const message = err?.message ?? "Unbekannter Fehler";
       showError(message);
     }
   };
@@ -112,12 +115,12 @@ export default function LoginScreen() {
   return (
     <View style={styles.background}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
       >
         {/* LOGO */}
         <Image
-          source={require('../assets/images/logo.png')}
+          source={require("../assets/images/logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -152,7 +155,9 @@ export default function LoginScreen() {
           />
 
           {errorMessage && (
-            <Text style={styles.error} testID="login-error">{errorMessage}</Text>
+            <Text style={styles.error} testID="login-error">
+              {errorMessage}
+            </Text>
           )}
 
           <Pressable
@@ -163,7 +168,9 @@ export default function LoginScreen() {
             accessibilityRole="button"
             testID="login-submit"
           >
-            <Text style={styles.buttonText}>{isPending ? 'Wird eingeloggt…' : 'Einloggen'}</Text>
+            <Text style={styles.buttonText}>
+              {isPending ? "Wird eingeloggt…" : "Einloggen"}
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -174,14 +181,14 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: '#313633c7',
+    backgroundColor: "#313633c7",
   },
 
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingBottom: 110,
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: 16,
   },
 
@@ -192,37 +199,37 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    width: '100%',
+    width: "100%",
     maxWidth: 400,
     padding: 24,
     borderRadius: 18,
-    backgroundColor: 'rgba(94, 103, 81, 0.83)',
+    backgroundColor: "rgba(94, 103, 81, 0.83)",
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: "rgba(255,255,255,0.12)",
   },
 
   title: {
     fontSize: 26,
-    color: '#fff',
-    textAlign: 'center',
+    color: "#fff",
+    textAlign: "center",
     marginBottom: 20,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   input: {
-    backgroundColor: 'rgba(108, 118, 96, 0.65)',
-    color: '#fff',
+    backgroundColor: "rgba(108, 118, 96, 0.65)",
+    color: "#fff",
     borderWidth: 1,
-    borderColor: 'rgba(108, 118, 96, 0.65)',
+    borderColor: "rgba(108, 118, 96, 0.65)",
     borderRadius: 10,
     paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    paddingVertical: Platform.OS === "ios" ? 14 : 10,
     marginBottom: 16,
     fontSize: 16,
   },
 
   button: {
-    backgroundColor: '#698059ff',
+    backgroundColor: "#698059ff",
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 8,
@@ -233,15 +240,15 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    color: '#fff',
-    textAlign: 'center',
+    color: "#fff",
+    textAlign: "center",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   error: {
-    color: '#ff6b6b',
+    color: "#ff6b6b",
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
