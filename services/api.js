@@ -176,7 +176,7 @@ const authedFetch = async (path, options = {}, retry = true) => {
   if (!res.ok) {
     const err = new Error(
       (payload && (payload.message || payload.detail)) ||
-        (Array.isArray(payload?.detail) ? JSON.stringify(payload.detail) : `HTTP ${res.status}`)
+      (Array.isArray(payload?.detail) ? JSON.stringify(payload.detail) : `HTTP ${res.status}`)
     );
     err.status = res.status;
     err.payload = payload;
@@ -223,10 +223,27 @@ export const publicGet = async (path) => {
 
   const payload = await tryParseJson(res);
   if (!res.ok) {
-    const err = new Error((payload && payload.message) || `HTTP ${res.status}`);
+    const pretty =
+      payload == null
+        ? `HTTP ${res.status}`
+        : typeof payload === 'string'
+          ? payload
+          : JSON.stringify(payload);
+
+    const detail =
+      payload?.message ??
+      (typeof payload?.detail === 'string'
+        ? payload.detail
+        : payload?.detail
+          ? JSON.stringify(payload.detail)
+          : null);
+
+    const err = new Error(detail ?? pretty ?? `HTTP ${res.status}`);
     err.status = res.status;
     err.payload = payload;
+    console.error('🔴 [API] request failed:', err.status, payload);
     throw err;
+
   }
   return payload;
 };

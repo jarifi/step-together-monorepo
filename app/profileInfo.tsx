@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useUser } from '../context/UserContext';
+import { makeAbsoluteMediaUrl } from '../services/userService';
 
 type UserShape = {
   id?: number;
@@ -16,6 +17,7 @@ type UserShape = {
   email?: string;
   stepLength?: number | null;
   avatarUrl?: string | null;
+  avatar_url?: string | null; 
 };
 
 const COLORS = {
@@ -63,10 +65,12 @@ const ProfileInfoScreen: React.FC = () => {
 
   const initials = useMemo(() => getInitials(user?.name), [user?.name]);
 
-  const avatarUri = useMemo(() => {
-    const uri = user?.avatarUrl ? String(user.avatarUrl).trim() : '';
-    return uri.length ? uri : null;
-  }, [user?.avatarUrl]);
+  const displayAvatarUri = useMemo(() => {
+    const raw = (user?.avatarUrl ?? user?.avatar_url ?? '').toString().trim();
+    if (!raw) return null;
+
+    return makeAbsoluteMediaUrl(raw) ?? raw;
+  }, [user?.avatarUrl, (user as any)?.avatar_url]);
 
   if (!user) {
     return (
@@ -77,19 +81,19 @@ const ProfileInfoScreen: React.FC = () => {
     );
   }
 
-  const hasAvatar = !!avatarUri;
-
   return (
     <View style={styles.container}>
-
       <View style={styles.content}>
         {/* Header Card */}
         <View style={[styles.headerCard, shadow]}>
           <View style={styles.headerTopRow}>
             <View style={styles.avatarRing}>
               <View style={styles.avatarCircle}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                {displayAvatarUri ? (
+                  <Image
+                    source={{ uri: displayAvatarUri }}
+                    style={styles.avatarImage}
+                  />
                 ) : (
                   <Text style={styles.avatarInitials}>{initials}</Text>
                 )}
@@ -125,12 +129,16 @@ const ProfileInfoScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* grid 3 tiles */}
+          {/* grid tiles */}
           <View style={styles.grid}>
             <View style={styles.gridItem}>
               <View style={styles.infoRow}>
                 <View style={styles.iconBoxSoft}>
-                  <Ionicons name="finger-print-outline" size={18} color={COLORS.text} />
+                  <Ionicons
+                    name="finger-print-outline"
+                    size={18}
+                    color={COLORS.text}
+                  />
                 </View>
                 <View style={styles.infoText}>
                   <Text style={styles.label}>User-ID</Text>
@@ -175,28 +183,6 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     alignSelf: 'center',
   },
-
-  // ---------------- BACKGROUND DECOR ----------------
-  bgBlobA: {
-    position: 'absolute',
-    top: -60,
-    right: -80,
-    width: 220,
-    height: 220,
-    borderRadius: 120,
-    backgroundColor: 'rgba(46,107,79,0.10)',
-  },
-  bgBlobB: {
-    position: 'absolute',
-    bottom: -90,
-    left: -90,
-    width: 260,
-    height: 260,
-    borderRadius: 140,
-    backgroundColor: 'rgba(15,20,17,0.06)',
-  },
-
-  // ---------------- LOADING ----------------
   loadingWrap: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -208,8 +194,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
-
-  // ---------------- HEADER ----------------
   headerCard: {
     backgroundColor: COLORS.card,
     borderRadius: 20,
@@ -223,7 +207,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-
   avatarRing: {
     padding: 3,
     borderRadius: 999,
@@ -244,52 +227,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1F2933',
   },
-
   headerRight: { flex: 1 },
   title: {
     fontSize: 20,
     fontWeight: '800',
     color: COLORS.text,
   },
-  sublineRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  subtitle: {
-    marginTop: 10,
-    fontSize: 12,
-    lineHeight: 16,
-    color: COLORS.sub,
-  },
-
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(15,20,17,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.08)',
-  },
-  pillText: {
-    fontSize: 12,
-    color: COLORS.sub,
-    fontWeight: '600',
-  },
-  pillAccent: {
-    backgroundColor: COLORS.accentSoft,
-    borderColor: 'rgba(46,107,79,0.18)',
-  },
-  pillTextAccent: {
-    color: COLORS.accent,
-  },
-
-  // ---------------- CARD ----------------
   card: {
     backgroundColor: COLORS.card,
     borderRadius: 20,
@@ -308,30 +251,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.text,
   },
-  statusDotWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(46,107,79,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(46,107,79,0.14)',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 99,
-    backgroundColor: COLORS.accent,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.accent,
-  },
-
-  // ---------------- ROWS ----------------
   rowFull: {
     borderRadius: 16,
     padding: 12,
@@ -340,7 +259,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(46,107,79,0.12)',
     marginBottom: 12,
   },
-
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -355,7 +273,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(15,20,17,0.06)',
   },
-
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -388,21 +305,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: COLORS.text,
-  },
-
-  footerNote: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(15,20,17,0.06)',
-  },
-  footerText: {
-    flex: 1,
-    fontSize: 12,
-    color: COLORS.sub,
-    lineHeight: 16,
   },
 });

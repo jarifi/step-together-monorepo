@@ -5,6 +5,7 @@ import { Link, router, usePathname } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Image,
   Platform,
   Pressable,
   StatusBar,
@@ -16,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '../context/UserContext';
 import { getUserRole, removeTokens } from '../lib/auth';
+import { makeAbsoluteMediaUrl } from '../services/userService';
 
 type SidebarProps = {
   isOpen?: boolean;
@@ -31,7 +33,6 @@ export default function Sidebar({
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
-
   const isTablet = width >= 768;
 
   const SIDEBAR_WIDTH = useMemo(() => {
@@ -74,37 +75,21 @@ export default function Sidebar({
     }).start();
   }, [SIDEBAR_WIDTH, isOpen, slideAnim, isTablet]);
 
-  // ✅ This is the “make tester match real iPhone” part:
-  // - On real iPhone, insets.top is correct (notch/status bar).
-  // - On some testers/emulators, insets.top can be 0; we add a fallback padding.
   const topInset = useMemo(() => {
     if (insets.top && insets.top > 0) return insets.top;
-
-    // Fallbacks only when safe-area is missing:
     if (Platform.OS === 'android') return StatusBar.currentHeight ?? 0;
-
-    // iOS (or iOS-like tester) fallback when insets are 0
-    // 20 is classic status bar height; notch devices are handled by real insets.
     return 20;
   }, [insets.top]);
 
   const toggleSidebar = () => {
     if (isTablet) return;
-
-    if (onToggle) {
-      onToggle();
-      return;
-    }
+    if (onToggle) return onToggle();
     setIsOpenLocal((v) => !v);
   };
 
   const closeSidebar = () => {
     if (isTablet) return;
-
-    if (onToggle) {
-      if (isOpen) onToggle();
-      return;
-    }
+    if (onToggle) return isOpen && onToggle();
     setIsOpenLocal(false);
   };
 
@@ -130,7 +115,23 @@ export default function Sidebar({
   const displayName = user?.name || 'Nutzer nicht gefunden';
   const displayEmail = user?.email || 'Profil bearbeiten';
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const avatarUri = useMemo(() => {
+    const raw =
+      (user as any)?.avatarUrl ??
+      (user as any)?.avatar_url ??
+      (user as any)?.avatar ??
+      null;
+
+    if (!raw) return null;
+
+    const s = String(raw).trim();
+    if (!s) return null;
+
+    return makeAbsoluteMediaUrl(s) ?? s;
+  }, [user]);
+
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
   function renderNavLink(
     href: string,
@@ -159,7 +160,6 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Burger only on phone */}
       {!isTablet && (
         <View style={[styles.headerContainer, { paddingTop: topInset }]}>
           <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
@@ -168,8 +168,9 @@ export default function Sidebar({
         </View>
       )}
 
-      {/* Overlay only on phone */}
-      {!isTablet && isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
+      {!isTablet && isOpen && (
+        <Pressable style={styles.overlay} onPress={closeSidebar} />
+      )}
 
       <Animated.View
         style={[
@@ -190,15 +191,25 @@ export default function Sidebar({
             }}
           >
             <View style={styles.profileCircle}>
-              <Text style={styles.profileInitials}>{initials}</Text>
+              {avatarUri ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.profileAvatarImage}
+                />
+              ) : (
+                <Text style={styles.profileInitials}>{initials}</Text>
+              )}
             </View>
+
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.profileName}>{displayName}</Text>
               <Text style={styles.profileEmail}>{displayEmail}</Text>
             </View>
           </Pressable>
         ) : (
-          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>Kein User geladen</Text>
+          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>
+            Kein User geladen
+          </Text>
         )}
 
         <View style={styles.linkContainer}>
@@ -211,7 +222,8 @@ export default function Sidebar({
 
           <View style={styles.separator} />
 
-          {userRole === 'admin' && renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
+          {userRole === 'admin' &&
+            renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
 
           {renderNavLink('/settings/settings', 'Einstellungen', 'settings', MaterialIcons)}
 
@@ -227,23 +239,27 @@ export default function Sidebar({
   );
 }
 
-/** NavLink component */
+/* NavLink */
 interface NavLinkProps {
   href: string;
   label: string;
   icon: React.ReactNode;
-  style?: object;
   active?: boolean;
   onNavigate: () => void;
 }
 
-function NavLink({ href, label, icon, style, active, onNavigate }: NavLinkProps) {
+function NavLink({ href, label, icon, active, onNavigate }: NavLinkProps) {
   return (
     <Link href={href} asChild>
       <Pressable style={styles.navLink} onPress={onNavigate}>
-        <View style={[styles.navInner, active ? styles.navLinkActive : styles.navLinkInactive]}>
+        <View
+          style={[
+            styles.navInner,
+            active ? styles.navLinkActive : styles.navLinkInactive,
+          ]}
+        >
           {icon}
-          <Text style={[styles.navLinkText, active ? styles.navLinkTextActive : null, style]}>
+          <Text style={[styles.navLinkText, active && styles.navLinkTextActive]}>
             {label}
           </Text>
         </View>
@@ -252,7 +268,7 @@ function NavLink({ href, label, icon, style, active, onNavigate }: NavLinkProps)
   );
 }
 
-/** Styles */
+/* Styles */
 const styles = StyleSheet.create({
   headerContainer: {
     position: 'absolute',
@@ -294,10 +310,6 @@ const styles = StyleSheet.create({
     zIndex: 999,
     borderTopRightRadius: 28,
     borderBottomRightRadius: 28,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
   profileContainer: {
@@ -315,14 +327,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B8F71',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#F7F8F5',
+    overflow: 'hidden',
+  },
+  profileAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 26,
   },
   profileInitials: {
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 18,
-    letterSpacing: 0.5,
   },
   profileName: {
     color: '#2F3E34',
@@ -349,21 +364,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
   },
-  navLinkInactive: {},
   navLinkActive: {
     backgroundColor: '#6B8F71',
   },
-  navIcon: {
-    marginRight: 10,
+  navLinkInactive: {
+    backgroundColor: 'transparent',
   },
   navLinkText: {
     color: '#2F3E34',
     fontSize: 16,
     fontWeight: '600',
-    letterSpacing: 0.2,
   },
   navLinkTextActive: {
     color: '#F7F8F5',
+  },
+  navIcon: {
+    marginRight: 10,
   },
   navDanger: {
     backgroundColor: '#F5DCDC',
