@@ -218,7 +218,7 @@ export default function Sidebar({
           <View style={styles.separator} />
 
           {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
-          {renderNavLink('/allChallenges/challenges', 'Alle Challenges', 'flag', MaterialIcons)}
+          {renderNavLink('/challenges/activeChallenges', 'Alle Challenges', 'flag', MaterialIcons)}
 
           <View style={styles.separator} />
 
