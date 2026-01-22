@@ -21,6 +21,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     role = Column(Enum('admin', 'user'), default='user', nullable=False)
+    avatar_url = Column(String(255), nullable=True)
 
     # Relationship to refresh tokens
     refresh_tokens = relationship(
