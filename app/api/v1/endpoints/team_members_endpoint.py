@@ -10,7 +10,7 @@ from app.crud import team_member as team_member_crud
 from app.core.security import get_current_user
 from app.models.user import User
 
-from logfile import team_member_logger
+from app.logfile import team_member_logger
 
 router = APIRouter(tags=["team_members"])
 

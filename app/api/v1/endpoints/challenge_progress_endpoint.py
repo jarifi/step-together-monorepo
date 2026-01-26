@@ -8,7 +8,7 @@ from app.crud import challenge_progress as challenge_progress_crud
 from app.core.security import get_current_user
 from app.models.user import User
 
-from logfile import challenge_progress_logger
+from app.logfile import challenge_progress_logger
 
 router = APIRouter(tags=["challenge_progress"])
 
@@ -81,7 +81,7 @@ def update_progress(
     updated_progress = challenge_progress_crud.update_challenge_progress(db, progress_id, progress_data)
 
     challenge_progress_logger.info(
-        f"CHALLENGE_PROGRESS UPDATED | progress_id={updated.id} | user_id={current_user.id}"
+        f"CHALLENGE_PROGRESS UPDATED | progress_id={updated_progress.id} | user_id={current_user.id}"
     )
 
     return updated_progress

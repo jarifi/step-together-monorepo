@@ -7,7 +7,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "bet@bfi.at",
+    "email": "goca@bfi.at",
     "password": "StrongPassword123" 
 }
 
@@ -191,6 +191,10 @@ Content-Type: application/json
 GET {{baseUrl}}/challenges/1/teams
 Authorization: Bearer {{login.response.body.accessToken}}
 
+### 5.6 Get Teams with total steps for a Challenge
+GET {{baseUrl}}/challenges/me/history
+Authorization: Bearer {{login.response.body.accessToken}}
+
 ### 6. Get All Challenge_progresses Using Access Token
 GET {{baseUrl}}/challenge_progress/
 Authorization: Bearer {{login.response.body.accessToken}}
@@ -238,3 +242,42 @@ GET {{baseUrl}}/step_logs/challenge/1/user/1?from=2025-08-10&to=2025-08-17
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.accessToken}}
 
+### 13. Create a Ticket
+POST {{baseUrl}}/tickets/
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+    "title": "Cannot login to app"
+}
+
+### 13.1 Get All Tickets
+GET {{baseUrl}}/tickets
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 13.2 Get Single Ticket
+GET {{baseUrl}}/tickets/1
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 13.3 Add Message to Ticket
+POST {{baseUrl}}/tickets/2/messages
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+
+    "message": "I keep getting a login error when trying to sign in."
+}
+
+### 13.4 List Messages for Ticket
+GET {{baseUrl}}/tickets/1/messages
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 13.5 Update Ticket State
+PUT {{baseUrl}}/tickets/1
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+    "state": "closed"
+}

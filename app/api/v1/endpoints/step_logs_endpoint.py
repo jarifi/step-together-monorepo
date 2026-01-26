@@ -11,7 +11,7 @@ from app.crud import step_log as step_log_crud
 from app.core.security import get_current_user
 from app.models.user import User
 
-from logfile import step_logger
+from app.logfile import step_logger
 
 router = APIRouter(tags=["step_logs"])
 

@@ -16,7 +16,7 @@ from app.crud.step_log import get_steps_for_current_week
 from app.crud.user import get_user
 from app.schema.HomeInitResponse import UserDashboardResponse
 
-from logfile import user_logger
+from app.logfile import user_logger
 
 # Define the APIRouter for user-related endpoints
 router = APIRouter(tags=["users"])

@@ -14,7 +14,7 @@ from app.crud import challenge as challenge_crud
 from app.core.security import get_current_user
 from app.models.user import User
 
-from logfile import challenge_logger
+from app.logfile import challenge_logger
 
 router = APIRouter(tags=["challenges"])
 

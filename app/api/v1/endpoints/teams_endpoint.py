@@ -17,7 +17,7 @@ from app.models.step_log import StepLog
 
 from app.schema.team_member import TeamMemberSimple
 
-from logfile import team_logger
+from app.logfile import team_logger
 
 router = APIRouter(tags=["teams"])
 

@@ -15,7 +15,7 @@ from app.crud.challenge import get_active_challenge
 from app.models.user import User
 from app.schema.user import UserLogin, PasswordChange, PasswordResetConfirm, PasswordResetRequest
 
-from logfile import auth_logger
+from app.logfile import auth_logger
 
 
 router = APIRouter()
