@@ -8,7 +8,6 @@ import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
 
-// Letzte Notlösung (falls DB wirklich gar nix liefert). Wenn du GAR keinen Default willst: auf 0 setzen.
 const LAST_RESORT_STEP_LENGTH_M = 0.78;
 
 const buildRankings = (
@@ -33,7 +32,6 @@ const buildRankings = (
       userId: (r?.userId ?? r?.user?.id ?? r?.id) ?? null,
       name: String(r?.name ?? r?.user?.name ?? '—'),
       steps: Number(r?.numberOfSteps ?? r?.steps ?? 0),
-      // ✅ nicht fix, sondern DB-Fallback (vom eingeloggten User)
       stepLength: Number.isFinite(sl) && sl > 0 ? sl : fallback,
     };
   });
@@ -68,7 +66,6 @@ const MyChallenge: React.FC = () => {
     return Number(d || 0);
   }, [vm]);
 
-  // ✅ Schrittlänge vom eingeloggten User (aus vm.user) als globaler Fallback
   const myStepLengthM = useMemo(() => {
     const raw =
       vm?.user?.stepLength ??
@@ -103,7 +100,6 @@ const MyChallenge: React.FC = () => {
         try {
           const rawRank = await getTeamRanking(mapped.team.id, mapped.challenge.id);
 
-          // ✅ Fallback = Schrittlänge des eingeloggten Users (aus DB)
           const fallbackRaw =
             mapped?.user?.stepLength ??
             mapped?.user?.step_length ??
@@ -147,7 +143,6 @@ const MyChallenge: React.FC = () => {
     const targetKm = Number(challengeDistanceKm || 0);
     if (!rankings.length || !targetKm) return [0, 0];
 
-    // ✅ Distanzberechnung fallbackt jetzt auf myStepLengthM statt fix 0.78
     const fallback =
       Number(myStepLengthM) > 0 ? Number(myStepLengthM) : LAST_RESORT_STEP_LENGTH_M;
 
