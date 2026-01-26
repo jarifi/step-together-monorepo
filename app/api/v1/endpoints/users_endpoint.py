@@ -184,26 +184,30 @@ def init_dashboard_data(
 
 @router.post("/me/profile-picture")
 async def upload_profile_picture(
+    db: Session = Depends(get_db),
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     if file.content_type not in ["image/jpeg", "image/png"]:
         raise HTTPException(status_code=400, detail="Invalid image type")
-    
+
+    ext = ".jpg" if file.content_type == "image/jpeg" else ".png"
+
     user_folder = f"user_{current_user.id}"
     user_path = os.path.join(BASE_MEDIA_PATH, user_folder)
     os.makedirs(user_path, exist_ok=True)
 
-    file_path = os.path.join(user_path, "profile.jpg")
+    filename = f"profile_{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(user_path, filename)
 
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
 
-    user_logger.info(
-        f"PROFILE PICTURE UPLOAD | user_id={current_user.id} | content_type={file.content_type}"
-    )
+    public_path = f"/media/profile_pictures/{user_folder}/{filename}"
 
-    return {
-        "message": "Profile picture uploaded successfully",
-        "path": f"/media/profile_pictures/user_{current_user.id}/profile.jpg"
-    }
+    current_user.avatar_url = public_path
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    return {"path": public_path, "avatarUrl": public_path}
