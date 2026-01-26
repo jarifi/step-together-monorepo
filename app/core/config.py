@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Step Together API"
     API_V1_STR: str = "/api/v1"
+    MEDIA_ROOT: str = "/var/www/steptogether_shared_uploads"
 
     # Load from environment (.env)
     SQLALCHEMY_DATABASE_URL: str
