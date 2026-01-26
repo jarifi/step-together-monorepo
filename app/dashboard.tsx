@@ -683,7 +683,7 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
             </Text>
 
             <TouchableOpacity
-              onPress={() => router.push('/challenges')}
+              onPress={() => router.push('/challenges/activeChallenges')}
               activeOpacity={0.9}
               style={{
                 backgroundColor: '#658869ff',

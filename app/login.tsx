@@ -29,6 +29,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { setUser, setToken, setUserId } = useUser();
 
@@ -142,17 +143,28 @@ export default function LoginScreen() {
             testID="login-email"
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Passwort"
-            placeholderTextColor="#ccc"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-            textContentType="password"
-            testID="login-password"
-          />
+          <View style={styles.passwordWrapper}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Passwort"
+              placeholderTextColor="#ccc"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete="password"
+              textContentType="password"
+              testID="login-password"
+            />
+
+            <Pressable
+              onPress={() => setShowPassword((prev) => !prev)}
+              hitSlop={10}
+              style={styles.eyeButton}
+            >
+              <Text style={styles.eyeIcon}>{showPassword ? "🙈" : "🐵"}</Text>
+            </Pressable>
+          </View>
+
 
           {errorMessage && (
             <Text style={styles.error} testID="login-error">
@@ -250,5 +262,37 @@ const styles = StyleSheet.create({
     color: "#ff6b6b",
     marginBottom: 10,
     textAlign: "center",
+  },
+  passwordWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(108, 118, 96, 0.65)",
+    borderWidth: 1,
+    borderColor: "rgba(108, 118, 96, 0.65)",
+    borderRadius: 10,
+    paddingLeft: 14,
+    paddingRight: 8,
+    marginBottom: 16,
+  },
+
+  passwordInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 16,
+    paddingVertical: Platform.OS === "ios" ? 14 : 10,
+  },
+
+  eyeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  eyeIcon: {
+    fontSize: 18,
+    color: "#fff",
+    opacity: 0.9,
   },
 });

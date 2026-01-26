@@ -30,7 +30,7 @@ export default function AdminScreen() {
             styles.navRow,
             pressed && styles.navRowPressed,
           ]}
-          onPress={() => router.push('/allChallenges')}
+          onPress={() => router.push('/challenges')}
         >
           <View style={styles.navContent}>
             <View style={styles.navIconWrapper}>

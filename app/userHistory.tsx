@@ -67,7 +67,7 @@ export default function ChallengeHistoryScreen() {
           </Text>
 
           <Pressable
-            onPress={() => router.push('/allChallenges/challenges')}
+            onPress={() => router.push('/challenges/activeChallenges')}
             style={({ pressed }) => [
               styles.primaryButton,
               pressed && styles.primaryButtonPressed,
@@ -94,7 +94,7 @@ export default function ChallengeHistoryScreen() {
                 <Pressable
                   onPress={() =>
                     router.push({
-                      pathname: '/allChallenges/details',
+                      pathname: '/challenges/details',
                       params: { id: item.id.toString() },
                     })
                   }

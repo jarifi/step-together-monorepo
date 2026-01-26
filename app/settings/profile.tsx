@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -13,7 +13,11 @@ import {
   View,
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
-import { updateUser } from '../../services/userService';
+import {
+  makeAbsoluteMediaUrl,
+  updateUser,
+  uploadMyProfilePicture,
+} from '../../services/userService';
 
 type UpdateUserPayload = {
   name: string;
@@ -22,6 +26,14 @@ type UpdateUserPayload = {
   stepLength?: number | null;
   role?: string | null;
 };
+
+const pickAvatarFromUser = (u: any): string | null => {
+  if (!u) return null;
+  return (u.avatarUrl ?? u.avatar_url ?? u.avatar ?? null) as string | null;
+};
+
+const isPickedLocalUri = (uri: string) =>
+  uri.startsWith('file://') || uri.startsWith('blob:') || uri.startsWith('data:');
 
 const ProfileUpdateScreen: React.FC = () => {
   const { user, setUser, userId } = useUser();
@@ -35,20 +47,19 @@ const ProfileUpdateScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    if (user) {
-      setName(user.name ?? '');
-      setEmail(user.email ?? '');
-      setStepLength(
-        user.stepLength != null && !isNaN(Number(user.stepLength))
-          ? String(user.stepLength)
-          : ''
-      );
-      setRole(user.role ?? '');
+    if (!user) return;
 
-      if ((user as any).avatarUrl) {
-        setImageUri((user as any).avatarUrl);
-      }
-    }
+    setName(user.name ?? '');
+    setEmail(user.email ?? '');
+    setStepLength(
+      user.stepLength != null && !isNaN(Number(user.stepLength))
+        ? String(user.stepLength)
+        : ''
+    );
+    setRole(user.role ?? '');
+
+    const avatar = pickAvatarFromUser(user);
+    if (avatar) setImageUri(avatar);
   }, [user]);
 
   const handlePickImage = async (): Promise<void> => {
@@ -63,14 +74,14 @@ const ProfileUpdateScreen: React.FC = () => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setImageUri(result.assets[0].uri);
+      setImageUri(result.assets[0].uri); 
     }
   };
 
@@ -100,17 +111,32 @@ const ProfileUpdateScreen: React.FC = () => {
       };
 
       if (imageUri) {
-        payload.avatarUrl = imageUri;
+        if (isPickedLocalUri(imageUri)) {
+          const up = await uploadMyProfilePicture(imageUri);
+          if (!up?.path) throw new Error('Upload did not return a path');
+
+          payload.avatarUrl = up.path;
+
+          setImageUri(up.path);
+        } else {
+          payload.avatarUrl = imageUri;
+        }
       }
 
       const updatedUser = await updateUser(userId, payload);
       setUser(updatedUser);
 
+      const newAvatar = pickAvatarFromUser(updatedUser);
+      if (newAvatar) setImageUri(newAvatar);
+
       Alert.alert('Success', 'Benutzer erfolgreich aktualisiert!');
       router.back();
-    } catch (error) {
-      Alert.alert('Error', 'Benutzer konnte nicht aktualisiert werden');
+    } catch (error: any) {
       console.error(error);
+      Alert.alert(
+        'Error',
+        error?.message ?? 'Benutzer konnte nicht aktualisiert werden'
+      );
     } finally {
       setLoading(false);
     }
@@ -126,9 +152,20 @@ const ProfileUpdateScreen: React.FC = () => {
       .toUpperCase() || '';
 
   const createdAtText =
-    user?.createdAt != null
-      ? new Date(user.createdAt).toLocaleDateString('de-AT')
+    (user as any)?.createdAt != null
+      ? new Date((user as any).createdAt).toLocaleDateString('de-AT')
       : undefined;
+
+  const displayImageUri = useMemo(() => {
+    if (!imageUri) return null;
+
+    if (isPickedLocalUri(imageUri)) return imageUri;
+
+    const abs = makeAbsoluteMediaUrl(imageUri) ?? imageUri;
+
+
+    return abs;
+  }, [imageUri]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -142,11 +179,8 @@ const ProfileUpdateScreen: React.FC = () => {
           {/* ========= USER-HEADER ========= */}
           <View style={styles.profileHeader}>
             <Pressable style={styles.avatarCircle} onPress={handlePickImage}>
-              {imageUri ? (
-                <Image
-                  source={{ uri: imageUri }}
-                  style={styles.avatarImage}
-                />
+              {displayImageUri ? (
+                <Image source={{ uri: displayImageUri }} style={styles.avatarImage} />
               ) : (
                 <Text style={styles.avatarInitials}>{initials || '??'}</Text>
               )}
@@ -161,13 +195,11 @@ const ProfileUpdateScreen: React.FC = () => {
             </View>
 
             <View style={styles.extraInfoBox}>
-              {user?.id != null && (
-                <Text style={styles.extraInfoText}>User-ID: {user.id}</Text>
+              {(user as any)?.id != null && (
+                <Text style={styles.extraInfoText}>User-ID: {(user as any).id}</Text>
               )}
               {createdAtText && (
-                <Text style={styles.extraInfoText}>
-                  Registriert: {createdAtText}
-                </Text>
+                <Text style={styles.extraInfoText}>Registriert: {createdAtText}</Text>
               )}
             </View>
           </View>

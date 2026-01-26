@@ -8,17 +8,23 @@ import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
 
+const LAST_RESORT_STEP_LENGTH_M = 0.78;
 
-const FIX_STEP_LENGTH_M = 0.78;
+const buildRankings = (
+  rawRank: any[],
+  userId: number | null | undefined,
+  fallbackStepLengthM: number | null | undefined
+) => {
+  const fallback =
+    Number(fallbackStepLengthM) > 0 ? Number(fallbackStepLengthM) : LAST_RESORT_STEP_LENGTH_M;
 
-const buildRankings = (rawRank: any[], userId: number | null | undefined) => {
   const normalized = rawRank.map((r: any) => {
     const slRaw =
       r?.stepLength ??
       r?.user?.stepLength ??
       r?.step_length ??
       r?.user_step_length ??
-      0;
+      null;
 
     const sl = Number(slRaw);
 
@@ -26,7 +32,7 @@ const buildRankings = (rawRank: any[], userId: number | null | undefined) => {
       userId: (r?.userId ?? r?.user?.id ?? r?.id) ?? null,
       name: String(r?.name ?? r?.user?.name ?? '—'),
       steps: Number(r?.numberOfSteps ?? r?.steps ?? 0),
-      stepLength: Number.isFinite(sl) && sl > 0 ? sl : FIX_STEP_LENGTH_M,
+      stepLength: Number.isFinite(sl) && sl > 0 ? sl : fallback,
     };
   });
 
@@ -35,8 +41,7 @@ const buildRankings = (rawRank: any[], userId: number | null | undefined) => {
   return normalized.map((r: any, i: number) => ({
     ...r,
     isUser: userId != null && r.userId === userId,
-    rankColor:
-      i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
+    rankColor: i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
   }));
 };
 
@@ -61,6 +66,17 @@ const MyChallenge: React.FC = () => {
     return Number(d || 0);
   }, [vm]);
 
+  const myStepLengthM = useMemo(() => {
+    const raw =
+      vm?.user?.stepLength ??
+      vm?.user?.step_length ??
+      vm?.user_step_length ??
+      null;
+
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [vm]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -82,16 +98,22 @@ const MyChallenge: React.FC = () => {
       if (mapped.team?.id && mapped.challenge?.id) {
         setRankingLoading(true);
         try {
-          const rawRank = await getTeamRanking(
-            mapped.team.id,
-            mapped.challenge.id
-          );
-          setRankings(buildRankings(rawRank, mapped.user?.id));
+          const rawRank = await getTeamRanking(mapped.team.id, mapped.challenge.id);
+
+          const fallbackRaw =
+            mapped?.user?.stepLength ??
+            mapped?.user?.step_length ??
+            mapped?.user_step_length ??
+            null;
+
+          const fallbackN = Number(fallbackRaw);
+          const fallbackStepLength =
+            Number.isFinite(fallbackN) && fallbackN > 0 ? fallbackN : null;
+
+          setRankings(buildRankings(rawRank, mapped.user?.id, fallbackStepLength));
         } catch (err: any) {
           console.error('TeamRanking error', err);
-          setRankingError(
-            err?.message ?? 'Fehler beim Laden des Team-Rankings.'
-          );
+          setRankingError(err?.message ?? 'Fehler beim Laden des Team-Rankings.');
           setRankings([]);
         } finally {
           setRankingLoading(false);
@@ -102,9 +124,7 @@ const MyChallenge: React.FC = () => {
       }
     } catch (e: any) {
       console.error('ChallengeScreen loadData error', e);
-      setErrorMsg(
-        e?.message ?? 'Unbekannter Fehler beim Laden der Challenge-Daten.'
-      );
+      setErrorMsg(e?.message ?? 'Unbekannter Fehler beim Laden der Challenge-Daten.');
       setRankings([]);
       setRankingLoading(false);
     } finally {
@@ -123,20 +143,19 @@ const MyChallenge: React.FC = () => {
     const targetKm = Number(challengeDistanceKm || 0);
     if (!rankings.length || !targetKm) return [0, 0];
 
+    const fallback =
+      Number(myStepLengthM) > 0 ? Number(myStepLengthM) : LAST_RESORT_STEP_LENGTH_M;
+
     const kmSum = rankings.reduce((sum, r) => {
       const steps = Number(r?.steps || 0);
-      const len =
-        Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
+      const lenRaw = Number(r?.stepLength || 0);
+      const len = lenRaw > 0 ? lenRaw : fallback;
       return sum + (steps * len) / 1000;
     }, 0);
 
-    const pct = Math.max(
-      0,
-      Math.min(100, (kmSum / Math.max(1, targetKm)) * 100)
-    );
-
+    const pct = Math.max(0, Math.min(100, (kmSum / Math.max(1, targetKm)) * 100));
     return [Number.isFinite(kmSum) ? kmSum : 0, Math.round(pct)];
-  }, [rankings, challengeDistanceKm]);
+  }, [rankings, challengeDistanceKm, myStepLengthM]);
 
   const daysLeft =
     typeof vm?.challenge?.daysLeft === 'number'
@@ -259,7 +278,7 @@ const MyChallenge: React.FC = () => {
           </Text>
 
           <TouchableOpacity
-            onPress={() => router.push('/allChallenges/challenges')}
+            onPress={() => router.push('/challenges/activeChallenges')}
             activeOpacity={0.9}
             style={{
               backgroundColor: '#658869ff',
@@ -305,7 +324,6 @@ const MyChallenge: React.FC = () => {
       style={styles.container}
       contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
     >
-
       {/* CHALLENGE PROGRESS */}
       <View style={styles.progressCard}>
         <View style={{ marginBottom: 12 }}>
@@ -374,7 +392,7 @@ const MyChallenge: React.FC = () => {
           {startLocation} → {targetLocation}
         </Text>
 
-        {/* Mapp */}
+        {/* Map */}
         <LeafletOSMMap start={startLocation} end={targetLocation} />
 
         {/* Fortschritts-Text */}
@@ -465,7 +483,6 @@ const MyChallenge: React.FC = () => {
             </View>
           ))}
       </View>
-
     </ScrollView>
   );
 };

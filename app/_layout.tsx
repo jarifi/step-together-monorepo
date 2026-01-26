@@ -119,13 +119,12 @@ export default function RootLayout() {
               <Stack.Screen name="teams/members" options={{ headerShown: false }} />
               <Stack.Screen name="users/index" options={{ headerShown: false }} />
               <Stack.Screen name="myChallenge" options={{ headerShown: false }} />
-              <Stack.Screen name="allChallenges/index" options={{ headerShown: false }} />
-              <Stack.Screen name="allChallenges/create" options={{ headerShown: false }} />
-              <Stack.Screen name="allChallenges/details" options={{ headerShown: false }} />
-              <Stack.Screen name="allChallenges/challenges" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/index" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/create" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
               <Stack.Screen name="dashboard" options={{ headerShown: false }} />
               <Stack.Screen name="userHistory" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges" options={{ headerShown: false }} />
               <Stack.Screen name="profileInfo" options={{ headerShown: false }} />
               <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
               <Stack.Screen name="settings/profile" options={{ headerShown: false }} />

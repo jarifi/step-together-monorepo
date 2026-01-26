@@ -1,16 +1,52 @@
 // file: services/userService.js
+import Constants from 'expo-constants';
 import { apiDelete, apiGet, apiPost, apiPut } from './api';
 
+const API_BASE_URL = String(Constants.expoConfig?.extra?.apiBaseUrl ?? '').replace(/\/+$/, '');
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+
+export const makeAbsoluteMediaUrl = (maybePath) => {
+  if (!maybePath) return null;
+  const s = String(maybePath).trim();
+  if (!s) return null;
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  if (s.startsWith('/')) return `${API_ORIGIN}${s}`;
+  return `${API_ORIGIN}/${s}`;
+};
+
+// ------------------------------
+// UPLOAD profile picture
+// ------------------------------
+export const uploadMyProfilePicture = async (imageUri) => {
+  const formData = new FormData();
+
+  const filename = `profile_${Date.now()}.jpg`;
+
+  if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
+    const r = await fetch(imageUri);
+    const blob = await r.blob();
+
+    formData.append('file', blob, filename);
+  } else {
+    formData.append('file', {
+      uri: imageUri,
+      name: filename,
+      type: 'image/jpeg',
+    });
+  }
+
+  return await apiPost('/users/me/profile-picture', formData);
+};
+
 // ---------------------------------------------------------------------------
-// GET USERS (with skip/limit + dummy avatars)
+// GET USERS (with skip/limit)
 // ---------------------------------------------------------------------------
 export const getUsers = async (skip = 0, limit = 10) => {
   try {
     const users = await apiGet(`/users/?skip=${skip}&limit=${limit}`);
-    // Add dummy avatars
-    return users.map((u, i) => ({
+    return users.map((u) => ({
       ...u,
-      avatar: `https://i.pravatar.cc/150?img=${i + 1}`,
+      avatar: makeAbsoluteMediaUrl(u.avatarUrl ?? u.avatar_url ?? null),
     }));
   } catch (err) {
     console.error('Error fetching users:', err);
@@ -24,10 +60,9 @@ export const getUsers = async (skip = 0, limit = 10) => {
 export const searchUsers = async (query) => {
   try {
     const users = await apiGet(`/users/search?q=${encodeURIComponent(query)}`);
-    // Add dummy avatars
-    return users.map((u, i) => ({
+    return users.map((u) => ({
       ...u,
-      avatar: `https://i.pravatar.cc/150?img=${i + 1}`,
+      avatar: makeAbsoluteMediaUrl(u.avatarUrl ?? u.avatar_url ?? null),
     }));
   } catch (err) {
     console.error('Error searching users:', err);
