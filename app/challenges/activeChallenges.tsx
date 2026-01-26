@@ -45,8 +45,7 @@ const shadow = Platform.select({
   android: { elevation: 3 },
 });
 
-// ✅ This MUST match your filesystem route (app/allChallenges/details.tsx)
-const DETAILS_PATH = '/allChallenges/details';
+const DETAILS_PATH = '/challenges/details';
 
 export default function OpenChallengesScreen() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
