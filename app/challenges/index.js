@@ -114,7 +114,7 @@ export default function AllChallengesScreen() {
 
         {/* Create Challenge Button */}
         <Pressable
-          onPress={() => router.push('/allChallenges/create')}
+          onPress={() => router.push('/challenges/create')}
           style={styles.createButton}
         >
           <Text style={styles.createButtonText}>Neue Challenge erstellen</Text>
@@ -130,13 +130,13 @@ export default function AllChallengesScreen() {
               showActions={true} 
               onPress={() =>
                 router.push({
-                  pathname: '/allChallenges/details',
+                  pathname: '/challenges/details',
                   params: { id: item.id.toString() },
                 })
               }
               onUpdate={() =>
                 router.push({
-                  pathname: '/allChallenges/update',
+                  pathname: '/challenges/update',
                   params: {
                     id: item.id,
                     name: item.name,

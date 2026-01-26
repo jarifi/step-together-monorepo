@@ -121,7 +121,7 @@ export default function UpdateChallengeScreen() {
                 position: 'top',
                 topOffset: 100,
             });
-            router.replace('/allChallenges');
+            router.replace('/challenges');
         } catch (error) {
             Toast.show({
                 type: 'error',
