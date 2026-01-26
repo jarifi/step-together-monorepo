@@ -8,7 +8,6 @@ import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
 
-
 const FIX_STEP_LENGTH_M = 0.78;
 
 const buildRankings = (rawRank: any[], userId: number | null | undefined) => {
@@ -35,8 +34,7 @@ const buildRankings = (rawRank: any[], userId: number | null | undefined) => {
   return normalized.map((r: any, i: number) => ({
     ...r,
     isUser: userId != null && r.userId === userId,
-    rankColor:
-      i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
+    rankColor: i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
   }));
 };
 
@@ -50,10 +48,7 @@ const MyChallenge: React.FC = () => {
   const [rankingError, setRankingError] = useState<string | null>(null);
 
   const fmt = useMemo(() => new Intl.NumberFormat('de-DE'), []);
-  const fmt1 = useMemo(
-    () => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }),
-    []
-  );
+  const fmt1 = useMemo(() => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }), []);
 
   const challengeDistanceKm = useMemo(() => {
     const ch = vm?.challenge;
@@ -68,30 +63,44 @@ const MyChallenge: React.FC = () => {
       setRankingError(null);
 
       const raw = await getHomeInit();
-      const mapped = mapHomeInitToDashboard(raw, new Date()) as any;
 
-      if (!mapped) {
-        setVm(null);
-        setErrorMsg('Keine Challenge-Daten verfügbar.');
+      // Mapper can throw if backend returns challenge=null and mapper reads challenge.id
+      let mapped: any = null;
+      try {
+        mapped = mapHomeInitToDashboard(raw, new Date()) as any;
+      } catch (mapErr: any) {
+        console.error('mapHomeInitToDashboard error', mapErr);
+
+        // "No challenge" should not be treated as a hard error; fall back to safe vm
+        setVm({ challenge: null, team: null, user: null });
         setRankings([]);
+        setRankingLoading(false);
+        setRankingError(null);
+        setErrorMsg(null);
+        return;
+      }
+
+      // If mapper returns nothing, treat as "no challenge", not as an error screen
+      if (!mapped) {
+        setVm({ challenge: null, team: null, user: null });
+        setRankings([]);
+        setRankingLoading(false);
+        setRankingError(null);
+        setErrorMsg(null);
         return;
       }
 
       setVm(mapped);
 
-      if (mapped.team?.id && mapped.challenge?.id) {
+      // Only load ranking if we truly have both IDs
+      if (mapped?.team?.id != null && mapped?.challenge?.id != null) {
         setRankingLoading(true);
         try {
-          const rawRank = await getTeamRanking(
-            mapped.team.id,
-            mapped.challenge.id
-          );
+          const rawRank = await getTeamRanking(mapped.team.id, mapped.challenge.id);
           setRankings(buildRankings(rawRank, mapped.user?.id));
         } catch (err: any) {
           console.error('TeamRanking error', err);
-          setRankingError(
-            err?.message ?? 'Fehler beim Laden des Team-Rankings.'
-          );
+          setRankingError(err?.message ?? 'Fehler beim Laden des Team-Rankings.');
           setRankings([]);
         } finally {
           setRankingLoading(false);
@@ -102,9 +111,20 @@ const MyChallenge: React.FC = () => {
       }
     } catch (e: any) {
       console.error('ChallengeScreen loadData error', e);
-      setErrorMsg(
-        e?.message ?? 'Unbekannter Fehler beim Laden der Challenge-Daten.'
-      );
+
+      // If the error is specifically about missing challenge.id, show "no challenge" UI instead
+      const msg = String(e?.message ?? '');
+      if (msg.includes("Cannot read properties of null") && msg.includes("reading 'id'")) {
+        setVm({ challenge: null, team: null, user: null });
+        setErrorMsg(null);
+        setRankings([]);
+        setRankingLoading(false);
+        setRankingError(null);
+        return;
+      }
+
+      setErrorMsg(e?.message ?? 'Unbekannter Fehler beim Laden der Challenge-Daten.');
+      setVm(null);
       setRankings([]);
       setRankingLoading(false);
     } finally {
@@ -125,16 +145,11 @@ const MyChallenge: React.FC = () => {
 
     const kmSum = rankings.reduce((sum, r) => {
       const steps = Number(r?.steps || 0);
-      const len =
-        Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
+      const len = Number(r?.stepLength || 0) > 0 ? Number(r.stepLength) : FIX_STEP_LENGTH_M;
       return sum + (steps * len) / 1000;
     }, 0);
 
-    const pct = Math.max(
-      0,
-      Math.min(100, (kmSum / Math.max(1, targetKm)) * 100)
-    );
-
+    const pct = Math.max(0, Math.min(100, (kmSum / Math.max(1, targetKm)) * 100));
     return [Number.isFinite(kmSum) ? kmSum : 0, Math.round(pct)];
   }, [rankings, challengeDistanceKm]);
 
@@ -165,7 +180,9 @@ const MyChallenge: React.FC = () => {
     );
   }
 
-  if (errorMsg || !vm) {
+  // Only show the red error screen when we *really* have an error.
+  // "No challenge" should go to the card below.
+  if (errorMsg && !vm) {
     return (
       <View
         style={{
@@ -184,22 +201,19 @@ const MyChallenge: React.FC = () => {
         >
           Ups, konnte Challenge-Daten nicht laden.
         </Text>
-        {errorMsg ? (
-          <Text
-            style={[
-              styles.font,
-              { color: '#6B7280', marginTop: 6, textAlign: 'center' },
-            ]}
-          >
-            {String(errorMsg)}
-          </Text>
-        ) : null}
+        <Text
+          style={[
+            styles.font,
+            { color: '#6B7280', marginTop: 6, textAlign: 'center' },
+          ]}
+        >
+          {String(errorMsg)}
+        </Text>
       </View>
     );
   }
 
-  const hasActiveChallenge =
-    vm?.challenge?.id != null && vm?.challenge?.state === 'open';
+  const hasActiveChallenge = vm?.challenge?.id != null && vm?.challenge?.state === 'open';
 
   if (!hasActiveChallenge) {
     return (
@@ -254,12 +268,11 @@ const MyChallenge: React.FC = () => {
               },
             ]}
           >
-            Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
-            oder wirf einen Blick auf deine bisherigen Challenges.
+            Sieht so aus als hättest du keine offene Challenge. Schau dir die kommenden hier an.
           </Text>
 
           <TouchableOpacity
-            onPress={() => router.push('/allChallenges/challenges')}
+            onPress={() => router.push('/allChallenges/challenge')}
             activeOpacity={0.9}
             style={{
               backgroundColor: '#658869ff',
@@ -301,11 +314,7 @@ const MyChallenge: React.FC = () => {
   const targetLocation = vm?.challenge?.targetLocation || '—';
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
-    >
-
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
       {/* CHALLENGE PROGRESS */}
       <View style={styles.progressCard}>
         <View style={{ marginBottom: 12 }}>
@@ -374,7 +383,7 @@ const MyChallenge: React.FC = () => {
           {startLocation} → {targetLocation}
         </Text>
 
-        {/* Mapp */}
+        {/* Map */}
         <LeafletOSMMap start={startLocation} end={targetLocation} />
 
         {/* Fortschritts-Text */}
@@ -448,10 +457,7 @@ const MyChallenge: React.FC = () => {
               <View style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={styles.rowBetween}>
-                  <Text
-                    style={[styles.userName, styles.font]}
-                    numberOfLines={1}
-                  >
+                  <Text style={[styles.userName, styles.font]} numberOfLines={1}>
                     {u.name}
                   </Text>
                   {u.isUser ? (
@@ -465,7 +471,6 @@ const MyChallenge: React.FC = () => {
             </View>
           ))}
       </View>
-
     </ScrollView>
   );
 };
