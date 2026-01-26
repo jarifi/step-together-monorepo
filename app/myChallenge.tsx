@@ -272,7 +272,7 @@ const MyChallenge: React.FC = () => {
           </Text>
 
           <TouchableOpacity
-            onPress={() => router.push('/allChallenges/challenge')}
+            onPress={() => router.push('/challenges/activeChallenge')}
             activeOpacity={0.9}
             style={{
               backgroundColor: '#658869ff',
