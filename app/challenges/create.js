@@ -21,407 +21,414 @@ import {
 } from '../../lib/challengeValidation';
 import { createChallenge } from '../../services/challengeService';
 
-// Hilfsfunktionen für den Kalender
+// ---------- Kalender/Date helpers (timezone-safe) ----------
 const stripTime = (date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d;
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 };
 
-const firstOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1);
+const firstOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
+const lastOfMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+const sameDay = (a, b) => stripTime(a).getTime() === stripTime(b).getTime();
+
+// Format "YYYY-MM-DD" in LOCAL time (no UTC shift)
+const formatLocalYMD = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
-const lastOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+// Parse "YYYY-MM-DD" as LOCAL date (avoid new Date("YYYY-MM-DD") UTC quirks)
+const parseLocalYMD = (s) => {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  // midday = extra-safe around DST boundaries
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
 };
 
-const sameDay = (a, b) => {
-    return stripTime(a).getTime() === stripTime(b).getTime();
-};
+// For backend: create a UTC ISO at 00:00:00Z for that LOCAL calendar day
+const ymdToUtcMidnightIso = (ymd) => `${ymd}T00:00:00.000Z`;
 
 export default function CreateChallengeScreen() {
-    const router = useRouter();
-    const [name, setName] = useState('Graz Wien 2025');
-    const [startLocation, setStartLocation] = useState('Graz');
-    const [targetLocation, setTargetLocation] = useState('Wien');
-    const [distance, setDistance] = useState('200');
-    const [startDate, setStartDate] = useState('2025-12-17');
-    const [endDate, setEndDate] = useState('2025-12-31');
-    const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const [name, setName] = useState('Graz Wien 2025');
+  const [startLocation, setStartLocation] = useState('Graz');
+  const [targetLocation, setTargetLocation] = useState('Wien');
+  const [distance, setDistance] = useState('200');
+  const [startDate, setStartDate] = useState('2025-12-17');
+  const [endDate, setEndDate] = useState('2025-12-31');
+  const [loading, setLoading] = useState(false);
 
-    // Kalender State
-    const [calendarOpen, setCalendarOpen] = useState(false);
-    const [calendarType, setCalendarType] = useState('start');
-    const [calendarMonth, setCalendarMonth] = useState(new Date());
-    const [calendarPick, setCalendarPick] = useState(new Date());
+  // Kalender State
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarType, setCalendarType] = useState('start');
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [calendarPick, setCalendarPick] = useState(new Date());
 
-    const handleCreate = async () => {
-        const nameErrors = validateChallengeName(name);
-        const locationErrors = validateLocation(startLocation, targetLocation);
-        const distanceErrors = validateDistance(distance);
-        const dateErrors = validateDate(startDate, endDate);
-        const userId = await AsyncStorage.getItem('userId');
-        const teamId = '1';
+  const handleCreate = async () => {
+    const nameErrors = validateChallengeName(name);
+    const locationErrors = validateLocation(startLocation, targetLocation);
+    const distanceErrors = validateDistance(distance);
+    const dateErrors = validateDate(startDate, endDate);
+    const userId = await AsyncStorage.getItem('userId');
+    const teamId = '1';
 
-        if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Alle Felder sind Pflichtfelder!',
-                position: 'top',
-                visibilityTime: 2000,
-                topOffset: 100,
-            });
-            return;
-        }
+    if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Alle Felder sind Pflichtfelder!',
+        position: 'top',
+        visibilityTime: 2000,
+        topOffset: 100,
+      });
+      return;
+    }
 
-        if (nameErrors.length > 0 || locationErrors.length > 0 || distanceErrors.length > 0 || dateErrors.length > 0) {
-            const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors];
-            allErrors.forEach((error, i) => {
-                setTimeout(() => {
-                    Toast.show({
-                        type: 'error',
-                        text1: 'Error',
-                        text2: error,
-                        position: 'top',
-                        visibilityTime: 2000,
-                        topOffset: 100,
-                    });
-                }, i * 2500);
-            });
-            return;
-        }
+    if (nameErrors.length > 0 || locationErrors.length > 0 || distanceErrors.length > 0 || dateErrors.length > 0) {
+      const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors];
+      allErrors.forEach((error, i) => {
+        setTimeout(() => {
+          Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: error,
+            position: 'top',
+            visibilityTime: 2000,
+            topOffset: 100,
+          });
+        }, i * 2500);
+      });
+      return;
+    }
 
-        const newChallengeData = {
-            name,
-            start_location: startLocation,
-            target_location: targetLocation,
-            distance: parseFloat(distance),
-            start_date: `${startDate}T00:00:00.000Z`,
-            end_date: `${endDate}T00:00:00.000Z`,
-            creator_id: parseInt(userId || '0', 10),
-            team_id: parseInt(teamId, 10),
-        };
-
-        setLoading(true);
-        try {
-            await createChallenge(newChallengeData);
-            Toast.show({
-                type: 'success',
-                text1: 'Erfolg',
-                text2: 'Challenge erfolgreich erstellt!',
-                position: 'top',
-                topOffset: 100,
-            });
-            router.replace('/challenges');
-        } catch (error) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error?.message || 'Challenge konnte nicht erstellt werden!',
-                position: 'top',
-                topOffset: 100,
-            });
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
+    const newChallengeData = {
+      name,
+      start_location: startLocation,
+      target_location: targetLocation,
+      distance: parseFloat(distance),
+      // keep your existing API shape, but now the picked dates won't shift
+      start_date: ymdToUtcMidnightIso(startDate),
+      end_date: ymdToUtcMidnightIso(endDate),
+      creator_id: parseInt(userId || '0', 10),
+      team_id: parseInt(teamId, 10),
     };
 
-    // Kalender-Funktionen
-    const openCalendar = (type) => {
-        setCalendarType(type);
-        const currentDate = type === 'start' && startDate
-            ? new Date(startDate)
-            : type === 'end' && endDate
-                ? new Date(endDate)
-                : new Date();
+    setLoading(true);
+    try {
+      await createChallenge(newChallengeData);
+      Toast.show({
+        type: 'success',
+        text1: 'Erfolg',
+        text2: 'Challenge erfolgreich erstellt!',
+        position: 'top',
+        topOffset: 100,
+      });
+      router.replace('/challenges');
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.message || 'Challenge konnte nicht erstellt werden!',
+        position: 'top',
+        topOffset: 100,
+      });
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setCalendarPick(currentDate);
-        setCalendarMonth(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
-        setCalendarOpen(true);
-    };
+  // ---------- Kalender-Funktionen ----------
+  const openCalendar = (type) => {
+    setCalendarType(type);
 
-    const applySelectedDate = () => {
-        const formatted = calendarPick.toISOString().split('T')[0];
-        if (calendarType === 'start') {
-            setStartDate(formatted);
+    const currentDate =
+      type === 'start' && startDate
+        ? parseLocalYMD(startDate) ?? new Date()
+        : type === 'end' && endDate
+          ? parseLocalYMD(endDate) ?? new Date()
+          : new Date();
+
+    setCalendarPick(currentDate);
+    setCalendarMonth(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
+    setCalendarOpen(true);
+  };
+
+  const applySelectedDate = () => {
+    // IMPORTANT: local Y-M-D, no toISOString() (UTC) => no "one day behind"
+    const formatted = formatLocalYMD(calendarPick);
+    if (calendarType === 'start') {
+      setStartDate(formatted);
+    } else {
+      setEndDate(formatted);
+    }
+    setCalendarOpen(false);
+  };
+
+  const calendarHeader = calendarMonth.toLocaleDateString('de-DE', {
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const calendarGrid = (() => {
+    const first = firstOfMonth(calendarMonth);
+    const firstDayOfWeek = (first.getDay() + 6) % 7; // Montag = 0
+    const start = new Date(first);
+    start.setDate(first.getDate() - firstDayOfWeek);
+
+    const cells = [];
+
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+
+      const inMonth = date.getMonth() === calendarMonth.getMonth();
+      let selectable = true;
+
+      if (calendarType === 'start') {
+        selectable = stripTime(date) >= stripTime(new Date());
+      } else if (calendarType === 'end') {
+        if (startDate) {
+          const startDateObj = parseLocalYMD(startDate) ?? new Date(startDate);
+          selectable = stripTime(date) >= stripTime(startDateObj);
         } else {
-            setEndDate(formatted);
+          selectable = stripTime(date) >= stripTime(new Date());
         }
-        setCalendarOpen(false);
-    };
+      }
 
-    const calendarHeader = calendarMonth.toLocaleDateString('de-DE', {
-        month: 'long',
-        year: 'numeric'
-    });
+      cells.push({ date, inMonth, selectable });
+    }
+    return cells;
+  })();
 
-    // Korrigierte calendarGrid Funktion
-    const calendarGrid = (() => {
-        const first = firstOfMonth(calendarMonth);
-        const firstDayOfWeek = (first.getDay() + 6) % 7; // Montag = 0
-        const start = new Date(first);
-        start.setDate(first.getDate() - firstDayOfWeek);
+  const canGoPrevMonth = () => {
+    if (calendarType === 'start') {
+      const prevMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+      return lastOfMonth(prevMonth) >= stripTime(new Date());
+    }
+    return true;
+  };
 
-        const cells = [];
+  const canGoNextMonth = () => true;
 
-        for (let i = 0; i < 42; i++) {
-            const date = new Date(start);
-            date.setDate(start.getDate() + i);
+  const goPrevMonth = () => {
+    if (canGoPrevMonth()) {
+      setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+    }
+  };
 
-            const inMonth = date.getMonth() === calendarMonth.getMonth();
-            let selectable = true;
+  const goNextMonth = () => {
+    if (canGoNextMonth()) {
+      setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+    }
+  };
 
-            // Validierungslogik
-            if (calendarType === 'start') {
-                // Start-Datum: nur heutiges Datum und zukünftige Daten
-                selectable = stripTime(date) >= stripTime(new Date());
-            } else if (calendarType === 'end') {
-                // End-Datum: nur Daten nach dem Start-Datum (falls vorhanden)
-                if (startDate) {
-                    const startDateObj = new Date(startDate);
-                    selectable = stripTime(date) >= stripTime(startDateObj);
-                } else {
-                    // Wenn kein Start-Datum ausgewählt, nur heutiges Datum und zukünftige Daten
-                    selectable = stripTime(date) >= stripTime(new Date());
-                }
-            }
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Challenge erstellen</Text>
 
-            cells.push({
-                date,
-                inMonth,
-                selectable
-            });
-        }
-        return cells;
-    })();
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Challenge Name"
+            style={styles.input}
+            editable={!loading}
+          />
+          <TextInput
+            value={startLocation}
+            onChangeText={setStartLocation}
+            placeholder="Startort"
+            style={styles.input}
+            editable={!loading}
+          />
+          <TextInput
+            value={targetLocation}
+            onChangeText={setTargetLocation}
+            placeholder="Zielort"
+            style={styles.input}
+            editable={!loading}
+          />
+          <TextInput
+            value={distance}
+            onChangeText={setDistance}
+            placeholder="Distanz (in km)"
+            style={styles.input}
+            keyboardType="numeric"
+            editable={!loading}
+          />
 
-    const canGoPrevMonth = () => {
-        if (calendarType === 'start') {
-            const prevMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
-            return lastOfMonth(prevMonth) >= stripTime(new Date());
-        }
-        return true;
-    };
-
-    const canGoNextMonth = () => {
-        return true;
-    };
-
-    const goPrevMonth = () => {
-        if (canGoPrevMonth()) {
-            setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
-        }
-    };
-
-    const goNextMonth = () => {
-        if (canGoNextMonth()) {
-            setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
-        }
-    };
-
-    return (
-        <View style={styles.container}>
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={true}
-                keyboardShouldPersistTaps="handled"
+          {/* Start-Datum */}
+          <View style={styles.dateRow}>
+            <Pressable
+              onPress={() => openCalendar('start')}
+              style={[styles.input, styles.dateInput]}
             >
-                <View style={styles.formContainer}>
-                    <Text style={styles.title}>Challenge erstellen</Text>
-
-                    <TextInput
-                        value={name}
-                        onChangeText={setName}
-                        placeholder="Challenge Name"
-                        style={styles.input}
-                        editable={!loading}
-                    />
-                    <TextInput
-                        value={startLocation}
-                        onChangeText={setStartLocation}
-                        placeholder="Startort"
-                        style={styles.input}
-                        editable={!loading}
-                    />
-                    <TextInput
-                        value={targetLocation}
-                        onChangeText={setTargetLocation}
-                        placeholder="Zielort"
-                        style={styles.input}
-                        editable={!loading}
-                    />
-                    <TextInput
-                        value={distance}
-                        onChangeText={setDistance}
-                        placeholder="Distanz (in km)"
-                        style={styles.input}
-                        keyboardType="numeric"
-                        editable={!loading}
-                    />
-
-                    {/* Start-Datum */}
-                    <View style={styles.dateRow}>
-                        <Pressable
-                            onPress={() => openCalendar('start')}
-                            style={[styles.input, styles.dateInput]}
-                        >
-                            <Text style={{ color: startDate ? '#000' : '#aaa' }}>
-                                {startDate ? startDate : 'Start-Datum auswählen'}
-                            </Text>
-                        </Pressable>
-                        <TouchableOpacity
-                            style={styles.calendarIconContainer}
-                            onPress={() => openCalendar('start')}
-                        >
-                            <Ionicons
-                                name="calendar-outline"
-                                size={24}
-                                color="#6B8F71"
-                            />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* End-Datum */}
-                    <View style={styles.dateRow}>
-                        <Pressable
-                            onPress={() => openCalendar('end')}
-                            style={[styles.input, styles.dateInput]}
-                        >
-                            <Text style={{ color: endDate ? '#000' : '#aaa' }}>
-                                {endDate ? endDate : 'End-Datum auswählen'}
-                            </Text>
-                        </Pressable>
-                        <TouchableOpacity
-                            style={styles.calendarIconContainer}
-                            onPress={() => openCalendar('end')}
-                        >
-                            <Ionicons
-                                name="calendar-outline"
-                                size={24}
-                                color="#6B8F71"
-                            />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.buttonContainer}>
-                        <Pressable
-                            onPress={() => router.back()}
-                            disabled={loading}
-                            style={[styles.cancelButton, loading && styles.disabledButton]}
-                        >
-                            <Text style={styles.cancelButtonText}>Abbrechen</Text>
-                        </Pressable>
-
-                        <Pressable
-                            onPress={handleCreate}
-                            disabled={loading}
-                            style={[styles.createButton, loading && styles.disabledButton]}
-                        >
-                            <Text style={styles.buttonText}>
-                                {loading ? 'Erstelle...' : 'Erstellen'}
-                            </Text>
-                        </Pressable>
-                    </View>
-                </View>
-            </ScrollView>
-
-            {/* Kalender Modal */}
-            <Modal
-                animationType="fade"
-                transparent
-                visible={calendarOpen}
-                onRequestClose={() => setCalendarOpen(false)}
+              <Text style={{ color: startDate ? '#000' : '#aaa' }}>
+                {startDate ? startDate : 'Start-Datum auswählen'}
+              </Text>
+            </Pressable>
+            <TouchableOpacity
+              style={styles.calendarIconContainer}
+              onPress={() => openCalendar('start')}
             >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPressOut={() => setCalendarOpen(false)}
-                >
-                    <View style={styles.calendarCard}>
-                        <View style={styles.calHeader}>
-                            <TouchableOpacity
-                                onPress={goPrevMonth}
-                                style={[styles.navPill, !canGoPrevMonth() && { opacity: 0.35 }]}
-                                disabled={!canGoPrevMonth()}
-                            >
-                                <Ionicons name="chevron-back" size={18} />
-                            </TouchableOpacity>
-                            <Text style={[styles.calHeaderTitle]}>{calendarHeader}</Text>
-                            <TouchableOpacity
-                                onPress={goNextMonth}
-                                style={[styles.navPill, !canGoNextMonth() && { opacity: 0.35 }]}
-                                disabled={!canGoNextMonth()}
-                            >
-                                <Ionicons name="chevron-forward" size={18} />
-                            </TouchableOpacity>
-                        </View>
+              <Ionicons
+                name="calendar-outline"
+                size={24}
+                color="#6B8F71"
+              />
+            </TouchableOpacity>
+          </View>
 
-                        <View style={styles.weekRow}>
-                            {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
-                                <Text key={d} style={[styles.weekCell]}>
-                                    {d}
-                                </Text>
-                            ))}
-                        </View>
+          {/* End-Datum */}
+          <View style={styles.dateRow}>
+            <Pressable
+              onPress={() => openCalendar('end')}
+              style={[styles.input, styles.dateInput]}
+            >
+              <Text style={{ color: endDate ? '#000' : '#aaa' }}>
+                {endDate ? endDate : 'End-Datum auswählen'}
+              </Text>
+            </Pressable>
+            <TouchableOpacity
+              style={styles.calendarIconContainer}
+              onPress={() => openCalendar('end')}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={24}
+                color="#6B8F71"
+              />
+            </TouchableOpacity>
+          </View>
 
-                        <View style={styles.grid}>
-                            {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
-                                const isSame = sameDay(date, calendarPick);
-                                const disabled = !selectable;
-                                const isToday = sameDay(date, new Date());
+          <View style={styles.buttonContainer}>
+            <Pressable
+              onPress={() => router.back()}
+              disabled={loading}
+              style={[styles.cancelButton, loading && styles.disabledButton]}
+            >
+              <Text style={styles.cancelButtonText}>Abbrechen</Text>
+            </Pressable>
 
-                                return (
-                                    <TouchableOpacity
-                                        key={`${date.toISOString()}-${idx}`}
-                                        style={[
-                                            styles.dayCellWrap,
-                                            isToday && styles.dayTodayWrap,
-                                            isSame && !disabled && styles.daySelectedWrap,
-                                            disabled && { opacity: 0.35 },
-                                        ]}
-                                        onPress={() => !disabled && setCalendarPick(date)}
-                                        disabled={disabled}
-                                    >
-                                        <View style={styles.dayCellInner}>
-                                            <Text
-                                                style={[
-                                                    styles.dayCellText,
-                                                    !inMonth && styles.dayOutText,
-                                                    isSame && !disabled && styles.daySelectedText,
-                                                    isToday && !isSame && styles.dayTodayText,
-                                                ]}
-                                            >
-                                                {date.getDate()}
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.applyBtn}
-                            onPress={applySelectedDate}
-                        >
-                            <Text style={[styles.applyBtnText]}>Übernehmen</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.cancelBtn}
-                            onPress={() => setCalendarOpen(false)}
-                        >
-                            <Text style={[styles.cancelBtnText]}>Abbrechen</Text>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+            <Pressable
+              onPress={handleCreate}
+              disabled={loading}
+              style={[styles.createButton, loading && styles.disabledButton]}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Erstelle...' : 'Erstellen'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-    );
+      </ScrollView>
+
+      {/* Kalender Modal */}
+      <Modal
+        animationType="fade"
+        transparent
+        visible={calendarOpen}
+        onRequestClose={() => setCalendarOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPressOut={() => setCalendarOpen(false)}
+        >
+          <View style={styles.calendarCard}>
+            <View style={styles.calHeader}>
+              <TouchableOpacity
+                onPress={goPrevMonth}
+                style={[styles.navPill, !canGoPrevMonth() && { opacity: 0.35 }]}
+                disabled={!canGoPrevMonth()}
+              >
+                <Ionicons name="chevron-back" size={18} />
+              </TouchableOpacity>
+              <Text style={[styles.calHeaderTitle]}>{calendarHeader}</Text>
+              <TouchableOpacity
+                onPress={goNextMonth}
+                style={[styles.navPill, !canGoNextMonth() && { opacity: 0.35 }]}
+                disabled={!canGoNextMonth()}
+              >
+                <Ionicons name="chevron-forward" size={18} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.weekRow}>
+              {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
+                <Text key={d} style={[styles.weekCell]}>
+                  {d}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.grid}>
+              {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
+                const isSame = sameDay(date, calendarPick);
+                const disabled = !selectable;
+                const isToday = sameDay(date, new Date());
+
+                return (
+                  <TouchableOpacity
+                    key={`${date.getTime()}-${idx}`}
+                    style={[
+                      styles.dayCellWrap,
+                      isToday && styles.dayTodayWrap,
+                      isSame && !disabled && styles.daySelectedWrap,
+                      disabled && { opacity: 0.35 },
+                    ]}
+                    onPress={() => !disabled && setCalendarPick(date)}
+                    disabled={disabled}
+                  >
+                    <View style={styles.dayCellInner}>
+                      <Text
+                        style={[
+                          styles.dayCellText,
+                          !inMonth && styles.dayOutText,
+                          isSame && !disabled && styles.daySelectedText,
+                          isToday && !isSame && styles.dayTodayText,
+                        ]}
+                      >
+                        {date.getDate()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={styles.applyBtn}
+              onPress={applySelectedDate}
+            >
+              <Text style={[styles.applyBtnText]}>Übernehmen</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setCalendarOpen(false)}
+            >
+              <Text style={[styles.cancelBtnText]}>Abbrechen</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
 }
+
 
 const styles = StyleSheet.create({
     container: {

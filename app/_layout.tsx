@@ -131,6 +131,7 @@ export default function RootLayout() {
               <Stack.Screen name="settings/help" options={{ headerShown: false }} />
               <Stack.Screen name="settings/about" options={{ headerShown: false }} />
               <Stack.Screen name="settings/password" options={{ headerShown: false }} />
+              <Stack.Screen name="users/create" options={{ headerShown: false }} />
             </Stack>
 
             {showPill && <BottomBar pathname={pathname} />}
