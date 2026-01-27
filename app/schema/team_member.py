@@ -27,3 +27,12 @@ class TeamMemberSimple(CamelCaseBaseModel):
 
     class Config:
         from_attributes = True
+        
+class TeamMemberChallengeSteps(BaseModel):
+    id: int
+    name: str
+    numberOfSteps: int
+    avatar_url: Optional[str] = None   
+
+    class Config:
+        from_attributes = True

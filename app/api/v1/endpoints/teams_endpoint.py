@@ -125,21 +125,21 @@ def get_team_members_challenge_steps(
         db.query(
             User.id.label("id"),
             User.name.label("name"),
-            func.coalesce(func.sum(StepLog.number_of_steps), 0).label("numberOfSteps"),
-        )
-        .join(TeamMember, TeamMember.user_id == User.id)
-        .outerjoin(
-            StepLog,
-            and_(
-                StepLog.user_id == User.id,
-                StepLog.challenge_id == challenge_id
+            User.avatar_url.label("avatar_url"),   
+                func.coalesce(func.sum(StepLog.number_of_steps), 0).label("numberOfSteps"),
             )
+            .join(TeamMember, TeamMember.user_id == User.id)
+            .outerjoin(
+                StepLog,
+                and_(
+                    StepLog.user_id == User.id,
+                    StepLog.challenge_id == challenge_id
+                )
+            )
+            .filter(TeamMember.team_id == team_id)
+            .group_by(User.id, User.name, User.avatar_url) 
+            .all()
         )
-        .filter(TeamMember.team_id == team_id)
-        .group_by(User.id, User.name)
-        .all()
-    )
-
     return results
 
 @router.post("/join_team/{team_id}", status_code=status.HTTP_201_CREATED)
