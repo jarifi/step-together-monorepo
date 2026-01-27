@@ -308,13 +308,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#6B7280',
     },
-    avatar: {
-        width: 54,
-        height: 54,
-        borderRadius: 999,
-        backgroundColor: '#D1D5DB',
-        marginRight: 25,
-    },
+    
     rowBetween: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -489,12 +483,12 @@ const styles = StyleSheet.create({
         width: '100%',
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
-        padding: 12,           
+        padding: 12,
         shadowColor: '#000',
         shadowOpacity: 0.18,
         shadowRadius: 10,
         elevation: 5,
-        overflow: 'visible', 
+        overflow: 'visible',
     },
 
     calHeader: {
@@ -521,14 +515,14 @@ const styles = StyleSheet.create({
 
     weekRow: {
         flexDirection: 'row',
-        width: '100%',      
+        width: '100%',
         marginTop: 6,
         marginBottom: 6,
     },
 
     weekCell: {
-        flex: 1,            
-        minWidth: 0,         
+        flex: 1,
+        minWidth: 0,
         textAlign: 'center',
         fontSize: 12,
         color: '#7B8A80',
@@ -545,7 +539,7 @@ const styles = StyleSheet.create({
     },
 
     dayCellWrap: {
-        flexBasis: '14.2857%', 
+        flexBasis: '14.2857%',
         aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',

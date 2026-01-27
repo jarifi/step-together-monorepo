@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Platform,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
+import Avatar from '../components/Avatar';
 import { useUser } from '../context/UserContext';
 import { makeAbsoluteMediaUrl } from '../services/userService';
 
@@ -88,16 +88,7 @@ const ProfileInfoScreen: React.FC = () => {
         <View style={[styles.headerCard, shadow]}>
           <View style={styles.headerTopRow}>
             <View style={styles.avatarRing}>
-              <View style={styles.avatarCircle}>
-                {displayAvatarUri ? (
-                  <Image
-                    source={{ uri: displayAvatarUri }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <Text style={styles.avatarInitials}>{initials}</Text>
-                )}
-              </View>
+<Avatar user={user} name={user?.name} size={86} />
             </View>
 
             <View style={styles.headerRight}>

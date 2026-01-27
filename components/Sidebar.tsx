@@ -1,11 +1,9 @@
-// file: components/Sidebar.tsx
 import { MaterialIcons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import { Link, router, usePathname } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Image,
   Platform,
   Pressable,
   StatusBar,
@@ -15,9 +13,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Avatar from '../components/Avatar';
 import { useUser } from '../context/UserContext';
 import { getUserRole, removeTokens } from '../lib/auth';
-import { makeAbsoluteMediaUrl } from '../services/userService';
 
 type SidebarProps = {
   isOpen?: boolean;
@@ -50,9 +48,7 @@ export default function Sidebar({
   const [isOpenLocal, setIsOpenLocal] = useState(false);
   const isOpen = isTablet ? true : isOpenExternal ?? isOpenLocal;
 
-  const slideAnim = useRef(
-    new Animated.Value(isTablet ? 0 : -SIDEBAR_WIDTH)
-  ).current;
+  const slideAnim = useRef(new Animated.Value(isTablet ? 0 : -SIDEBAR_WIDTH)).current;
 
   useEffect(() => {
     const loadRole = async () => {
@@ -102,36 +98,10 @@ export default function Sidebar({
     closeSidebar();
   };
 
-  const initials = user?.name
-    ? user.name
-        .split(' ')
-        .filter(Boolean)
-        .map((n: string) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : 'U';
-
   const displayName = user?.name || 'Nutzer nicht gefunden';
   const displayEmail = user?.email || 'Profil bearbeiten';
 
-  const avatarUri = useMemo(() => {
-    const raw =
-      (user as any)?.avatarUrl ??
-      (user as any)?.avatar_url ??
-      (user as any)?.avatar ??
-      null;
-
-    if (!raw) return null;
-
-    const s = String(raw).trim();
-    if (!s) return null;
-
-    return makeAbsoluteMediaUrl(s) ?? s;
-  }, [user]);
-
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   function renderNavLink(
     href: string,
@@ -168,9 +138,7 @@ export default function Sidebar({
         </View>
       )}
 
-      {!isTablet && isOpen && (
-        <Pressable style={styles.overlay} onPress={closeSidebar} />
-      )}
+      {!isTablet && isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
       <Animated.View
         style={[
@@ -190,26 +158,21 @@ export default function Sidebar({
               router.push('/profileInfo');
             }}
           >
-            <View style={styles.profileCircle}>
-              {avatarUri ? (
-                <Image
-                  source={{ uri: avatarUri }}
-                  style={styles.profileAvatarImage}
-                />
-              ) : (
-                <Text style={styles.profileInitials}>{initials}</Text>
-              )}
+            <View style={styles.profileAvatarWrap}>
+              <Avatar user={user} name={user?.name} size={52} showRing={false} />
             </View>
 
             <View style={{ marginLeft: 12 }}>
-              <Text style={styles.profileName}>{displayName}</Text>
-              <Text style={styles.profileEmail}>{displayEmail}</Text>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <Text style={styles.profileEmail} numberOfLines={1}>
+                {displayEmail}
+              </Text>
             </View>
           </Pressable>
         ) : (
-          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>
-            Kein User geladen
-          </Text>
+          <Text style={{ color: '#2F3E34', marginBottom: 20 }}>Kein User geladen</Text>
         )}
 
         <View style={styles.linkContainer}>
@@ -222,8 +185,7 @@ export default function Sidebar({
 
           <View style={styles.separator} />
 
-          {userRole === 'admin' &&
-            renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
+          {userRole === 'admin' && renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
 
           {renderNavLink('/settings/settings', 'Einstellungen', 'settings', MaterialIcons)}
 
@@ -252,16 +214,9 @@ function NavLink({ href, label, icon, active, onNavigate }: NavLinkProps) {
   return (
     <Link href={href} asChild>
       <Pressable style={styles.navLink} onPress={onNavigate}>
-        <View
-          style={[
-            styles.navInner,
-            active ? styles.navLinkActive : styles.navLinkInactive,
-          ]}
-        >
+        <View style={[styles.navInner, active ? styles.navLinkActive : styles.navLinkInactive]}>
           {icon}
-          <Text style={[styles.navLinkText, active && styles.navLinkTextActive]}>
-            {label}
-          </Text>
+          <Text style={[styles.navLinkText, active && styles.navLinkTextActive]}>{label}</Text>
         </View>
       </Pressable>
     </Link>
@@ -320,7 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#EAF1E6',
   },
-  profileCircle: {
+  profileAvatarWrap: {
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -328,16 +283,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  profileAvatarImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 26,
-  },
-  profileInitials: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 18,
   },
   profileName: {
     color: '#2F3E34',

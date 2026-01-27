@@ -14,18 +14,47 @@ export const makeAbsoluteMediaUrl = (maybePath) => {
   return `${API_ORIGIN}/${s}`;
 };
 
+export const getDisplayAvatarUri = (userLike) => {
+  if (!userLike) return null;
+
+  const raw =
+    userLike?.avatarUrl ??
+    userLike?.avatar_url ??
+    userLike?.profilePicture ??
+    userLike?.profile_picture ??
+    userLike?.profile_picture_url ??
+    userLike?.profilePictureUrl ??
+    userLike?.avatar ?? 
+    userLike?.picture ??
+    userLike?.pictureUrl ??
+    userLike?.image ??
+    userLike?.imageUrl ??
+    userLike?.photo ??
+    userLike?.photoUrl ??
+    userLike?.user?.avatarUrl ??
+    userLike?.user?.avatar_url ??
+    userLike?.user?.profilePicture ??
+    userLike?.user?.profile_picture ??
+    userLike?.user?.profile_picture_url ??
+    userLike?.user?.profilePictureUrl ??
+    null;
+
+  const s = raw == null ? '' : String(raw).trim();
+  if (!s) return null;
+
+  return makeAbsoluteMediaUrl(s) ?? s;
+};
+
 // ------------------------------
 // UPLOAD profile picture
 // ------------------------------
 export const uploadMyProfilePicture = async (imageUri) => {
   const formData = new FormData();
-
   const filename = `profile_${Date.now()}.jpg`;
 
   if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
     const r = await fetch(imageUri);
     const blob = await r.blob();
-
     formData.append('file', blob, filename);
   } else {
     formData.append('file', {
@@ -37,6 +66,7 @@ export const uploadMyProfilePicture = async (imageUri) => {
 
   return await apiPost('/users/me/profile-picture', formData);
 };
+
 
 // ---------------------------------------------------------------------------
 // GET USERS (with skip/limit)
