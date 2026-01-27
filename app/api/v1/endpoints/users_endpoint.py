@@ -1,13 +1,15 @@
 import os
 import uuid
+import io
 from typing import List, Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
+from PIL import Image
 
-# Import your database session, security, CRUD operations, and schemas
 from app.db.session import get_db
 from app.core.security import get_current_user
-from app.crud import user as user_crud  # Renamed for clarity
+from app.crud import user as user_crud
 from app.schema.user import UserCreate, UserResponse, CurrentUser, UserUpdate
 from app.models.user import User
 from app.crud.team import get_team_by_user_id
@@ -15,14 +17,12 @@ from app.crud.challenge import get_active_challenge
 from app.crud.step_log import get_steps_for_current_week
 from app.crud.user import get_user
 from app.schema.HomeInitResponse import UserDashboardResponse
-
 from app.logfile import user_logger
 
-# Define the APIRouter for user-related endpoints
 router = APIRouter(tags=["users"])
 
 BASE_MEDIA_PATH = "app/media/profile_pictures"
-
+ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
 
 
 @router.get("/", response_model=List[UserResponse], dependencies=[Depends(get_current_user)])
@@ -182,26 +182,31 @@ def init_dashboard_data(
         steps_this_week=steps_this_week
     )
 
+
 @router.post("/me/profile-picture")
 async def upload_profile_picture(
     db: Session = Depends(get_db),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
-    if file.content_type not in ["image/jpeg", "image/png"]:
+    if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="Invalid image type")
-
-    ext = ".jpg" if file.content_type == "image/jpeg" else ".png"
 
     user_folder = f"user_{current_user.id}"
     user_path = os.path.join(BASE_MEDIA_PATH, user_folder)
     os.makedirs(user_path, exist_ok=True)
 
-    filename = f"profile_{uuid.uuid4().hex}{ext}"
+    filename = f"profile_{uuid.uuid4().hex}.webp"
     file_path = os.path.join(user_path, filename)
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
+    content = await file.read()
+
+    if file.content_type == "image/webp":
+        with open(file_path, "wb") as f:
+            f.write(content)
+    else:
+        image = Image.open(io.BytesIO(content)).convert("RGBA")
+        image.save(file_path, "WEBP", quality=85, method=6)
 
     public_path = f"/media/profile_pictures/{user_folder}/{filename}"
 
