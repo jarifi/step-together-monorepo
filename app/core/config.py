@@ -6,7 +6,8 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Step Together API"
     API_V1_STR: str = "/api/v1"
-    MEDIA_ROOT: str = "/var/www/steptogether_shared_uploads"
+    BASE_MEDIA_PATH: str = "app/media"
+    PUBLIC_MEDIA_PATH: str = "https://backend.mandalorian.at/assets/images"
 
     # Load from environment (.env)
     SQLALCHEMY_DATABASE_URL: str

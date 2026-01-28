@@ -9,6 +9,7 @@ from PIL import Image
 
 from app.db.session import get_db
 from app.core.security import get_current_user
+from app.core.config import settings
 from app.crud import user as user_crud
 from app.schema.user import UserCreate, UserResponse, CurrentUser, UserUpdate
 from app.models.user import User
@@ -21,7 +22,7 @@ from app.logfile import user_logger
 
 router = APIRouter(tags=["users"])
 
-BASE_MEDIA_PATH = "app/media/profile_pictures"
+PROFILE_PICTURES_DIR = "user_profiles"
 ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
 
 
@@ -193,26 +194,29 @@ async def upload_profile_picture(
         raise HTTPException(status_code=400, detail="Invalid image type")
 
     user_folder = f"user_{current_user.id}"
-    user_path = os.path.join(BASE_MEDIA_PATH, user_folder)
+    user_path = os.path.join(settings.BASE_MEDIA_PATH, PROFILE_PICTURES_DIR, user_folder)
+    
+    # 1. Ensure directory exists and clear old files
     os.makedirs(user_path, exist_ok=True)
+    for existing_file in os.listdir(user_path):
+        os.remove(os.path.join(user_path, existing_file))
 
+    # 2. Generate new unique name
     filename = f"profile_{uuid.uuid4().hex}.webp"
     file_path = os.path.join(user_path, filename)
 
+    # 3. Process and Save
     content = await file.read()
-
     if file.content_type == "image/webp":
         with open(file_path, "wb") as f:
             f.write(content)
     else:
-        image = Image.open(io.BytesIO(content)).convert("RGBA")
-        image.save(file_path, "WEBP", quality=85, method=6)
+        image = Image.open(io.BytesIO(content)).convert("RGB") # Use RGB for standard webp
+        image.save(file_path, "WEBP", quality=85)
 
-    public_path = f"/media/profile_pictures/{user_folder}/{filename}"
-
+    # 4. Update Database
+    public_path = f"{settings.PUBLIC_MEDIA_PATH}/{PROFILE_PICTURES_DIR}/{user_folder}/{filename}"
     current_user.avatar_url = public_path
-    db.add(current_user)
     db.commit()
-    db.refresh(current_user)
 
     return {"path": public_path, "avatarUrl": public_path}
