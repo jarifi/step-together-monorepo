@@ -49,57 +49,8 @@ export default function SettingsScreen() {
           />
         </Pressable>
 
-        {/* Hilfe & Unterstützung */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.navRow,
-            pressed && styles.navRowPressed,
-          ]}
-          onPress={() => router.push('/settings/help')}
-        >
-          <View style={styles.navContent}>
-            <View style={styles.navIconWrapper}>
-              <MaterialIcons name="help-outline" size={22} style={styles.navIcon} />
-            </View>
-            <View style={styles.navTextContainer}>
-              <Text style={styles.navText}>Hilfe & Unterstützung</Text>
-              <Text style={styles.navSubText}>
-                FAQ, Kontakt & Unterstützung bei Problemen.
-              </Text>
-            </View>
-          </View>
-          <MaterialIcons
-            name="chevron-right"
-            size={22}
-            style={styles.chevron}
-          />
-        </Pressable>
+        
 
-        {/* Über */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.navRow,
-            pressed && styles.navRowPressed,
-          ]}
-          onPress={() => router.push('/settings/about')}
-        >
-          <View style={styles.navContent}>
-            <View style={styles.navIconWrapper}>
-              <MaterialIcons name="info-outline" size={22} style={styles.navIcon} />
-            </View>
-            <View style={styles.navTextContainer}>
-              <Text style={styles.navText}>Über</Text>
-              <Text style={styles.navSubText}>
-                Infos über die App und das Projekt.
-              </Text>
-            </View>
-          </View>
-          <MaterialIcons
-            name="chevron-right"
-            size={22}
-            style={styles.chevron}
-          />
-        </Pressable>
       </View>
     </ScrollView>
   );

@@ -189,6 +189,8 @@ export default function Sidebar({
 
           {renderNavLink('/settings/settings', 'Einstellungen', 'settings', MaterialIcons)}
 
+          {renderNavLink('/help/start', 'Hilfe & Support', 'info', MaterialIcons)}
+
           <Pressable style={styles.navLink} onPress={handleLogout}>
             <View style={[styles.navInner, styles.navDanger]}>
               <Feather name="log-out" size={20} color="#B91C1C" style={styles.navIcon} />
