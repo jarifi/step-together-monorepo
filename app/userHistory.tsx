@@ -80,7 +80,6 @@ export default function ChallengeHistoryScreen() {
     return (
       <View style={styles.centered}>
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyEmoji}>🏁</Text>
           <Text style={styles.emptyTitle}>Noch keine Challenges</Text>
           <Text style={styles.emptyText}>
             Du hast bisher an keiner Challenge teilgenommen.

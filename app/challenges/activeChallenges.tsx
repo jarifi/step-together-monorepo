@@ -154,7 +154,7 @@ export default function OpenChallengesScreen() {
         <Text style={styles.tabHint}>
           {tab === 'active' && 'Alle aktuell laufenden Challenges.'}
           {tab === 'incoming' && 'Alle Challenges, die bald starten.'}
-          {tab === 'closed' && 'Alle abgeschlossenen Challenges.'}
+          {tab === 'closed' && 'Alle geschlossenen Challenges.'}
         </Text>
       </View>
     );
