@@ -1,31 +1,23 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import Avatar from '../components/Avatar';
+import Avatar from '../components/Avatar'; // ✅ added from file 2
 import { LeafletOSMMap } from '../components/LeafletOSMMap';
 import { getHomeInit } from '../services/dashboardService';
 import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
 import { getTeamRanking } from '../services/teamService';
 import styles from './styles/dashboardStyles';
 
-const LAST_RESORT_STEP_LENGTH_M = 0.78;
+const FIX_STEP_LENGTH_M = 0.78;
 
 const buildRankings = (
   rawRank: any[],
   userId: number | null | undefined,
-  fallbackStepLengthM: number | null | undefined
+  fallbackStepLengthM?: number | null
 ) => {
   const fallback =
-    Number(fallbackStepLengthM) > 0
-      ? Number(fallbackStepLengthM)
-      : LAST_RESORT_STEP_LENGTH_M;
+    Number(fallbackStepLengthM) > 0 ? Number(fallbackStepLengthM) : FIX_STEP_LENGTH_M;
 
   const normalized = rawRank.map((r: any) => {
     const slRaw =
@@ -40,9 +32,10 @@ const buildRankings = (
     return {
       userId: (r?.userId ?? r?.user?.id ?? r?.id) ?? null,
       name: String(r?.name ?? r?.user?.name ?? '—'),
-      email: r?.email ?? r?.user?.email ?? null,
       steps: Number(r?.numberOfSteps ?? r?.steps ?? 0),
       stepLength: Number.isFinite(sl) && sl > 0 ? sl : fallback,
+      // extras from file 2 (safe, doesn’t affect design unless used)
+      email: r?.email ?? r?.user?.email ?? null,
       userRaw: r?.user ?? r,
     };
   });
@@ -52,8 +45,7 @@ const buildRankings = (
   return normalized.map((r: any, i: number) => ({
     ...r,
     isUser: userId != null && r.userId === userId,
-    rankColor:
-      i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
+    rankColor: i === 0 ? '#C8A100' : i === 1 ? '#999999' : i === 2 ? '#C9716D' : null,
   }));
 };
 
@@ -67,10 +59,7 @@ const MyChallenge: React.FC = () => {
   const [rankingError, setRankingError] = useState<string | null>(null);
 
   const fmt = useMemo(() => new Intl.NumberFormat('de-DE'), []);
-  const fmt1 = useMemo(
-    () => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }),
-    []
-  );
+  const fmt1 = useMemo(() => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }), []);
 
   const challengeDistanceKm = useMemo(() => {
     const ch = vm?.challenge;
@@ -78,9 +67,9 @@ const MyChallenge: React.FC = () => {
     return Number(d || 0);
   }, [vm]);
 
+  // ✅ from file 2: user step length as fallback for distance calc + rankings
   const myStepLengthM = useMemo(() => {
-    const raw =
-      vm?.user?.stepLength ?? vm?.user?.step_length ?? vm?.user_step_length ?? null;
+    const raw = vm?.user?.stepLength ?? vm?.user?.step_length ?? vm?.user_step_length ?? null;
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [vm]);
@@ -92,18 +81,37 @@ const MyChallenge: React.FC = () => {
       setRankingError(null);
 
       const raw = await getHomeInit();
-      const mapped = mapHomeInitToDashboard(raw, new Date()) as any;
 
-      if (!mapped) {
-        setVm(null);
-        setErrorMsg('Keine Challenge-Daten verfügbar.');
+      // Mapper can throw if backend returns challenge=null and mapper reads challenge.id
+      let mapped: any = null;
+      try {
+        mapped = mapHomeInitToDashboard(raw, new Date()) as any;
+      } catch (mapErr: any) {
+        console.error('mapHomeInitToDashboard error', mapErr);
+
+        // "No challenge" should not be treated as a hard error; fall back to safe vm
+        setVm({ challenge: null, team: null, user: null });
         setRankings([]);
+        setRankingLoading(false);
+        setRankingError(null);
+        setErrorMsg(null);
+        return;
+      }
+
+      // If mapper returns nothing, treat as "no challenge", not as an error screen
+      if (!mapped) {
+        setVm({ challenge: null, team: null, user: null });
+        setRankings([]);
+        setRankingLoading(false);
+        setRankingError(null);
+        setErrorMsg(null);
         return;
       }
 
       setVm(mapped);
 
-      if (mapped.team?.id && mapped.challenge?.id) {
+      // Only load ranking if we truly have both IDs
+      if (mapped?.team?.id != null && mapped?.challenge?.id != null) {
         setRankingLoading(true);
         try {
           const rawRank = await getTeamRanking(mapped.team.id, mapped.challenge.id);
@@ -118,8 +126,7 @@ const MyChallenge: React.FC = () => {
           const fallbackStepLength =
             Number.isFinite(fallbackN) && fallbackN > 0 ? fallbackN : null;
 
-          const built = buildRankings(rawRank, mapped.user?.id, fallbackStepLength);
-          setRankings(built);
+          setRankings(buildRankings(rawRank, mapped.user?.id, fallbackStepLength));
         } catch (err: any) {
           console.error('TeamRanking error', err);
           setRankingError(err?.message ?? 'Fehler beim Laden des Team-Rankings.');
@@ -133,7 +140,20 @@ const MyChallenge: React.FC = () => {
       }
     } catch (e: any) {
       console.error('ChallengeScreen loadData error', e);
+
+      // If the error is specifically about missing challenge.id, show "no challenge" UI instead
+      const msg = String(e?.message ?? '');
+      if (msg.includes('Cannot read properties of null') && msg.includes("reading 'id'")) {
+        setVm({ challenge: null, team: null, user: null });
+        setErrorMsg(null);
+        setRankings([]);
+        setRankingLoading(false);
+        setRankingError(null);
+        return;
+      }
+
       setErrorMsg(e?.message ?? 'Unbekannter Fehler beim Laden der Challenge-Daten.');
+      setVm(null);
       setRankings([]);
       setRankingLoading(false);
     } finally {
@@ -153,7 +173,7 @@ const MyChallenge: React.FC = () => {
     if (!rankings.length || !targetKm) return [0, 0];
 
     const fallback =
-      Number(myStepLengthM) > 0 ? Number(myStepLengthM) : LAST_RESORT_STEP_LENGTH_M;
+      Number(myStepLengthM) > 0 ? Number(myStepLengthM) : FIX_STEP_LENGTH_M;
 
     const kmSum = rankings.reduce((sum, r) => {
       const steps = Number(r?.steps || 0);
@@ -167,7 +187,9 @@ const MyChallenge: React.FC = () => {
   }, [rankings, challengeDistanceKm, myStepLengthM]);
 
   const daysLeft =
-    typeof vm?.challenge?.daysLeft === 'number' ? Math.max(0, vm.challenge.daysLeft) : undefined;
+    typeof vm?.challenge?.daysLeft === 'number'
+      ? Math.max(0, vm.challenge.daysLeft)
+      : undefined;
 
   const hasRanking = !rankingLoading && !rankingError && rankings.length > 0;
   const noRanking = !rankingLoading && !rankingError && rankings.length === 0;
@@ -191,7 +213,9 @@ const MyChallenge: React.FC = () => {
     );
   }
 
-  if (errorMsg || !vm) {
+  // Only show the red error screen when we *really* have an error.
+  // "No challenge" should go to the card below.
+  if (errorMsg && !vm) {
     return (
       <View
         style={{
@@ -210,22 +234,19 @@ const MyChallenge: React.FC = () => {
         >
           Ups, konnte Challenge-Daten nicht laden.
         </Text>
-        {errorMsg ? (
-          <Text
-            style={[
-              styles.font,
-              { color: '#6B7280', marginTop: 6, textAlign: 'center' },
-            ]}
-          >
-            {String(errorMsg)}
-          </Text>
-        ) : null}
+        <Text
+          style={[
+            styles.font,
+            { color: '#6B7280', marginTop: 6, textAlign: 'center' },
+          ]}
+        >
+          {String(errorMsg)}
+        </Text>
       </View>
     );
   }
 
-  const hasActiveChallenge =
-    vm?.challenge?.id != null && vm?.challenge?.state === 'open';
+  const hasActiveChallenge = vm?.challenge?.id != null && vm?.challenge?.state === 'open';
 
   if (!hasActiveChallenge) {
     return (
@@ -280,12 +301,11 @@ const MyChallenge: React.FC = () => {
               },
             ]}
           >
-            Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
-            oder wirf einen Blick auf deine bisherigen Challenges.
+            Sieht so aus als hättest du keine offene Challenge. Schau dir die kommenden hier an.
           </Text>
 
           <TouchableOpacity
-            onPress={() => router.push('/challenges/activeChallenges')}
+            onPress={() => router.push('/allChallenges/challenge')}
             activeOpacity={0.9}
             style={{
               backgroundColor: '#658869ff',
@@ -296,9 +316,7 @@ const MyChallenge: React.FC = () => {
               marginBottom: 10,
             }}
           >
-            <Text
-              style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}
-            >
+            <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>
               Zu den Challenges
             </Text>
           </TouchableOpacity>
@@ -316,12 +334,7 @@ const MyChallenge: React.FC = () => {
               backgroundColor: '#F9FAFB',
             }}
           >
-            <Text
-              style={[
-                styles.font,
-                { color: '#374151', fontWeight: '700', fontSize: 14 },
-              ]}
-            >
+            <Text style={[styles.font, { color: '#374151', fontWeight: '700', fontSize: 14 }]}>
               Meine Challenge-Historie
             </Text>
           </TouchableOpacity>
@@ -334,12 +347,11 @@ const MyChallenge: React.FC = () => {
   const targetLocation = vm?.challenge?.targetLocation || '—';
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
+      {/* CHALLENGE PROGRESS */}
       <View style={styles.progressCard}>
         <View style={{ marginBottom: 12 }}>
+          {/* Team-Zeile */}
           <Text
             style={[
               styles.font,
@@ -358,6 +370,7 @@ const MyChallenge: React.FC = () => {
             </Text>
           </Text>
 
+          {/* Challenge-Name */}
           <Text
             style={[
               styles.font,
@@ -370,10 +383,11 @@ const MyChallenge: React.FC = () => {
               },
             ]}
           >
-            Challenge: {vm?.challenge?.name}
+            Challenge:{' '} {vm?.challenge?.name}
           </Text>
         </View>
 
+        {/* Skala + Fortschritt */}
         <View style={styles.topScaleRow}>
           <Text style={[styles.scaleTick, styles.font]}>Start</Text>
           <Text style={[styles.scaleTick, styles.font]}>
@@ -385,6 +399,7 @@ const MyChallenge: React.FC = () => {
           <View style={[styles.progressFill, { width: `${distancePct}%` }]} />
         </View>
 
+        {/* Route darunter */}
         <Text
           style={[
             styles.font,
@@ -401,11 +416,16 @@ const MyChallenge: React.FC = () => {
           {startLocation} → {targetLocation}
         </Text>
 
+        {/* Map */}
         <LeafletOSMMap start={startLocation} end={targetLocation} />
 
+        {/* Fortschritts-Text */}
         <Text style={[styles.progressNote, styles.font]}>
-          <Text style={{ color: '#5F764E', fontWeight: '800' }}>{distancePct}%</Text>{' '}
-          der Strecke geschafft. ({fmt1.format(distanceKmDone)} / {challengeDistanceKm} km)
+          <Text style={{ color: '#5F764E', fontWeight: '800' }}>
+            {distancePct}%
+          </Text>{' '}
+          der Strecke geschafft. ({fmt1.format(distanceKmDone)} /{' '}
+          {challengeDistanceKm} km)
           {typeof daysLeft === 'number' && (
             <>
               {'\n'}
@@ -414,9 +434,12 @@ const MyChallenge: React.FC = () => {
           )}
         </Text>
 
+        {/* TEAM RANKING */}
         <View style={styles.teamSectionHeader}>
           <Text style={[styles.teamSubtitle, styles.font]}>
-            <Text style={{ color: '#7FA58C', fontWeight: '700' }}>Team-Mitglieder </Text>
+            <Text style={{ color: '#7FA58C', fontWeight: '700' }}>
+              Team-Mitglieder{' '}
+            </Text>
             Ranking
           </Text>
         </View>
@@ -465,6 +488,7 @@ const MyChallenge: React.FC = () => {
                 {idx + 1}#
               </Text>
 
+              {/* ✅ keep design of file 1: just replace placeholder avatar with Avatar component */}
               <View style={{ marginRight: 25 }}>
                 <Avatar user={u.userRaw} name={u.name} size={54} />
               </View>
@@ -474,9 +498,7 @@ const MyChallenge: React.FC = () => {
                   <Text style={[styles.userName, styles.font]} numberOfLines={1}>
                     {u.name}
                   </Text>
-                  {u.isUser ? (
-                    <Text style={[styles.youNote, styles.font]}>(Du)</Text>
-                  ) : null}
+                  {u.isUser ? <Text style={[styles.youNote, styles.font]}>(Du)</Text> : null}
                 </View>
                 <Text style={[styles.userSteps, styles.font]}>
                   {fmt.format(u.steps)}
