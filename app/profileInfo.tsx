@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: COLORS.text,
   },
 });

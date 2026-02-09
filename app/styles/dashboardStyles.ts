@@ -13,7 +13,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F5F7F4',
         flex: 1,
         paddingHorizontal: 18,
-        paddingTop: 20,
+        paddingTop: 30,
     },
     topSection: {
         //paddingTop: 100,

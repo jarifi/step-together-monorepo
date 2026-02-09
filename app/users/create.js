@@ -1,267 +1,301 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import Toast from 'react-native-toast-message';
-import { validateEmail, validateName, validatePassword, validateStepLength } from "../../lib/userValidation";
+import Toast from "react-native-toast-message";
+import {
+    validateEmail,
+    validateName,
+    validatePassword,
+    validateStepLength,
+} from "../../lib/userValidation";
 import { createUser } from "../../services/userService";
 
+// -----------------------------
+// helpers (comma/dot safe)
+// -----------------------------
+const sanitizeStepLengthInput = (raw) => {
+  let v = String(raw ?? "").replace(/[^\d.,]/g, "");
+
+  const firstSepIndex = v.search(/[.,]/);
+  if (firstSepIndex !== -1) {
+    const before = v.slice(0, firstSepIndex + 1);
+    const after = v.slice(firstSepIndex + 1).replace(/[.,]/g, "");
+    v = before + after;
+  }
+
+  return v;
+};
+
+const normalizeStepLength = (v) => String(v ?? "").trim().replace(",", ".");
+
 export default function CreateUserScreen() {
-    const router = useRouter();
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [passwordConfirm, setPasswordConfirm] = useState('');
-    const [stepLength, setStepLength] = useState('');
-    const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [stepLength, setStepLength] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    const handleCreate = async () => {
-        const emailErrors = validateEmail(email);
-        const nameErrors = validateName(name);
-        const stepLengthErrors = validateStepLength(stepLength);
+  const handleCreate = async () => {
+    const emailErrors = validateEmail(email);
+    const nameErrors = validateName(name);
 
-        if (!email || !password || !passwordConfirm || !name || !stepLength) {
-            setTimeout(() => {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Error',
-                    text2: 'Alle Felder sind Pflichtfelder!',
-                    position: 'top',
-                    visibilityTime: 2000,
-                    topOffset: 100,
-                });
-            });
-            return;
-        }
+    const stepLengthNormalized = normalizeStepLength(stepLength);
+    const stepLengthErrors = validateStepLength(stepLengthNormalized);
 
-        if (emailErrors.length > 0) {
-            emailErrors.forEach((error, index) => {
-                setTimeout(() => {
-                    Toast.show({
-                        type: 'error',
-                        text1: "Error",
-                        text2: error,
-                        position: 'top',
-                        visibilityTime: 2000,
-                        topOffset: 100,
-                    });
-                }, index * 2500);
-            });
-            return;
-        }
+    if (!email || !password || !passwordConfirm || !name || !stepLength) {
+      setTimeout(() => {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Alle Felder sind Pflichtfelder!",
+          position: "top",
+          visibilityTime: 2000,
+          topOffset: 100,
+        });
+      });
+      return;
+    }
 
-        if (nameErrors.length > 0) {
-            nameErrors.forEach((error, index) => {
-                setTimeout(() => {
-                    Toast.show({
-                        type: 'error',
-                        text1: "Error",
-                        text2: error,
-                        position: 'top',
-                        visibilityTime: 2000,
-                        topOffset: 100,
-                    });
-                }, index * 2500);
-            });
-            return;
-        }
+    if (emailErrors.length > 0) {
+      emailErrors.forEach((error, index) => {
+        setTimeout(() => {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: error,
+            position: "top",
+            visibilityTime: 2000,
+            topOffset: 100,
+          });
+        }, index * 2500);
+      });
+      return;
+    }
 
-        if (stepLengthErrors.length > 0) {
-            stepLengthErrors.forEach((error, index) => {
-                setTimeout(() => {
-                    Toast.show({
-                        type: 'error',
-                        text1: "Error",
-                        text2: error,
-                        position: 'top',
-                        visibilityTime: 2000,
-                        topOffset: 100,
-                    });
-                }, index * 2500);
-            });
-            return;
-        }
+    if (nameErrors.length > 0) {
+      nameErrors.forEach((error, index) => {
+        setTimeout(() => {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: error,
+            position: "top",
+            visibilityTime: 2000,
+            topOffset: 100,
+          });
+        }, index * 2500);
+      });
+      return;
+    }
 
-        if (password !== passwordConfirm) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Passwörter stimmen nicht überein!',
-                position: 'top',
-                topOffset: 100,
-            });
-            return;
-        }
+    if (stepLengthErrors.length > 0) {
+      stepLengthErrors.forEach((error, index) => {
+        setTimeout(() => {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: error,
+            position: "top",
+            visibilityTime: 2000,
+            topOffset: 100,
+          });
+        }, index * 2500);
+      });
+      return;
+    }
 
-        const passwordErrors = validatePassword(password);
-        if (passwordErrors.length > 0) {
-            passwordErrors.forEach((error, index) => {
-                setTimeout(() => {
-                    Toast.show({
-                        type: 'error',
-                        text1: "Error",
-                        text2: error,
-                        position: 'top',
-                        visibilityTime: 2000,
-                        topOffset: 100,
-                    });
-                }, index * 2500);
-            });
-            return;
-        }
+    if (password !== passwordConfirm) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Passwörter stimmen nicht überein!",
+        position: "top",
+        topOffset: 100,
+      });
+      return;
+    }
 
-        setLoading(true);
-        try {
-            await createUser({ email, password, passwordConfirm, name, stepLength: parseFloat(stepLength) });
-            Toast.show({
-                type: 'success',
-                text1: 'Erfolg',
-                text2: 'Benutzer erfolgreich erstellt! ',
-                position: 'top',
-                topOffset: 100,
-            });
-            router.replace('/users');
-        } catch (error) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error?.message || 'Benutzer konnte nicht erstellt werden!',
-                position: 'top',
-                topOffset: 100,
-            });
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const passwordErrors = validatePassword(password);
+    if (passwordErrors.length > 0) {
+      passwordErrors.forEach((error, index) => {
+        setTimeout(() => {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: error,
+            position: "top",
+            visibilityTime: 2000,
+            topOffset: 100,
+          });
+        }, index * 2500);
+      });
+      return;
+    }
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.formContainer}>
-                {/* Titel "Benutzer erstellen" über den Eingabefeldern */}
-                <Text style={styles.title}>Benutzer erstellen</Text>
-                
-                <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Vor- und Nachname"
-                    style={styles.input}
-                    editable={!loading}
-                />
-                <TextInput
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="E-Mail"
-                    style={styles.input}
-                    keyboardType="email-address"
-                    editable={!loading}
-                />
-                <TextInput
-                    value={stepLength}
-                    onChangeText={setStepLength}
-                    placeholder="Schrittlänge (in cm)"
-                    style={styles.input}
-                    keyboardType="numeric"
-                    editable={!loading}
-                />
-                <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Passwort"
-                    style={styles.input}
-                    secureTextEntry
-                    editable={!loading}
-                />
-                <TextInput
-                    value={passwordConfirm}
-                    onChangeText={setPasswordConfirm}
-                    placeholder="Passwort bestätigen"
-                    style={styles.input}
-                    secureTextEntry
-                    editable={!loading}
-                />
-                
-                <View style={styles.buttonContainer}>
-                    <Pressable
-                        onPress={() => router.back()}
-                        disabled={loading}
-                        style={[styles.cancelButton, loading && styles.disabledButton]}
-                    >
-                        <Text style={styles.cancelButtonText}>Abbrechen</Text>
-                    </Pressable>
-                    
-                    <Pressable
-                        onPress={handleCreate}
-                        disabled={loading}
-                        style={[styles.createButton, loading && styles.disabledButton]}
-                    >
-                        <Text style={styles.createText}>
-                            {loading ? 'Erstellen...' : 'Erstellen'}
-                        </Text>
-                    </Pressable>
-                </View>
-            </View>
+    setLoading(true);
+    try {
+      await createUser({
+        email,
+        password,
+        passwordConfirm,
+        name,
+        stepLength: parseFloat(stepLengthNormalized),
+      });
+
+      Toast.show({
+        type: "success",
+        text1: "Erfolg",
+        text2: "Benutzer erfolgreich erstellt! ",
+        position: "top",
+        topOffset: 100,
+      });
+      router.replace("/users");
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: error?.message || "Benutzer konnte nicht erstellt werden!",
+        position: "top",
+        topOffset: 100,
+      });
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.formContainer}>
+        <Text style={styles.title}>Benutzer erstellen</Text>
+
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Vor- und Nachname"
+          style={styles.input}
+          editable={!loading}
+        />
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder="E-Mail"
+          style={styles.input}
+          keyboardType="email-address"
+          editable={!loading}
+        />
+
+        <TextInput
+          value={stepLength}
+          onChangeText={(t) => setStepLength(sanitizeStepLengthInput(t))}
+          placeholder="Schrittlänge (in cm)"
+          style={styles.input}
+          keyboardType="decimal-pad" 
+          inputMode="decimal"        
+          editable={!loading}
+        />
+
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Passwort"
+          style={styles.input}
+          secureTextEntry
+          editable={!loading}
+        />
+        <TextInput
+          value={passwordConfirm}
+          onChangeText={setPasswordConfirm}
+          placeholder="Passwort bestätigen"
+          style={styles.input}
+          secureTextEntry
+          editable={!loading}
+        />
+
+        <View style={styles.buttonContainer}>
+          <Pressable
+            onPress={() => router.back()}
+            disabled={loading}
+            style={[styles.cancelButton, loading && styles.disabledButton]}
+          >
+            <Text style={styles.cancelButtonText}>Abbrechen</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleCreate}
+            disabled={loading}
+            style={[styles.createButton, loading && styles.disabledButton]}
+          >
+            <Text style={styles.createText}>
+              {loading ? "Erstellen..." : "Erstellen"}
+            </Text>
+          </Pressable>
         </View>
-    );
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 16,
-        flex: 1,
-        backgroundColor: '#fff',
-        paddingTop: 60, // Abstand oben
-    },
-    formContainer: {
-        flex: 1,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        textAlign: 'left',
-        marginBottom: 30,
-        color: '#333',
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ddd',
-        padding: 16,
-        marginBottom: 20,
-        borderRadius: 6,
-        fontSize: 16,
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 20,
-    },
-    createButton: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: '#6B8F71',
-        borderRadius: 6,
-        alignItems: 'center',
-    },
-    cancelButton: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: '#f0f0f0',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 6,
-        alignItems: 'center',
-    },
-    createText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    cancelButtonText: {
-        color: '#333',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    disabledButton: {
-        backgroundColor: '#aaa',
-        borderColor: '#aaa',
-    },
+  container: {
+    padding: 16,
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 60, 
+  },
+  formContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "left",
+    marginBottom: 30,
+    color: "#333",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    padding: 16,
+    marginBottom: 20,
+    borderRadius: 6,
+    fontSize: 16,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 20,
+  },
+  createButton: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: "#6B8F71",
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: "#f0f0f0",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  createText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  cancelButtonText: {
+    color: "#333",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  disabledButton: {
+    backgroundColor: "#aaa",
+    borderColor: "#aaa",
+  },
 });

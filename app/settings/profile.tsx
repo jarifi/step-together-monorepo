@@ -178,30 +178,29 @@ const ProfileUpdateScreen: React.FC = () => {
         <View style={styles.card}>
           {/* ========= USER-HEADER ========= */}
           <View style={styles.profileHeader}>
+            <View style={styles.headerBand} />
+
             <Pressable style={styles.avatarCircle} onPress={handlePickImage}>
-              {displayImageUri ? (
-                <Image source={{ uri: displayImageUri }} style={styles.avatarImage} />
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={styles.avatarImage} />
               ) : (
                 <Text style={styles.avatarInitials}>{initials || '??'}</Text>
               )}
             </Pressable>
 
+            <Pressable
+              style={styles.changePhotoButton}
+              onPress={handlePickImage}
+              disabled={loading}
+            >
+              <Text style={styles.changePhotoText}>
+                {imageUri ? 'Profilbild ändern' : 'Profilbild hinzufügen'}
+              </Text>
+            </Pressable>
+
             <Text style={styles.profileName}>{name || 'Dein Name'}</Text>
 
-            <View style={styles.emailBadge}>
-              <Text style={styles.emailBadgeText}>
-                {email || 'email@example.com'}
-              </Text>
-            </View>
-
-            <View style={styles.extraInfoBox}>
-              {(user as any)?.id != null && (
-                <Text style={styles.extraInfoText}>User-ID: {(user as any).id}</Text>
-              )}
-              {createdAtText && (
-                <Text style={styles.extraInfoText}>Registriert: {createdAtText}</Text>
-              )}
-            </View>
+            <Text style={styles.subtitle}>{email || 'email@example.com'}</Text>
           </View>
 
           {/* ========= FORM ========= */}
@@ -214,7 +213,7 @@ const ProfileUpdateScreen: React.FC = () => {
                 style={styles.input}
                 editable={!loading}
                 placeholder="Name"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#98A2B3"
               />
             </View>
 
@@ -228,7 +227,7 @@ const ProfileUpdateScreen: React.FC = () => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholder="E-Mail"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#98A2B3"
               />
             </View>
 
@@ -241,15 +240,16 @@ const ProfileUpdateScreen: React.FC = () => {
                 editable={!loading}
                 keyboardType="decimal-pad"
                 placeholder="z.B. 0.78"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#98A2B3"
               />
             </View>
 
             <Pressable
-              style={styles.passwordRow}
+              style={[styles.passwordRow, loading && styles.disabledRow]}
               onPress={() => router.push('/settings/password')}
+              disabled={loading}
             >
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.passwordLabel}>Passwort ändern</Text>
                 <Text style={styles.passwordHint}>
                   Sicherheit deines Kontos verwalten
@@ -264,11 +264,13 @@ const ProfileUpdateScreen: React.FC = () => {
               style={[styles.updateButton, loading && styles.disabledButton]}
             >
               <Text style={styles.updateText}>
-                {loading ? 'Aktualisierung...' : 'Aktualisieren'}
+                {loading ? 'Speichern…' : 'Änderungen speichern'}
               </Text>
             </Pressable>
           </View>
         </View>
+
+        <View style={{ height: 18 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -279,137 +281,176 @@ export default ProfileUpdateScreen;
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#f0f5efff',
+    backgroundColor: '#f2f7f2ff',
   },
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 50,
-    paddingBottom: 32,
-    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 60,      
+    paddingBottom: 34,
   },
   card: {
     width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
-    paddingVertical: 32,
-    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 6,
+    shadowRadius: 24,
+    elevation: 7,
+    borderWidth: 1,
+    borderColor: '#EEF2EF',
   },
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 32,
-  },
-  avatarCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#bac9baff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 18,
+    paddingTop: 10,
+    paddingBottom: 14,
     overflow: 'hidden',
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
+  headerBand: {
+    position: 'absolute',
+    top: -18,
+    left: -16,
+    right: -16,
+    height: 140,
+    backgroundColor: '#658869ff',
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    opacity: 0.22,
   },
+  avatarCircle: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: '#DDE7DD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  avatarImage: { width: '100%', height: '100%' },
   avatarInitials: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1F2933',
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#1F2A22',
+    letterSpacing: 1,
+  },
+  changePhotoButton: {
+    marginTop: 25,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D0D5DD',
+  },
+  changePhotoText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#344054',
   },
   profileName: {
-    fontSize: 20,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0F1A12',
+    marginTop: 15,
+  },
+  subtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#667085',
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
   },
-  emailBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: '#e9e9e9ff',
-  },
-  emailBadgeText: {
-    fontSize: 13,
-    color: '#4B5563',
-  },
-  extraInfoBox: {
-    marginTop: 10,
+  metaLine: {
+    marginTop: 5,
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  extraInfoText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+    justifyContent: 'center',
+    gap: 8,
   },
   formSection: {
-    gap: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#658869ff',
+    gap: 14,
   },
-  fieldWrapper: {
-    marginBottom: 4,
-  },
+  fieldWrapper: {},
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 6,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#667085',
+    marginBottom: 8,
     marginLeft: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6ECE8',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     fontSize: 15,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FAFBFA',
+    color: '#101828',
   },
   passwordRow: {
-    marginTop: 12,
-    marginBottom: 4,
-    paddingVertical: 12,
+    marginTop: 8,
+    paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    borderRadius: 18,
+    backgroundColor: '#F6F7F8',
+    borderWidth: 1,
+    borderColor: '#EEF0F2',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  disabledRow: {
+    opacity: 0.65,
+  },
   passwordLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: '#101828',
   },
   passwordHint: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#667085',
     marginTop: 2,
+    fontWeight: '600',
   },
   passwordChevron: {
-    fontSize: 20,
-    color: '#9CA3AF',
+    fontSize: 24,
+    color: '#98A2B3',
     marginLeft: 12,
+    fontWeight: '900',
   },
   updateButton: {
-    marginTop: 16,
+    marginTop: 8,
     paddingVertical: 14,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#658869ff',
+    backgroundColor: '#2F6B45',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 5,
   },
   updateText: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 0.2,
   },
   disabledButton: {
     opacity: 0.7,

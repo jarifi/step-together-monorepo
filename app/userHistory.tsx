@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,29 @@ import {
 } from 'react-native';
 
 import { getChallengeHistory } from './../services/challengeService.js';
+
+const IS_WEB = Platform.OS === 'web';
+const CARD_RADIUS = 26;
+
+const COLORS = {
+  bg: '#F4F7F4',
+  surface: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#55805c',
+  accentSoft: 'rgba(85,128,92,0.12)',
+};
+
+const shadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+  },
+  android: { elevation: 3 },
+});
 
 export default function ChallengeHistoryScreen() {
   const router = useRouter();
@@ -37,29 +60,26 @@ export default function ChallengeHistoryScreen() {
     }, [])
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Lade Verlauf…</Text>
-      </View>
-    );
-  }
-
   const hasHistory = history.length > 0;
 
-  return (
-    <View style={styles.container}>
-      {/* Header Card */}
-      <View style={[styles.content, styles.headerCard]}>
-        <Text style={styles.title}>Challenge History</Text>
-        <Text style={styles.sub}>
-          Hier siehst du alle Challenges, an denen du bereits teilgenommen hast.
-        </Text>
+  const ListHeader = useMemo(() => {
+    return (
+      <View style={styles.centered}>
+        <View style={styles.hero}>
+          <View style={styles.accentLine} />
+          <Text style={styles.heroTitle}>Meine History</Text>
+          <Text style={styles.heroSub}>
+            Hier siehst du alle Challenges, an denen du bereits teilgenommen hast.
+          </Text>
+        </View>
       </View>
+    );
+  }, []);
 
-      {!hasHistory && (
-        <View style={[styles.content, styles.emptyCard]}>
+  const Empty = useMemo(() => {
+    return (
+      <View style={styles.centered}>
+        <View style={styles.emptyCard}>
           <Text style={styles.emptyEmoji}>🏁</Text>
           <Text style={styles.emptyTitle}>Noch keine Challenges</Text>
           <Text style={styles.emptyText}>
@@ -76,189 +96,168 @@ export default function ChallengeHistoryScreen() {
             <Text style={styles.primaryButtonText}>Zu den Challenges</Text>
           </Pressable>
         </View>
-      )}
+      </View>
+    );
+  }, [router]);
 
-      {hasHistory && (
-        <FlatList
-          data={history}
-          keyExtractor={(item) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => {
-            const endLabel = item.endDate
-              ? new Date(item.endDate).toLocaleDateString()
-              : '-';
+  if (loading) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Lade Verlauf…</Text>
+      </View>
+    );
+  }
 
-            return (
-              <View style={styles.content}>
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: '/challenges/details',
-                      params: { id: item.id.toString() },
-                    })
-                  }
-                  android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-                  style={({ pressed }) => [
-                    styles.card,
-                    pressed && styles.cardPressed,
-                  ]}
-                >
-                  <View style={styles.cardTopRow}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
-                      {item.name}
-                    </Text>
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={history}
+        keyExtractor={(item) => String(item.id)}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={!hasHistory ? Empty : null}
+        renderItem={({ item }) => {
+          const endLabel = item.endDate
+            ? new Date(item.endDate).toLocaleDateString()
+            : '-';
 
-                    <View style={styles.statusPill}>
-                      <Text style={styles.statusText}>{item.state}</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.cardLine} numberOfLines={2}>
-                    {item.startLocation} <Text style={styles.dim}>→</Text>{' '}
-                    {item.targetLocation}
+          return (
+            <View style={styles.centered}>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/challenges/details',
+                    params: { id: String(item.id) },
+                  })
+                }
+                android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
+                style={({ pressed }) => [
+                  styles.card,
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <View style={styles.cardTopRow}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.name}
                   </Text>
 
-                  <View style={styles.metaRow}>
-                    <View style={styles.metaItem}>
-                      <Text style={styles.metaLabel}>Distanz</Text>
-                      <Text style={styles.metaValue}>{item.distance} km</Text>
-                    </View>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.statusText}>{item.state}</Text>
+                  </View>
+                </View>
 
-                    <View style={styles.metaDivider} />
+                <Text style={styles.cardLine} numberOfLines={2}>
+                  {item.startLocation} <Text style={styles.dim}>→</Text>{' '}
+                  {item.targetLocation}
+                </Text>
 
-                    <View style={styles.metaItem}>
-                      <Text style={styles.metaLabel}>Beendet</Text>
-                      <Text style={styles.metaValue}>{endLabel}</Text>
-                    </View>
+                <View style={styles.metaRow}>
+                  <View style={styles.metaItem}>
+                    <Text style={styles.metaLabel}>Distanz</Text>
+                    <Text style={styles.metaValue}>{item.distance} km</Text>
                   </View>
 
-                  <Text style={styles.cardLink}>Teams & Ranking anzeigen ›</Text>
-                </Pressable>
-              </View>
-            );
-          }}
-        />
-      )}
+                  <View style={styles.metaDivider} />
+
+                  <View style={styles.metaItem}>
+                    <Text style={styles.metaLabel}>Beendet</Text>
+                    <Text style={styles.metaValue}>{endLabel}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.cardLink}>Teams & Ranking anzeigen ›</Text>
+              </Pressable>
+            </View>
+          );
+        }}
+      />
     </View>
   );
 }
 
-const COLORS = {
-  bg: '#F4F7F4',
-  card: '#FFFFFF',
-  text: '#0F1411',
-  sub: '#55605A',
-  dim: '#7B877F',
-  border: 'rgba(15,20,17,0.10)',
-  accent: '#2E6B4F',
-  accentSoft: '#E7F3EC',
-};
-
-const shadow = Platform.select({
-  ios: {
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-  },
-  android: { elevation: 2 },
-});
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-    paddingHorizontal: 16,
-    paddingTop: 60,
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
-  content: {
+  centered: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: IS_WEB ? 960 : 520,
     alignSelf: 'center',
+    paddingHorizontal: 16,
   },
 
-  // ---------------- LOADING ----------------
   loadingWrap: {
     flex: 1,
     backgroundColor: COLORS.bg,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    paddingHorizontal: 16,
   },
-  loadingText: {
-    fontSize: 13,
-    color: '#666',
+  loadingText: { fontSize: 13, color: COLORS.sub },
+
+  listContent: {
+    paddingBottom: 32,
+    paddingTop: 8,
+    gap: 16,
   },
 
-  // ---------------- HEADER ----------------
-  headerCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 16,
+  hero: {
+    backgroundColor: COLORS.surface,
+    borderRadius: CARD_RADIUS,
+    padding: 22,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 12,
-    ...shadow,
+    marginTop: 48,
+    marginBottom: 16,
+    ...(shadow ?? {}),
   },
-
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111',
-    textAlign: 'center',
+  accentLine: {
+    width: 140,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
+    marginBottom: 14,
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: COLORS.text,
     marginBottom: 6,
   },
-
-  sub: {
+  heroSub: {
     fontSize: 15,
-    color: '#555',
-    lineHeight: 20,
-    textAlign: 'center',
+    color: COLORS.sub,
+    lineHeight: 21,
   },
 
-  // ---------------- LIST ----------------
-  listContent: {
-    paddingTop: 6,
-    paddingBottom: 24,
-    gap: 12,
-  },
-
-  // ---------------- EMPTY ----------------
   emptyCard: {
-    marginTop: 4,
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 18,
+    marginTop: 6,
+    backgroundColor: COLORS.surface,
+    borderRadius: CARD_RADIUS,
+    padding: 26,
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: 'center',
-    ...shadow,
+    ...(shadow ?? {}),
   },
-
-  emptyEmoji: {
-    fontSize: 26,
-    marginBottom: 8,
-  },
-
+  emptyEmoji: { fontSize: 26, marginBottom: 8 },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
+    fontWeight: '800',
+    color: COLORS.text,
     marginBottom: 6,
     textAlign: 'center',
   },
-
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.sub,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 14,
   },
 
-  // ---------------- BUTTON ----------------
   primaryButton: {
     backgroundColor: COLORS.accent,
     paddingVertical: 11,
@@ -277,19 +276,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  // ---------------- CARD ----------------
+  // --- CARD ---
   card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
+    backgroundColor: COLORS.surface,
+    borderRadius: CARD_RADIUS,
     padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
-    ...shadow,
+    ...(shadow ?? {}),
   },
-  cardPressed: {
-    opacity: 0.98,
-    transform: [{ scale: 0.995 }],
-  },
+  cardPressed: { opacity: 0.98, transform: [{ scale: 0.995 }] },
 
   cardTopRow: {
     flexDirection: 'row',
@@ -297,41 +293,30 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 8,
   },
-
   cardTitle: {
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: '#111',
+    color: COLORS.text,
   },
 
-  // ---------------- STATUS ----------------
   statusPill: {
     backgroundColor: COLORS.accentSoft,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(46,107,79,0.18)',
+    borderColor: 'rgba(85,128,92,0.22)',
   },
   statusText: {
     color: COLORS.accent,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 12,
   },
 
-  // ---------------- TEXT ----------------
-  cardLine: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
+  cardLine: { fontSize: 14, color: COLORS.sub, lineHeight: 20 },
+  dim: { color: 'rgba(15,20,17,0.45)' },
 
-  dim: {
-    color: '#777',
-  },
-
-  // ---------------- META ----------------
   metaRow: {
     marginTop: 12,
     flexDirection: 'row',
@@ -343,23 +328,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(15,20,17,0.06)',
   },
-
-  metaItem: {
-    flex: 1,
-  },
-
-  metaLabel: {
-    fontSize: 11,
-    color: '#777',
-    marginBottom: 2,
-  },
-
-  metaValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111',
-  },
-
+  metaItem: { flex: 1 },
+  metaLabel: { fontSize: 11, color: 'rgba(15,20,17,0.55)', marginBottom: 2 },
+  metaValue: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   metaDivider: {
     width: 1,
     height: 26,
@@ -367,11 +338,5 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
 
-  // ---------------- LINK ----------------
-  cardLink: {
-    marginTop: 12,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#444',
-  },
+  cardLink: { marginTop: 12, fontSize: 13, fontWeight: '700', color: COLORS.sub },
 });

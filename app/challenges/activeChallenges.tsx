@@ -128,7 +128,7 @@ export default function OpenChallengesScreen() {
             style={[styles.tabBtn, tab === 'active' && styles.tabBtnActive]}
           >
             <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>
-              Aktiv ({activeChallenges.length})
+              Aktiv
             </Text>
           </Pressable>
 
@@ -137,7 +137,7 @@ export default function OpenChallengesScreen() {
             style={[styles.tabBtn, tab === 'incoming' && styles.tabBtnActive]}
           >
             <Text style={[styles.tabText, tab === 'incoming' && styles.tabTextActive]}>
-              Kommend ({incomingChallenges.length})
+              Kommend 
             </Text>
           </Pressable>
 
@@ -146,7 +146,7 @@ export default function OpenChallengesScreen() {
             style={[styles.tabBtn, tab === 'closed' && styles.tabBtnActive]}
           >
             <Text style={[styles.tabText, tab === 'closed' && styles.tabTextActive]}>
-              Geschlossen ({closedChallenges.length})
+              Geschlossen
             </Text>
           </Pressable>
         </View>
@@ -165,7 +165,7 @@ export default function OpenChallengesScreen() {
       <View style={styles.centered}>
         <View style={styles.hero}>
           <View style={styles.accentLine} />
-          <Text style={styles.heroTitle}>Challenges</Text>
+          <Text style={styles.heroTitle}>Alle Challenges</Text>
           <Text style={styles.heroSub}>Beweg dich gemeinsam mit anderen.</Text>
           {Tabs}
         </View>
