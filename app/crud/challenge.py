@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.challenge import Challenge as ChallengeModel
 from app.schema.challenge import ChallengeCreate, ChallengeUpdate
@@ -35,13 +35,15 @@ def get_challenge(db: Session, challenge_id: int) -> Optional[ChallengeModel]:
 
 
 def get_active_challenge(db: Session, team_id: int):
+    now = datetime.now(timezone.utc)
     return (
         db.query(ChallengeModel)
-        .join(ChallengeTeam, ChallengeModel.id == ChallengeTeam.challenge_id)
+        .outerjoin(ChallengeTeam, ChallengeModel.id == ChallengeTeam.challenge_id)
         .filter(
-            ChallengeTeam.team_id == team_id,
-            ChallengeModel.computed_state == "open",
+            or_(ChallengeTeam.team_id == team_id, ChallengeModel.team_id == team_id),
             ChallengeModel.is_deleted == False,
+            ChallengeModel.start_date <= now,
+            ChallengeModel.end_date >= now,
         )
         .first()
     )

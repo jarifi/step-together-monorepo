@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, StringConstraints, field_validator, ValidationInfo
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Annotated
 from app.models.base import CamelCaseBaseModel
@@ -18,6 +18,12 @@ class ChallengeBase(CamelCaseBaseModel):
     distance: float = Field(..., gt=0)
     start_date: datetime
     end_date: datetime
+
+    @field_validator("start_date", "end_date")
+    def coerce_utc(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v.astimezone(timezone.utc)
 
     @field_validator("end_date")
     def check_dates(cls, v: datetime, info: ValidationInfo) -> datetime:

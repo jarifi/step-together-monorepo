@@ -1,5 +1,5 @@
 #@baseUrl = http://91.99.231.235:3000/api/v1
-@baseUrl = http://10.12.100.58:3000/api/v1
+@baseUrl = http://localhost:3000/api/v1
 
 ### 1. Login to Get Access Token
 # @name login
@@ -7,7 +7,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "goca@bfi.at",
+    "email": "user1@bfi.at",
     "password": "StrongPassword123" 
 }
 
@@ -163,7 +163,7 @@ Content-Type: application/json
 }
 
 ### 5.2 Get Single Challenge
-GET {{baseUrl}}/challenges/1
+GET {{baseUrl}}/challenges/2
 Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 5.3 Delete a Challenge
@@ -171,7 +171,7 @@ DELETE {{baseUrl}}/challenges/1
 Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 5.4 Update a Challenge (PUT /api/v1/challenges/20) 
-PUT {{baseUrl}}/challenges/20
+PUT {{baseUrl}}/challenges/2
 Authorization: Bearer {{login.response.body.accessToken}}
 Content-Type: application/json
 
@@ -180,8 +180,8 @@ Content-Type: application/json
     "startLocation": "Liverpool1", 
     "targetLocation": "London1", 
     "distance": 500.0, 
-    "startDate": "2025-06-01T00:00:00", 
-    "endDate": "2025-07-01T00:00:00", 
+    "startDate": "2026-02-05T13:00:00", 
+    "endDate": "2026-02-05T13:48:00", 
     "teamId": 2,
     "creatorId": 1,
     "state": "closed"  
