@@ -1,9 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -27,6 +30,18 @@ type UpdateUserPayload = {
   role?: string | null;
 };
 
+const COLORS = {
+  bg: '#fbfbfbff',
+  card: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#66947aff',
+  accentSoft: 'rgba(47,107,69,0.14)',
+  tint: '#CFE0D3',
+  inputBg: '#FAFBFA',
+};
+
 const pickAvatarFromUser = (u: any): string | null => {
   if (!u) return null;
   return (u.avatarUrl ?? u.avatar_url ?? u.avatar ?? null) as string | null;
@@ -34,6 +49,19 @@ const pickAvatarFromUser = (u: any): string | null => {
 
 const isPickedLocalUri = (uri: string) =>
   uri.startsWith('file://') || uri.startsWith('blob:') || uri.startsWith('data:');
+
+const sanitizeDecimalInput = (raw: string) => {
+  let v = String(raw ?? '').replace(/[^\d.,]/g, '');
+  const firstSep = v.search(/[.,]/);
+  if (firstSep !== -1) {
+    const before = v.slice(0, firstSep + 1);
+    const after = v.slice(firstSep + 1).replace(/[.,]/g, '');
+    v = before + after;
+  }
+  return v;
+};
+
+const normalizeDecimal = (v: string) => String(v ?? '').trim().replace(',', '.');
 
 const ProfileUpdateScreen: React.FC = () => {
   const { user, setUser, userId } = useUser();
@@ -51,11 +79,13 @@ const ProfileUpdateScreen: React.FC = () => {
 
     setName(user.name ?? '');
     setEmail(user.email ?? '');
-    setStepLength(
+
+    const sl =
       user.stepLength != null && !isNaN(Number(user.stepLength))
         ? String(user.stepLength)
-        : ''
-    );
+        : '';
+    setStepLength(sl);
+
     setRole(user.role ?? '');
 
     const avatar = pickAvatarFromUser(user);
@@ -81,7 +111,7 @@ const ProfileUpdateScreen: React.FC = () => {
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setImageUri(result.assets[0].uri); 
+      setImageUri(result.assets[0].uri);
     }
   };
 
@@ -93,7 +123,8 @@ const ProfileUpdateScreen: React.FC = () => {
 
     let parsedStepLength: number | null = null;
     if (stepLength.trim().length > 0) {
-      const num = Number(stepLength.replace(',', '.'));
+      const normalized = normalizeDecimal(stepLength);
+      const num = Number(normalized);
       if (isNaN(num) || num <= 0) {
         Alert.alert('Fehler', 'Bitte eine gültige Schrittlänge eingeben.');
         return;
@@ -116,7 +147,6 @@ const ProfileUpdateScreen: React.FC = () => {
           if (!up?.path) throw new Error('Upload did not return a path');
 
           payload.avatarUrl = up.path;
-
           setImageUri(up.path);
         } else {
           payload.avatarUrl = imageUri;
@@ -151,127 +181,152 @@ const ProfileUpdateScreen: React.FC = () => {
       .slice(0, 2)
       .toUpperCase() || '';
 
-  const createdAtText =
-    (user as any)?.createdAt != null
-      ? new Date((user as any).createdAt).toLocaleDateString('de-AT')
-      : undefined;
-
   const displayImageUri = useMemo(() => {
     if (!imageUri) return null;
-
     if (isPickedLocalUri(imageUri)) return imageUri;
-
-    const abs = makeAbsoluteMediaUrl(imageUri) ?? imageUri;
-
-
-    return abs;
+    return makeAbsoluteMediaUrl(imageUri) ?? imageUri;
   }, [imageUri]);
+
+  const canSave =
+    !loading &&
+    name.trim().length > 0 &&
+    email.trim().length > 0 &&
+    (stepLength.trim().length === 0 || Number(normalizeDecimal(stepLength)) > 0);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <View style={styles.card}>
-          {/* ========= USER-HEADER ========= */}
-          <View style={styles.profileHeader}>
-            <View style={styles.headerBand} />
-
-            <Pressable style={styles.avatarCircle} onPress={handlePickImage}>
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={styles.avatarImage} />
-              ) : (
-                <Text style={styles.avatarInitials}>{initials || '??'}</Text>
-              )}
-            </Pressable>
-
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* TOP BAR */}
+          <View style={styles.topBar}>
             <Pressable
-              style={styles.changePhotoButton}
-              onPress={handlePickImage}
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+              onPress={() => router.back()}
               disabled={loading}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={styles.changePhotoText}>
-                {imageUri ? 'Profilbild ändern' : 'Profilbild hinzufügen'}
-              </Text>
+              <Ionicons name="arrow-back" size={20} color={COLORS.text} />
             </Pressable>
 
-            <Text style={styles.profileName}>{name || 'Dein Name'}</Text>
-
-            <Text style={styles.subtitle}>{email || 'email@example.com'}</Text>
+            <View style={{ width: 44, height: 44 }} />
           </View>
 
-          {/* ========= FORM ========= */}
-          <View style={styles.formSection}>
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.label}>Name</Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                style={styles.input}
-                editable={!loading}
-                placeholder="Name"
-                placeholderTextColor="#98A2B3"
-              />
+          {/* CARD */}
+          <View style={styles.card}>
+            {/* HEADER */}
+            <View style={styles.profileHeader}>
+              <View style={styles.headerBand} />
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.avatarWrap,
+                  pressed && { transform: [{ scale: 0.98 }] },
+                ]}
+                onPress={handlePickImage}
+                disabled={loading}
+              >
+                <View style={styles.avatarRing}>
+                  <View style={styles.avatarCircle}>
+                    {displayImageUri ? (
+                      <Image
+                        source={{ uri: displayImageUri }}
+                        style={styles.avatarImage}
+                      />
+                    ) : (
+                      <Text style={styles.avatarInitials}>{initials || '??'}</Text>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={20} color="#fff" />
+                </View>
+              </Pressable>
+
+              <Text style={styles.profileName}>{name || 'Dein Name'}</Text>
+              <Text style={styles.subtitle}>{email || 'email@example.com'}</Text>
+
             </View>
 
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.label}>E-Mail</Text>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                style={styles.input}
-                editable={!loading}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholder="E-Mail"
-                placeholderTextColor="#98A2B3"
-              />
-            </View>
-
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.label}>Schrittlänge (Meter)</Text>
-              <TextInput
-                value={stepLength}
-                onChangeText={setStepLength}
-                style={styles.input}
-                editable={!loading}
-                keyboardType="decimal-pad"
-                placeholder="z.B. 0.78"
-                placeholderTextColor="#98A2B3"
-              />
-            </View>
-
-            <Pressable
-              style={[styles.passwordRow, loading && styles.disabledRow]}
-              onPress={() => router.push('/settings/password')}
-              disabled={loading}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.passwordLabel}>Passwort ändern</Text>
-                <Text style={styles.passwordHint}>
-                  Sicherheit deines Kontos verwalten
-                </Text>
+            {/* FORM */}
+            <View style={styles.formSection}>
+              <View style={styles.field}>
+                <Text style={styles.label}>Name</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="person-outline" size={18} color={COLORS.sub} />
+                  <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    style={styles.input}
+                    editable={!loading}
+                    placeholder="Name"
+                    placeholderTextColor="#9AA4A0"
+                  />
+                </View>
               </View>
-              <Text style={styles.passwordChevron}>›</Text>
-            </Pressable>
 
-            <Pressable
-              onPress={handleUpdate}
-              disabled={loading}
-              style={[styles.updateButton, loading && styles.disabledButton]}
-            >
-              <Text style={styles.updateText}>
-                {loading ? 'Speichern…' : 'Änderungen speichern'}
-              </Text>
-            </Pressable>
+              <View style={styles.field}>
+                <Text style={styles.label}>E-Mail</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="mail-outline" size={18} color={COLORS.sub} />
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    style={styles.input}
+                    editable={!loading}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholder="E-Mail"
+                    placeholderTextColor="#9AA4A0"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Schrittlänge (Meter)</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="walk-outline" size={18} color={COLORS.sub} />
+                  <TextInput
+                    value={stepLength}
+                    onChangeText={(t) => setStepLength(sanitizeDecimalInput(t))}
+                    style={styles.input}
+                    editable={!loading}
+                    keyboardType="decimal-pad"
+                    inputMode="decimal"
+                    placeholder="z.B. 0.78"
+                    placeholderTextColor="#9AA4A0"
+                  />
+                </View>
+              </View>
+
+              <Pressable
+                onPress={handleUpdate}
+                disabled={!canSave}
+                style={({ pressed }) => [
+                  styles.saveButton,
+                  pressed && styles.savePressed,
+                  !canSave && styles.saveDisabled,
+                ]}
+              >
+                <Text style={styles.saveText}>
+                  {loading ? 'Speichern…' : 'Änderungen speichern'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
 
-        <View style={{ height: 18 }} />
-      </ScrollView>
+          <View style={{ height: 22 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -279,180 +334,218 @@ const ProfileUpdateScreen: React.FC = () => {
 export default ProfileUpdateScreen;
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#f2f7f2ff',
-  },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 60,      
-    paddingBottom: 34,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    paddingVertical: 20,
     paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 120,
+  },
+
+  // Top bar
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  screenTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: 0.2,
+  },
+  pressed: { opacity: 0.8 },
+
+  // Card
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 7,
-    borderWidth: 1,
-    borderColor: '#EEF2EF',
+    shadowOpacity: 0.07,
+    shadowRadius: 22,
+    elevation: 6,
   },
+
+  // Header
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 18,
-    paddingTop: 10,
-    paddingBottom: 14,
-    overflow: 'hidden',
+    paddingTop: 18,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
   },
   headerBand: {
     position: 'absolute',
-    top: -18,
-    left: -16,
-    right: -16,
-    height: 140,
-    backgroundColor: '#658869ff',
+    top: -60,
+    left: -20,
+    right: -20,
+    height: 190,
+    backgroundColor: COLORS.accent,
+    opacity: 0.12,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    opacity: 0.22,
+  },
+  headerGlow: {
+    position: 'absolute',
+    top: 24,
+    width: 220,
+    height: 220,
+    borderRadius: 999,
+    backgroundColor: COLORS.accentSoft,
+    opacity: 0.8,
+  },
+
+  avatarWrap: {
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  avatarRing: {
+    padding: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(47,107,69,0.18)',
   },
   avatarCircle: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
     backgroundColor: '#DDE7DD',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    elevation: 4,
   },
   avatarImage: { width: '100%', height: '100%' },
   avatarInitials: {
     fontSize: 34,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#1F2A22',
     letterSpacing: 1,
   },
-  changePhotoButton: {
-    marginTop: 25,
-    paddingVertical: 9,
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.card,
+  },
+
+  profileName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: COLORS.text,
+    marginTop: 6,
+  },
+  subtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#667085',
+  },
+
+  changePhotoPill: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    backgroundColor: COLORS.tint,
     borderWidth: 1,
-    borderColor: '#D0D5DD',
+    borderColor: COLORS.border,
   },
   changePhotoText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#344054',
+    color: COLORS.text,
   },
-  profileName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0F1A12',
-    marginTop: 15,
-  },
-  subtitle: {
-    marginTop: 4,
-    fontSize: 14,
-    color: '#667085',
-    fontWeight: '600',
-  },
-  metaLine: {
-    marginTop: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
+  disabledPill: { opacity: 0.6 },
+
+  // Form
   formSection: {
+    paddingHorizontal: 16,
     paddingTop: 14,
+    paddingBottom: 18,
     borderTopWidth: 1,
-    borderTopColor: '#658869ff',
+    borderTopColor: COLORS.border,
     gap: 14,
   },
-  fieldWrapper: {},
+  field: { width: '100%' },
   label: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#667085',
+    fontWeight: '800',
+    color: COLORS.sub,
     marginBottom: 8,
     marginLeft: 4,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E6ECE8',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 16,
-    fontSize: 15,
-    backgroundColor: '#FAFBFA',
-    color: '#101828',
-  },
-  passwordRow: {
-    marginTop: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: '#F6F7F8',
-    borderWidth: 1,
-    borderColor: '#EEF0F2',
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(15,20,17,0.10)',
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  disabledRow: {
-    opacity: 0.65,
-  },
-  passwordLabel: {
+  input: {
+    flex: 1,
     fontSize: 15,
-    fontWeight: '600',
     color: '#101828',
+    paddingVertical: 0,
   },
-  passwordHint: {
+  helper: {
+    marginTop: 8,
+    marginLeft: 4,
     fontSize: 12,
-    color: '#667085',
-    marginTop: 2,
+    color: '#6B7280',
+    lineHeight: 16,
     fontWeight: '600',
   },
-  passwordChevron: {
-    fontSize: 24,
-    color: '#98A2B3',
-    marginLeft: 12,
-    fontWeight: '900',
-  },
-  updateButton: {
-    marginTop: 8,
+
+  // Save button
+  saveButton: {
+    marginTop: 6,
     paddingVertical: 14,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2F6B45',
+    backgroundColor: COLORS.accent,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.12,
     shadowRadius: 18,
     elevation: 5,
   },
-  updateText: {
+  savePressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
+  saveDisabled: { opacity: 0.55 },
+  saveText: {
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 0.2,
-  },
-  disabledButton: {
-    opacity: 0.7,
   },
 });
