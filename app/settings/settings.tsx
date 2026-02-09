@@ -38,7 +38,7 @@ export default function SettingsScreen() {
             <View style={styles.navTextContainer}>
               <Text style={styles.navText}>Mein Konto</Text>
               <Text style={styles.navSubText}>
-                Profil, persönliche Daten & Zugang.
+                Profil & persönliche Daten
               </Text>
             </View>
           </View>
@@ -49,7 +49,30 @@ export default function SettingsScreen() {
           />
         </Pressable>
 
-        
+        <Pressable
+          style={({ pressed }) => [
+            styles.navRow,
+            pressed && styles.navRowPressed,
+          ]}
+          onPress={() => router.push('/settings/password')}
+        >
+          <View style={styles.navContent}>
+            <View style={styles.navIconWrapper}>
+              <MaterialIcons name="lock" size={22} style={styles.navIcon} />
+            </View>
+            <View style={styles.navTextContainer}>
+              <Text style={styles.navText}>Passwort ändern</Text>
+              <Text style={styles.navSubText}>
+                Passwort & Sicherheit
+              </Text>
+            </View>
+          </View>
+          <MaterialIcons
+            name="chevron-right"
+            size={22}
+            style={styles.chevron}
+          />
+        </Pressable>
 
       </View>
     </ScrollView>

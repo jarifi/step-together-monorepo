@@ -1,5 +1,6 @@
 // file: app/login.tsx
 
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
   Image,
@@ -161,8 +162,13 @@ export default function LoginScreen() {
               hitSlop={10}
               style={styles.eyeButton}
             >
-              <Text style={styles.eyeIcon}>{showPassword ? "🙈" : "🐵"}</Text>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color="#fff"
+              />
             </Pressable>
+
           </View>
 
 
@@ -288,11 +294,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  eyeIcon: {
-    fontSize: 18,
-    color: "#fff",
-    opacity: 0.9,
   },
 });
