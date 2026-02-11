@@ -302,7 +302,7 @@ const ProfileUpdateScreen: React.FC = () => {
                     editable={!loading}
                     keyboardType="decimal-pad"
                     inputMode="decimal"
-                    placeholder="z.B. 0.78"
+                    placeholder="z.B. 0.78 oder 0,78"
                     placeholderTextColor="#9AA4A0"
                   />
                 </View>
