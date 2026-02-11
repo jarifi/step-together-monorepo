@@ -54,3 +54,7 @@ sudo systemctl start step_together_api.service
 
 cd /srv/step_together_api/
 ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 3000
+
+# run on windwos dev mode
+
+$env:ENVIRONMENT="development"; uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
