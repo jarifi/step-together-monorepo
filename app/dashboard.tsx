@@ -244,12 +244,12 @@ const Dashboard: React.FC = () => {
 
 
   // ---------- Date helpers (timezone-safe) ----------
-  const toIsoUtcMidnight = (d: Date) => {
-    const y = d.getFullYear();
-    const m = d.getMonth();
-    const day = d.getDate();
-    return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
-  };
+const toIsoUtcMidnight = (d: Date) => {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
+};
 
 
   // ========= Initial load & Retry =========
@@ -398,76 +398,76 @@ const Dashboard: React.FC = () => {
   ]);
 
   // ---- Save Steps ----
-  const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
-    console.log('🟦 saveAbsoluteStepsForSelectedDay START:', newValue);
+const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
+  console.log('🟦 saveAbsoluteStepsForSelectedDay START:', newValue);
 
-    if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
+  if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
 
-    const dateSafe = clampDate(displayDate, minDate, maxDate);
-    if (stripTime(dateSafe) > stripTime(new Date())) return; // keine Zukunft
+  const dateSafe = clampDate(displayDate, minDate, maxDate);
+  if (stripTime(dateSafe) > stripTime(new Date())) return; // keine Zukunft
 
-    const idx = (dateSafe.getDay() + 6) % 7;
+  const idx = (dateSafe.getDay() + 6) % 7;
 
-    // IMPORTANT: send UTC-midnight ISO to backend to avoid iPhone timezone shifting the date
-    const dateISO = toIsoUtcMidnight(dateSafe);
+  // IMPORTANT: send UTC-midnight ISO to backend to avoid iPhone timezone shifting the date
+  const dateISO = toIsoUtcMidnight(dateSafe);
 
-    const prev = [...weekSteps];
-    const next = [...weekSteps];
+  const prev = [...weekSteps];
+  const next = [...weekSteps];
 
-    next[idx] = Math.max(0, Math.floor(newValue));
+  next[idx] = Math.max(0, Math.floor(newValue));
 
-    // optimistic update
-    setWeekSteps(next);
-    setStepsToday(next[idx]);
+  // optimistic update
+  setWeekSteps(next);
+  setStepsToday(next[idx]);
 
-    try {
-      console.log('🟦 CALL upsertStepsForDate:', {
-        userId: vm.user.id,
-        challengeId: vm.challenge.id,
-        teamId: vm.team.id,
-        dateISO,
-        numberOfSteps: next[idx],
-      });
+  try {
+    console.log('🟦 CALL upsertStepsForDate:', {
+      userId: vm.user.id,
+      challengeId: vm.challenge.id,
+      teamId: vm.team.id,
+      dateISO,
+      numberOfSteps: next[idx],
+    });
 
-      await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
-        challengeId: vm.challenge.id,
-        teamId: vm.team.id,
-      });
+    await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
+      challengeId: vm.challenge.id,
+      teamId: vm.team.id,
+    });
 
-      // Refresh once to sync UI with backend
-      await refreshWeek();
-    } catch (e) {
-      setWeekSteps(prev);
-      setStepsToday(prev[idx] ?? 0);
-      console.warn('Save steps failed:', e);
-    }
-  };
+    // Refresh once to sync UI with backend
+    await refreshWeek();
+  } catch (e) {
+    setWeekSteps(prev);
+    setStepsToday(prev[idx] ?? 0);
+    console.warn('Save steps failed:', e);
+  }
+};
 
 
-  const applyStepDelta = async (delta: number) => {
-    const dateSafe = clampDate(displayDate, minDate, maxDate);
-    if (stripTime(dateSafe) > stripTime(new Date())) return;
+ const applyStepDelta = async (delta: number) => {
+  const dateSafe = clampDate(displayDate, minDate, maxDate);
+  if (stripTime(dateSafe) > stripTime(new Date())) return;
 
-    const idx = (dateSafe.getDay() + 6) % 7;
-    const current = weekSteps[idx] ?? 0;
+  const idx = (dateSafe.getDay() + 6) % 7;
+  const current = weekSteps[idx] ?? 0;
 
-    console.log('🟨 applyStepDelta START', { delta, idx, current });
+  console.log('🟨 applyStepDelta START', { delta, idx, current });
 
-    if (delta > 0) {
-      const add = Math.min(delta, MAX_STEP_DELTA);
-      const newTotal = current + add;
-      console.log('🟨 ADDING', { current, add, newTotal });
-      await saveAbsoluteStepsForSelectedDay(newTotal);
-      return;
-    }
+  if (delta > 0) {
+    const add = Math.min(delta, MAX_STEP_DELTA);
+    const newTotal = current + add;
+    console.log('🟨 ADDING', { current, add, newTotal });
+    await saveAbsoluteStepsForSelectedDay(newTotal);
+    return;
+  }
 
-    if (delta < 0) {
-      const remove = Math.min(current, Math.abs(delta));
-      const newTotal = current - remove;
-      console.log('🟨 REMOVING', { current, remove, newTotal });
-      await saveAbsoluteStepsForSelectedDay(newTotal);
-    }
-  };
+  if (delta < 0) {
+    const remove = Math.min(current, Math.abs(delta));
+    const newTotal = current - remove;
+    console.log('🟨 REMOVING', { current, remove, newTotal });
+    await saveAbsoluteStepsForSelectedDay(newTotal);
+  }
+};
 
 
   // ========= Derived =========
@@ -566,93 +566,202 @@ const Dashboard: React.FC = () => {
       <View
         style={{
           flex: 1,
-          backgroundColor: '#F5F7F4',
-          alignItems: 'center',
           justifyContent: 'center',
-          paddingHorizontal: 20,
+          alignItems: 'center',
+          backgroundColor: '#F5F7F4',
+          padding: 24,
         }}
       >
-        <View
+        <Text
+          style={[
+            styles.font,
+            {
+              fontSize: 14,
+              color: '#6B7280',
+              lineHeight: 20,
+              marginBottom: 22,
+              textAlign: 'center',
+            },
+          ]}
+        >
+          Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
+          oder wirf einen Blick auf deine bisherigen Aktivitäten.
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.push('/userHistory')}
           style={{
-            width: '100%',
-            maxWidth: 420,
-            backgroundColor: '#FFFFFF',
-            borderRadius: 26,
-            paddingVertical: 26,
-            paddingHorizontal: 22,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 22,
-            shadowOffset: { width: 0, height: 10 },
-            elevation: 5,
+            marginTop: 16,
+            backgroundColor: '#7FA58C',
+            paddingVertical: 10,
+            paddingHorizontal: 18,
+            borderRadius: 12,
           }}
         >
-          <Text
-            style={[
-              styles.font,
-              {
-                fontSize: 18,
-                fontWeight: '800',
-                color: '#111',
-                marginBottom: 6,
-                textAlign: 'center',
-              },
-            ]}
-          >
-            Keine offene Challenge
+          <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>
+            Meine History
           </Text>
-
-          <Text
-            style={[
-              styles.font,
-              {
-                fontSize: 14,
-                color: '#6B7280',
-                lineHeight: 20,
-                marginBottom: 22,
-                textAlign: 'center',
-              },
-            ]}
-          >
-            Sieht so aus als hättest du keine offene Challenge. Schau dir die kommenden hier an.
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => router.push('/challenges/activeChallenges')}
-            activeOpacity={0.9}
-            style={{
-              backgroundColor: '#658869ff',
-              paddingVertical: 14,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 10,
-            }}
-          >
-            <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>
-              Zu den Challenges
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push('/userHistory')}
-            activeOpacity={0.85}
-            style={{
-              paddingVertical: 12,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: '#D1D5DB',
-              backgroundColor: '#F9FAFB',
-            }}
-          >
-            <Text style={[styles.font, { color: '#374151', fontWeight: '700', fontSize: 14 }]}>
-              Meine Challenge-Historie
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       </View>
+    );
+  }
+
+  // ✅ Active Challenge ist nur state === open
+  const hasActiveChallenge =
+    vm?.challenge?.id != null && vm?.challenge?.state === 'open';
+
+  if (!hasActiveChallenge) {
+    return (
+      <>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#F5F7F4',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 26,
+              paddingVertical: 26,
+              paddingHorizontal: 22,
+              shadowColor: '#000',
+              shadowOpacity: 0.08,
+              shadowRadius: 22,
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 5,
+            }}
+          >
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 999,
+                backgroundColor: '#e3efe6',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12,
+                alignSelf: 'center',
+              }}
+            >
+              <Ionicons name="flag-outline" size={22} color="#2f5c3a" />
+            </View>
+
+            <Text
+              style={[
+                styles.font,
+                {
+                  fontSize: 18,
+                  fontWeight: '800',
+                  color: '#111',
+                  marginBottom: 6,
+                  textAlign: 'center',
+                },
+              ]}
+            >
+              Keine offene Challenge
+            </Text>
+
+            <Text
+              style={[
+                styles.font,
+                {
+                  fontSize: 14,
+                  color: '#6B7280',
+                  lineHeight: 20,
+                  marginBottom: 22,
+                  textAlign: 'center',
+                },
+              ]}
+            >
+              Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
+              oder wirf einen Blick auf deine bisherigen Aktivitäten.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => router.push('/challenges/activeChallenges')}
+              activeOpacity={0.9}
+              style={{
+                backgroundColor: '#658869ff',
+                paddingVertical: 14,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 10,
+              }}
+            >
+              <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>
+                Zu den Challenges
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/userHistory')}
+              activeOpacity={0.85}
+              style={{
+                paddingVertical: 12,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: '#D1D5DB',
+                backgroundColor: '#F9FAFB',
+              }}
+            >
+              <Text
+                style={[
+                  styles.font,
+                  {
+                    color: '#374151',
+                    fontWeight: '700',
+                    fontSize: 14,
+                  },
+                ]}
+              >
+                Meine Challenge-Historie
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {showCongrats && (
+          <View
+            style={{
+              position: 'absolute',
+              left: 20,
+              right: 20,
+              bottom: 40,
+              backgroundColor: '#2F3E34',
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              borderRadius: 18,
+              shadowColor: '#000',
+              shadowOpacity: 0.18,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 6,
+            }}
+          >
+            <Text
+              style={[
+                styles.font,
+                {
+                  color: '#fff',
+                  fontWeight: '800',
+                  textAlign: 'center',
+                  fontSize: 15,
+                },
+              ]}
+            >
+              🎉 Gratulation! Challenge abgeschlossen!
+            </Text>
+          </View>
+        )}
+      </>
     );
   }
 
