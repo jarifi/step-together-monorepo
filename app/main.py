@@ -6,7 +6,14 @@ from app.api.v1.endpoints import auth
 from app.api.v1 import router as v1_router  # This is safe now
 from fastapi.staticfiles import StaticFiles
 
-app = FastAPI()
+is_prod = settings.ENVIRONMENT.lower() == "production"
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    docs_url=None if is_prod else "/docs",
+    redoc_url=None if is_prod else "/redoc",
+    openapi_url=None if is_prod else "/openapi.json"
+)
 
 # Start CORS configuration: set BACKEND_CORS_ORIGINS in app.core.config (list or comma-separated string)
 origins = getattr(settings, "BACKEND_CORS_ORIGINS", ["*"])
