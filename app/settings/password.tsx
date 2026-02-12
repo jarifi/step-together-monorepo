@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
 import { changePassword } from '../../services/userService';
@@ -25,6 +25,8 @@ const COLORS = {
   accent: '#2F6B45',
   inputBg: '#FAFBFA',
   tint: '#CFE0D3',
+  danger: '#B42318',
+  ok: '#027A48',
 };
 
 type PasswordFieldProps = {
@@ -34,6 +36,8 @@ type PasswordFieldProps = {
   show: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  error?: boolean;
+  childrenBelow?: React.ReactNode;
 };
 
 const PasswordField: React.FC<PasswordFieldProps> = ({
@@ -43,39 +47,83 @@ const PasswordField: React.FC<PasswordFieldProps> = ({
   show,
   onToggle,
   disabled,
+  error,
+  childrenBelow,
 }) => {
+  const hasValue = value.length > 0;
+
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
 
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, error && styles.inputRowError]}>
         <Ionicons name="lock-closed-outline" size={18} color={COLORS.sub} />
 
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder="••••••••"
           secureTextEntry={!show}
           editable={!disabled}
           style={styles.input}
           placeholderTextColor="#9AA4A0"
           autoCapitalize="none"
           autoCorrect={false}
+          textContentType="password"
         />
 
-        <Pressable
-          onPress={onToggle}
-          disabled={disabled}
-          style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
-          hitSlop={10}
-        >
-          <Ionicons
-            name={show ? 'eye-off-outline' : 'eye-outline'}
-            size={22}
-            color="#6B7280"
-          />
-        </Pressable>
+        {/* Eye icon only once something is typed */}
+        {hasValue && (
+          <Pressable
+            onPress={onToggle}
+            disabled={disabled}
+            style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
+            hitSlop={10}
+          >
+            <Ionicons
+              name={show ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color="#6B7280"
+            />
+          </Pressable>
+        )}
       </View>
+
+      {childrenBelow}
+    </View>
+  );
+};
+
+type PwReqState = {
+  minLen: boolean;
+  upper: boolean;
+  lower: boolean;
+  digit: boolean;
+};
+
+const getPwReqState = (pw: string): PwReqState => ({
+  minLen: pw.length >= 8,
+  upper: /[A-Z]/.test(pw),
+  lower: /[a-z]/.test(pw),
+  digit: /\d/.test(pw),
+});
+
+const allOk = (s: PwReqState) => s.minLen && s.upper && s.lower && s.digit;
+
+const RequirementLine = ({
+  ok,
+  text,
+}: {
+  ok: boolean;
+  text: string;
+}) => {
+  return (
+    <View style={styles.reqLine}>
+      <Ionicons
+        name={ok ? 'checkmark-circle' : 'ellipse-outline'}
+        size={16}
+        color={ok ? COLORS.ok : '#9AA4A0'}
+      />
+      <Text style={[styles.reqText, ok && styles.reqTextOk]}>{text}</Text>
     </View>
   );
 };
@@ -86,12 +134,17 @@ const PasswordScreen: React.FC = () => {
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [newTouched, setNewTouched] = useState(false);
+
+  const req = useMemo(() => getPwReqState(newPassword), [newPassword]);
+  const newValid = useMemo(() => allOk(req), [req]);
+
+  const showReqBox = newTouched;
 
   const handlePasswordUpdate = async () => {
     if (!user) {
@@ -99,18 +152,15 @@ const PasswordScreen: React.FC = () => {
       return;
     }
 
-    if (!oldPassword || !newPassword || !confirmPassword) {
+    if (!oldPassword || !newPassword) {
       Alert.alert('Fehler', 'Bitte alle Felder ausfüllen.');
+      setNewTouched(true);
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Fehler', 'Die neuen Passwörter stimmen nicht überein.');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      Alert.alert('Fehler', 'Das Passwort muss mindestens 6 Zeichen haben.');
+    if (!newValid) {
+      Alert.alert('Fehler', 'Das neue Passwort erfüllt die Anforderungen noch nicht.');
+      setNewTouched(true);
       return;
     }
 
@@ -123,26 +173,21 @@ const PasswordScreen: React.FC = () => {
       console.error(err);
       Alert.alert(
         'Fehler',
-        err?.response?.data?.detail ??
-        'Das Passwort konnte nicht geändert werden.'
+        err?.response?.data?.detail ?? 'Das Passwort konnte nicht geändert werden.'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const canSubmit =
-    !loading &&
-    oldPassword.length > 0 &&
-    newPassword.length >= 6 &&
-    confirmPassword.length > 0;
+  const canSubmit = !loading && oldPassword.length > 0 && newPassword.length > 0 && newValid;
 
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
           style={styles.scroll}
@@ -150,7 +195,6 @@ const PasswordScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-
           {/* TOP BAR */}
           <View style={styles.topBar}>
             <Pressable
@@ -187,19 +231,41 @@ const PasswordScreen: React.FC = () => {
             <PasswordField
               label="Neues Passwort"
               value={newPassword}
-              onChangeText={setNewPassword}
+              onChangeText={(t) => {
+                if (!newTouched) setNewTouched(true);
+                setNewPassword(t);
+              }}
               show={showNew}
               onToggle={() => setShowNew((v) => !v)}
               disabled={loading}
-            />
+              error={showReqBox && !newValid && newPassword.length > 0}
+              childrenBelow={
+                showReqBox ? (
+                  <View style={[styles.reqBox, newValid && styles.reqBoxOk]}>
+                    <View style={styles.reqHeaderRow}>
+                      <Ionicons
+                        name={newValid ? 'checkmark-circle' : 'information-circle-outline'}
+                        size={18}
+                        color={newValid ? COLORS.ok : COLORS.sub}
+                      />
+                      <Text style={styles.reqHeaderText}>
+                        {newValid
+                          ? 'Passwort ist stark genug.'
+                          : 'Passwort-Anforderungen'}
+                      </Text>
+                    </View>
 
-            <PasswordField
-              label="Neues Passwort bestätigen"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              show={showConfirm}
-              onToggle={() => setShowConfirm((v) => !v)}
-              disabled={loading}
+                    <RequirementLine ok={req.minLen} text="Mindestens 8 Zeichen" />
+                    <RequirementLine ok={req.upper} text="Mindestens 1 Großbuchstabe (A–Z)" />
+                    <RequirementLine ok={req.lower} text="Mindestens 1 Kleinbuchstabe (a–z)" />
+                    <RequirementLine ok={req.digit} text="Mindestens 1 Zahl (0–9)" />
+                  </View>
+                ) : (
+                  <Text style={styles.helperText}>
+                    Mindestens 8 Zeichen, 1 Großbuchstabe, 1 Kleinbuchstabe, 1 Zahl.
+                  </Text>
+                )
+              }
             />
 
             <Pressable
@@ -236,13 +302,12 @@ export default PasswordScreen;
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
-   scrollContent: {
+  scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 50,
-    paddingBottom: 120, 
+    paddingBottom: 120,
   },
 
-  // Top bar
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,15 +325,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  screenTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: 0.2,
-  },
   pressed: { opacity: 0.85 },
 
-  // Card
   card: {
     width: '100%',
     backgroundColor: COLORS.card,
@@ -309,16 +367,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
   },
-  subtitle: {
-    marginTop: 6,
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    maxWidth: 360,
-    lineHeight: 18,
-  },
 
-  // Fields
   field: { width: '100%', marginBottom: 12 },
   label: {
     fontSize: 13,
@@ -338,6 +387,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
+  inputRowError: {
+    borderColor: 'rgba(180,35,24,0.35)',
+  },
   input: {
     flex: 1,
     fontSize: 15,
@@ -352,7 +404,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Button
+  helperText: {
+    marginTop: 8,
+    marginLeft: 6,
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+
+  reqBox: {
+    marginTop: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.inputBg,
+    padding: 12,
+  },
+  reqBoxOk: {
+    borderColor: 'rgba(2,122,72,0.25)',
+    backgroundColor: 'rgba(2,122,72,0.06)',
+  },
+  reqHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  reqHeaderText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  reqLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  reqText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '700',
+  },
+  reqTextOk: {
+    color: '#1F2937',
+  },
+
   button: {
     marginTop: 8,
     paddingVertical: 14,
@@ -374,7 +471,6 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.55 },
 
-  // Info
   infoBox: {
     marginTop: 14,
     flexDirection: 'row',
@@ -394,5 +490,4 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: '600',
   },
-
 });

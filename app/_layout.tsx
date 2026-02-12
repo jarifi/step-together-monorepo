@@ -121,6 +121,7 @@ export default function RootLayout() {
               <Stack.Screen name="myChallenge" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/index" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/create" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/update" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
               <Stack.Screen name="dashboard" options={{ headerShown: false }} />

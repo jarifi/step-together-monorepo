@@ -27,12 +27,7 @@ import {
   toIsoDate as toISO,
 } from '../services/dto/dashboardDto';
 
-import {
-  getHomeInit,
-  getWeekSteps,
-  upsertStepsForDate,
-} from '../services/dashboardService';
-
+import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboardService';
 import styles from './styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -44,16 +39,8 @@ export type StepsEntry = {
 };
 
 export type HomeInitDto = {
-  user: {
-    id: number | null;
-    name: string;
-    email: string;
-    stepLength: number; // Meter pro Schritt
-  };
-  team: {
-    id: number | null;
-    name: string;
-  };
+  user: { id: number | null; name: string; email: string; stepLength: number };
+  team: { id: number | null; name: string };
   challenge: {
     id: number | null;
     name: string;
@@ -74,7 +61,6 @@ const EMPTY_WEEK = [0, 0, 0, 0, 0, 0, 0] as const;
 const FIX_STEP_LENGTH_M = 0.78;
 const MAX_STEP_DELTA = 100000;
 
-// ---------- Helpers ----------
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
   if (!entries || entries.length !== 7) return [...EMPTY_WEEK];
   return entries.map((s) => s.numberOfSteps);
@@ -103,41 +89,36 @@ const buildCalendarGrid = (
   return cells;
 };
 
+// timezone-safe ISO at UTC midnight (prevents iPhone timezone date shifting)
+const toIsoUtcMidnight = (d: Date) => {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
+};
+
 const Dashboard: React.FC = () => {
   const router = useRouter();
 
-  // Core VM
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // UI State
   const [modalVisible, setModalVisible] = useState(false);
   const [stepInput, setStepInput] = useState('');
   const [modalError, setModalError] = useState<string | null>(null);
 
-  // Date & Week State
   const [displayDate, setDisplayDate] = useState(new Date());
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(
-    startOfWeek(new Date())
-  );
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date()));
   const [weekSteps, setWeekSteps] = useState<number[]>([...EMPTY_WEEK]);
   const [stepsToday, setStepsToday] = useState(0);
   const [weekLoading, setWeekLoading] = useState(false);
 
-  // Calendar modal state
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [calendarPick, setCalendarPick] = useState<Date>(new Date());
 
-  // Warning state
   const [showExpiredWarning, setShowExpiredWarning] = useState(true);
-
-  // Congrats popup
-  const [showCongrats, setShowCongrats] = useState(false);
-  const [didShowCongrats, setDidShowCongrats] = useState(false);
-  const prevChallengeStateRef = useRef<string | null>(null);
-  const prevChallengeIdRef = useRef<number | null>(null);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -157,14 +138,10 @@ const Dashboard: React.FC = () => {
     [vm?.challenge?.endDate]
   );
 
-  const today = stripTime(new Date());
+  const today = useMemo(() => stripTime(new Date()), []);
+  const isChallengeExpired = useMemo(() => !!maxDate && today > maxDate, [maxDate, today]);
 
-  const isChallengeExpired = useMemo(
-    () => !!maxDate && today > maxDate,
-    [maxDate, today]
-  );
-
-  // Clamp displayDate wenn Bounds sich ändern
+  // clamp displayDate if bounds change
   useEffect(() => {
     if (!vm) return;
     setDisplayDate((d) => clampDate(d, minDate, maxDate));
@@ -180,80 +157,11 @@ const Dashboard: React.FC = () => {
     [displayDate]
   );
 
-  const todayClamped = useMemo(
-    () => clampDate(new Date(), minDate, maxDate),
-    [minDate, maxDate]
-  );
+  const todayClamped = useMemo(() => clampDate(new Date(), minDate, maxDate), [minDate, maxDate]);
+  const isFutureSelected = useMemo(() => stripTime(displayDate) > todayClamped, [displayDate, todayClamped]);
 
-  const isFutureSelected = useMemo(
-    () => stripTime(displayDate) > todayClamped,
-    [displayDate, todayClamped]
-  );
-
-  const calendarHeader = useMemo(
-    () =>
-      calendarMonth.toLocaleDateString('de-DE', {
-        month: 'long',
-        year: 'numeric',
-      }),
-    [calendarMonth]
-  );
-
-  const calendarGrid = useMemo(
-    () => buildCalendarGrid(calendarMonth, minDate, maxDate),
-    [calendarMonth, minDate, maxDate]
-  );
-
-  const canGoPrevMonth = useMemo(() => {
-    if (!minDate) return true;
-    const prev = new Date(
-      calendarMonth.getFullYear(),
-      calendarMonth.getMonth() - 1,
-      1
-    );
-    return lastOfMonth(prev) >= firstOfMonth(minDate);
-  }, [calendarMonth, minDate]);
-
-  const canGoNextMonth = useMemo(() => {
-    if (!maxDate) return true;
-    const next = new Date(
-      calendarMonth.getFullYear(),
-      calendarMonth.getMonth() + 1,
-      1
-    );
-    return firstOfMonth(next) <= lastOfMonth(maxDate);
-  }, [calendarMonth, maxDate]);
-
-  const goPrevMonth = () => {
-    if (canGoPrevMonth) {
-      setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
-    }
-  };
-  const goNextMonth = () => {
-    if (canGoNextMonth) {
-      setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
-    }
-  };
-
-  const challengeDistanceKm = useMemo(() => {
-    const ch = vm?.challenge;
-    if (!ch) return 0;
-    const d = ch.distanceKm ?? ch.distance ?? 0;
-    return Number(d || 0);
-  }, [vm?.challenge]);
-
-
-  // ---------- Date helpers (timezone-safe) ----------
-const toIsoUtcMidnight = (d: Date) => {
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const day = d.getDate();
-  return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
-};
-
-
-  // ========= Initial load & Retry =========
-  const initFromMapped = (mapped: HomeInitDto | null) => {
+  // ========= Init =========
+  const initFromMapped = useCallback((mapped: HomeInitDto | null) => {
     if (!mapped) {
       setVm(null);
       setErrorMsg('Keine Daten verfügbar.');
@@ -262,88 +170,86 @@ const toIsoUtcMidnight = (d: Date) => {
 
     setVm(mapped);
 
-    const initialDisplay = clampDate(
-      new Date(),
-      mapped.challenge.startDate,
-      mapped.challenge.endDate
-    );
+    const initialDisplay = clampDate(new Date(), mapped.challenge.startDate, mapped.challenge.endDate);
+    const weekStart = startOfWeek(initialDisplay);
 
     setDisplayDate(initialDisplay);
-    setSelectedWeekStart(startOfWeek(initialDisplay));
+    setSelectedWeekStart(weekStart);
 
     const weekArr = buildWeekFromEntries(mapped.steps_this_week);
     setWeekSteps(weekArr);
 
     const idx = (initialDisplay.getDay() + 6) % 7;
     setStepsToday(weekArr[idx] ?? 0);
-  };
+  }, []);
 
   const loadInitial = useCallback(async () => {
-    let alive = true;
     setLoading(true);
     setErrorMsg(null);
 
     try {
       const raw = await getHomeInit();
-      if (!alive) return;
+      if (!isMountedRef.current) return;
 
       const pivot = startOfWeek(new Date());
       const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
       initFromMapped(mapped);
     } catch (e: any) {
-      if (!alive) return;
+      if (!isMountedRef.current) return;
       setErrorMsg(e?.message ?? 'Unbekannter Fehler');
+      setVm(null);
     } finally {
-      if (alive) setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
-
-    return () => {
-      alive = false;
-    };
-  }, []);
+  }, [initFromMapped]);
 
   useEffect(() => {
     loadInitial();
   }, [loadInitial]);
 
-  // ===== Woche nachladen / Refresh =====
+  // ========= Week fetching =========
+  const fetchAndApplyWeek = useCallback(
+    async (weekStart: Date, pivotDay: Date) => {
+      if (!vm?.user?.id || !vm?.challenge?.id) return;
+
+      setWeekLoading(true);
+      try {
+        const resp = await getWeekSteps(vm.challenge.id!, vm.user.id!, toISO(weekStart));
+        if (!isMountedRef.current) return;
+
+        const parsed = parseStepsThisWeek(Array.isArray(resp) ? resp : [], weekStart);
+        const arr = parsed.map((x) => x.numberOfSteps);
+
+        setWeekSteps(arr);
+        setSelectedWeekStart(weekStart);
+
+        const idx = (pivotDay.getDay() + 6) % 7;
+        setStepsToday(arr[idx] ?? 0);
+      } catch {
+        if (!isMountedRef.current) return;
+
+        const empty = [...EMPTY_WEEK];
+        setWeekSteps(empty);
+        setSelectedWeekStart(weekStart);
+
+        const idx = (pivotDay.getDay() + 6) % 7;
+        setStepsToday(empty[idx] ?? 0);
+      } finally {
+        if (isMountedRef.current) setWeekLoading(false);
+      }
+    },
+    [vm?.user?.id, vm?.challenge?.id]
+  );
+
   const refreshWeek = useCallback(async () => {
     if (!vm?.user?.id || !vm?.challenge?.id) return;
 
     const pivot = clampDate(displayDate, minDate, maxDate);
     const weekStart = startOfWeek(pivot);
 
-    try {
-      setWeekLoading(true);
-      const respWeek = await getWeekSteps(
-        vm.challenge.id!,
-        vm.user.id!,
-        toISO(weekStart)
-      );
+    await fetchAndApplyWeek(weekStart, pivot);
+  }, [vm?.user?.id, vm?.challenge?.id, displayDate, minDate, maxDate, fetchAndApplyWeek]);
 
-      if (!isMountedRef.current) return;
-
-
-      const parsed = Array.isArray(respWeek)
-        ? parseStepsThisWeek(respWeek, weekStart)
-        : parseStepsThisWeek([], weekStart);
-
-
-      const arr = parsed.map((x) => x.numberOfSteps);
-
-      setWeekSteps(arr);
-
-      const idx = (pivot.getDay() + 6) % 7;
-      setStepsToday(arr[idx] ?? 0);
-      setSelectedWeekStart(weekStart);
-    } catch {
-      // optional logging
-    } finally {
-      if (isMountedRef.current) setWeekLoading(false);
-    }
-  }, [vm?.user?.id, vm?.challenge?.id, displayDate, minDate, maxDate]);
-
-  // Week change & Tageswerte
   useEffect(() => {
     if (!vm?.user?.id || !vm?.challenge?.id) return;
 
@@ -358,129 +264,81 @@ const toIsoUtcMidnight = (d: Date) => {
       return;
     }
 
-    setWeekLoading(true);
-    (async () => {
-      try {
-        const resp = await getWeekSteps(
-          vm.challenge!.id!,
-          vm.user!.id!,
-          toISO(weekStart)
-        );
-
-        const parsed = Array.isArray(resp)
-          ? parseStepsThisWeek(resp, weekStart)
-          : parseStepsThisWeek([], weekStart);
-
-        const arr = parsed.map((x) => x.numberOfSteps);
-        setWeekSteps(arr);
-
-        const idx = (pivot.getDay() + 6) % 7;
-        setStepsToday(arr[idx] ?? 0);
-        setSelectedWeekStart(weekStart);
-      } catch {
-        const empty = [...EMPTY_WEEK];
-        const idx = (pivot.getDay() + 6) % 7;
-        setWeekSteps(empty);
-        setStepsToday(empty[idx] ?? 0);
-        setSelectedWeekStart(weekStart);
-      } finally {
-        setWeekLoading(false);
-      }
-    })();
+    fetchAndApplyWeek(weekStart, pivot);
   }, [
     displayDate,
+    minDate,
+    maxDate,
     vm?.user?.id,
     vm?.challenge?.id,
     selectedWeekStart,
-    minDate,
-    maxDate,
     weekSteps,
+    fetchAndApplyWeek,
   ]);
 
   // ---- Save Steps ----
-const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
-  console.log('🟦 saveAbsoluteStepsForSelectedDay START:', newValue);
+  const saveAbsoluteStepsForSelectedDay = useCallback(
+    async (newValue: number) => {
+      if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
 
-  if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
+      const dateSafe = clampDate(displayDate, minDate, maxDate);
+      if (stripTime(dateSafe) > stripTime(new Date())) return;
 
-  const dateSafe = clampDate(displayDate, minDate, maxDate);
-  if (stripTime(dateSafe) > stripTime(new Date())) return; // keine Zukunft
+      const idx = (dateSafe.getDay() + 6) % 7;
+      const dateISO = toIsoUtcMidnight(dateSafe);
 
-  const idx = (dateSafe.getDay() + 6) % 7;
+      const prev = [...weekSteps];
+      const next = [...weekSteps];
+      next[idx] = Math.max(0, Math.floor(newValue));
 
-  // IMPORTANT: send UTC-midnight ISO to backend to avoid iPhone timezone shifting the date
-  const dateISO = toIsoUtcMidnight(dateSafe);
+      setWeekSteps(next);
+      setStepsToday(next[idx]);
 
-  const prev = [...weekSteps];
-  const next = [...weekSteps];
-
-  next[idx] = Math.max(0, Math.floor(newValue));
-
-  // optimistic update
-  setWeekSteps(next);
-  setStepsToday(next[idx]);
-
-  try {
-    console.log('🟦 CALL upsertStepsForDate:', {
-      userId: vm.user.id,
-      challengeId: vm.challenge.id,
-      teamId: vm.team.id,
-      dateISO,
-      numberOfSteps: next[idx],
-    });
-
-    await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
-      challengeId: vm.challenge.id,
-      teamId: vm.team.id,
-    });
-
-    // Refresh once to sync UI with backend
-    await refreshWeek();
-  } catch (e) {
-    setWeekSteps(prev);
-    setStepsToday(prev[idx] ?? 0);
-    console.warn('Save steps failed:', e);
-  }
-};
-
-
- const applyStepDelta = async (delta: number) => {
-  const dateSafe = clampDate(displayDate, minDate, maxDate);
-  if (stripTime(dateSafe) > stripTime(new Date())) return;
-
-  const idx = (dateSafe.getDay() + 6) % 7;
-  const current = weekSteps[idx] ?? 0;
-
-  console.log('🟨 applyStepDelta START', { delta, idx, current });
-
-  if (delta > 0) {
-    const add = Math.min(delta, MAX_STEP_DELTA);
-    const newTotal = current + add;
-    console.log('🟨 ADDING', { current, add, newTotal });
-    await saveAbsoluteStepsForSelectedDay(newTotal);
-    return;
-  }
-
-  if (delta < 0) {
-    const remove = Math.min(current, Math.abs(delta));
-    const newTotal = current - remove;
-    console.log('🟨 REMOVING', { current, remove, newTotal });
-    await saveAbsoluteStepsForSelectedDay(newTotal);
-  }
-};
-
-
-  // ========= Derived =========
-  const weeklyMax = Math.max(1, ...weekSteps);
-  const weeklyTotal = useMemo(
-    () => weekSteps.reduce((a, b) => a + b, 0),
-    [weekSteps]
+      try {
+        await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
+          challengeId: vm.challenge.id,
+          teamId: vm.team.id,
+        });
+        await refreshWeek();
+      } catch (e) {
+        setWeekSteps(prev);
+        setStepsToday(prev[idx] ?? 0);
+        console.warn('Save steps failed:', e);
+      }
+    },
+    [vm?.user?.id, vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
   );
 
-  const stepLengthMeters =
-    vm?.user?.stepLength && vm.user.stepLength > 0
-      ? vm.user.stepLength
-      : FIX_STEP_LENGTH_M;
+  const applyStepDelta = useCallback(
+    async (delta: number) => {
+      const dateSafe = clampDate(displayDate, minDate, maxDate);
+      if (stripTime(dateSafe) > stripTime(new Date())) return;
+
+      const idx = (dateSafe.getDay() + 6) % 7;
+      const current = weekSteps[idx] ?? 0;
+
+      if (delta > 0) {
+        const add = Math.min(delta, MAX_STEP_DELTA);
+        await saveAbsoluteStepsForSelectedDay(current + add);
+        return;
+      }
+
+      if (delta < 0) {
+        const remove = Math.min(current, Math.abs(delta));
+        await saveAbsoluteStepsForSelectedDay(current - remove);
+      }
+    },
+    [displayDate, minDate, maxDate, weekSteps, saveAbsoluteStepsForSelectedDay]
+  );
+
+  // ========= Derived =========
+  const weeklyMax = useMemo(() => Math.max(1, ...weekSteps), [weekSteps]);
+  const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
+
+  const stepLengthMeters = useMemo(() => {
+    const sl = vm?.user?.stepLength;
+    return sl && sl > 0 ? sl : FIX_STEP_LENGTH_M;
+  }, [vm?.user?.stepLength]);
 
   const distanceKmToday = useMemo(() => {
     const km = (stepsToday * stepLengthMeters) / 1000;
@@ -492,33 +350,12 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
     return Math.round(k * 100) / 100;
   }, [stepsToday]);
 
-  // ✅ Congrats: nur bei State-Transition open -> closed
-  useEffect(() => {
+  const challengeDistanceKm = useMemo(() => {
     const ch = vm?.challenge;
-    if (!ch?.id) return;
-
-    // Reset wenn neue Challenge
-    if (prevChallengeIdRef.current !== ch.id) {
-      prevChallengeIdRef.current = ch.id;
-      prevChallengeStateRef.current = ch.state ?? null;
-      setDidShowCongrats(false);
-      setShowCongrats(false);
-      return;
-    }
-
-    const prev = prevChallengeStateRef.current;
-    const next = ch.state ?? null;
-
-    if (prev === 'open' && next === 'closed' && !didShowCongrats) {
-      setDidShowCongrats(true);
-      setShowCongrats(true);
-
-      const t = setTimeout(() => setShowCongrats(false), 1400);
-      return () => clearTimeout(t);
-    }
-
-    prevChallengeStateRef.current = next;
-  }, [vm?.challenge?.id, vm?.challenge?.state, didShowCongrats]);
+    if (!ch) return 0;
+    const d = ch.distanceKm ?? ch.distance ?? 0;
+    return Number(d || 0);
+  }, [vm?.challenge]);
 
   // ===== Auto-Refresh =====
   useFocusEffect(
@@ -539,261 +376,146 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
     if (!vm?.user?.id) return;
     const id = setInterval(() => refreshWeek(), 30000);
     return () => clearInterval(id);
-  }, [vm?.user?.id, vm?.team?.id, vm?.challenge?.id, selectedWeekStart, refreshWeek]);
+  }, [vm?.user?.id, vm?.challenge?.id, refreshWeek]);
+
+  // ========= UI Helpers =========
+
+  const EmptyChallengeCard = () => (
+    <View style={{ flex: 1, backgroundColor: '#F5F7F4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+      <View
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          backgroundColor: '#FFFFFF',
+          borderRadius: 26,
+          paddingVertical: 26,
+          paddingHorizontal: 22,
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 22,
+          shadowOffset: { width: 0, height: 10 },
+          elevation: 5,
+        }}
+      >
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 999,
+            backgroundColor: '#e3efe6',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 12,
+            alignSelf: 'center',
+          }}
+        >
+          <Ionicons name="flag-outline" size={22} color="#2f5c3a" />
+        </View>
+
+        <Text style={[styles.font, { fontSize: 18, fontWeight: '800', color: '#111', marginBottom: 6, textAlign: 'center' }]}>
+          Keine offene Challenge
+        </Text>
+
+        <Text style={[styles.font, { fontSize: 14, color: '#6B7280', lineHeight: 20, marginBottom: 22, textAlign: 'center' }]}>
+          Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an oder wirf einen Blick auf deine bisherigen Aktivitäten.
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => router.push('/challenges/activeChallenges')}
+          activeOpacity={0.9}
+          style={{
+            backgroundColor: '#658869ff',
+            paddingVertical: 14,
+            borderRadius: 18,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 10,
+          }}
+        >
+          <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>Zu den Challenges</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/userHistory')}
+          activeOpacity={0.85}
+          style={{
+            paddingVertical: 12,
+            borderRadius: 18,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: '#D1D5DB',
+            backgroundColor: '#F9FAFB',
+          }}
+        >
+          <Text style={[styles.font, { color: '#374151', fontWeight: '700', fontSize: 14 }]}>Meine Challenge-Historie</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   // ========= Render Guards =========
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#F5F7F4',
-        }}
-      >
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
         <ActivityIndicator size="large" />
-        <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>
-          Lade Daten...
-        </Text>
+        <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
       </View>
     );
   }
 
-  if (errorMsg || !vm) {
-    const pivot = startOfWeek(new Date());
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#F5F7F4',
-          padding: 24,
-        }}
-      >
-        <Text
-          style={[
-            styles.font,
-            {
-              fontSize: 14,
-              color: '#6B7280',
-              lineHeight: 20,
-              marginBottom: 22,
-              textAlign: 'center',
-            },
-          ]}
-        >
-          Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
-          oder wirf einen Blick auf deine bisherigen Aktivitäten.
-        </Text>
-        <TouchableOpacity
-          onPress={() => router.push('/userHistory')}
-          style={{
-            marginTop: 16,
-            backgroundColor: '#7FA58C',
-            paddingVertical: 10,
-            paddingHorizontal: 18,
-            borderRadius: 12,
-          }}
-        >
-          <Text style={[styles.font, { color: '#fff', fontWeight: '700' }]}>
-            Meine History
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const hasActiveChallenge = vm?.challenge?.id != null && vm?.challenge?.state === 'open';
 
-  // ✅ Active Challenge ist nur state === open
-  const hasActiveChallenge =
-    vm?.challenge?.id != null && vm?.challenge?.state === 'open';
-
-  if (!hasActiveChallenge) {
+  // ✅ unified empty state:
+  if (!vm || errorMsg || !hasActiveChallenge) {
     return (
       <>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: '#F5F7F4',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: 20,
-          }}
-        >
-          <View
-            style={{
-              width: '100%',
-              maxWidth: 420,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 26,
-              paddingVertical: 26,
-              paddingHorizontal: 22,
-              shadowColor: '#000',
-              shadowOpacity: 0.08,
-              shadowRadius: 22,
-              shadowOffset: { width: 0, height: 10 },
-              elevation: 5,
-            }}
-          >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 999,
-                backgroundColor: '#e3efe6',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 12,
-                alignSelf: 'center',
-              }}
-            >
-              <Ionicons name="flag-outline" size={22} color="#2f5c3a" />
-            </View>
-
-            <Text
-              style={[
-                styles.font,
-                {
-                  fontSize: 18,
-                  fontWeight: '800',
-                  color: '#111',
-                  marginBottom: 6,
-                  textAlign: 'center',
-                },
-              ]}
-            >
-              Keine offene Challenge
-            </Text>
-
-            <Text
-              style={[
-                styles.font,
-                {
-                  fontSize: 14,
-                  color: '#6B7280',
-                  lineHeight: 20,
-                  marginBottom: 22,
-                  textAlign: 'center',
-                },
-              ]}
-            >
-              Du hast zurzeit keine offene Challenge. Schau dir die kommenden Challenges an
-              oder wirf einen Blick auf deine bisherigen Aktivitäten.
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => router.push('/challenges/activeChallenges')}
-              activeOpacity={0.9}
-              style={{
-                backgroundColor: '#658869ff',
-                paddingVertical: 14,
-                borderRadius: 18,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 10,
-              }}
-            >
-              <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>
-                Zu den Challenges
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/userHistory')}
-              activeOpacity={0.85}
-              style={{
-                paddingVertical: 12,
-                borderRadius: 18,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: '#D1D5DB',
-                backgroundColor: '#F9FAFB',
-              }}
-            >
-              <Text
-                style={[
-                  styles.font,
-                  {
-                    color: '#374151',
-                    fontWeight: '700',
-                    fontSize: 14,
-                  },
-                ]}
-              >
-                Meine Challenge-Historie
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {showCongrats && (
-          <View
-            style={{
-              position: 'absolute',
-              left: 20,
-              right: 20,
-              bottom: 40,
-              backgroundColor: '#2F3E34',
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              borderRadius: 18,
-              shadowColor: '#000',
-              shadowOpacity: 0.18,
-              shadowRadius: 16,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 6,
-            }}
-          >
-            <Text
-              style={[
-                styles.font,
-                {
-                  color: '#fff',
-                  fontWeight: '800',
-                  textAlign: 'center',
-                  fontSize: 15,
-                },
-              ]}
-            >
-              🎉 Gratulation! Challenge abgeschlossen!
-            </Text>
-          </View>
-        )}
+        <EmptyChallengeCard />
       </>
     );
   }
 
+  // ========= Calendar computed (only needed here) =========
+  const calendarHeader = calendarMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  const calendarGrid = buildCalendarGrid(calendarMonth, minDate, maxDate);
+
+  const canGoPrevMonth = (() => {
+    if (!minDate) return true;
+    const prev = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+    return lastOfMonth(prev) >= firstOfMonth(minDate);
+  })();
+
+  const canGoNextMonth = (() => {
+    if (!maxDate) return true;
+    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+    return firstOfMonth(next) <= lastOfMonth(maxDate);
+  })();
+
+  const goPrevMonth = () => {
+    if (!canGoPrevMonth) return;
+    setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  };
+
+  const goNextMonth = () => {
+    if (!canGoNextMonth) return;
+    setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  };
+
   // ========= Render (Active Challenge) =========
   return (
     <>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
-      >
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
         {isChallengeExpired && showExpiredWarning && (
           <View style={styles.expiredWarningContainer}>
-            <Ionicons
-              name="information-circle"
-              size={22}
-              color="#DC2626"
-              style={styles.expiredWarningIcon}
-            />
+            <Ionicons name="information-circle" size={22} color="#DC2626" style={styles.expiredWarningIcon} />
             <View style={styles.expiredWarningContent}>
-              <Text style={[styles.font, styles.expiredWarningTitle]}>
-                Challenge beendet
-              </Text>
+              <Text style={[styles.font, styles.expiredWarningTitle]}>Challenge beendet</Text>
               <Text style={[styles.font, styles.expiredWarningText]}>
-                Diese Challenge ist bereits abgelaufen. Du kannst keine Schritte mehr
-                hinzufügen oder entfernen, aber du kannst weiterhin die Statistiken
+                Diese Challenge ist bereits abgelaufen. Du kannst keine Schritte mehr hinzufügen oder entfernen, aber du kannst weiterhin die Statistiken
                 und das Ranking einsehen.
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => setShowExpiredWarning(false)}
-              style={styles.closeWarningButton}
-            >
+            <TouchableOpacity onPress={() => setShowExpiredWarning(false)} style={styles.closeWarningButton}>
               <Ionicons name="close" size={18} color="#DC2626" />
             </TouchableOpacity>
           </View>
@@ -812,29 +534,15 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
               }}
               style={[styles.calIconBtn, { flexDirection: 'row', alignItems: 'center' }]}
             >
-              <Text style={[styles.date, styles.font, { marginRight: 6 }]}>
-                {currentDate}
-              </Text>
+              <Text style={[styles.date, styles.font, { marginRight: 6 }]}>{currentDate}</Text>
               <Ionicons name="calendar-outline" size={22} color="#2F3E34" />
             </TouchableOpacity>
           </View>
 
           {vm.user?.name && (
-            <Text
-              style={[
-                styles.font,
-                { textAlign: 'center', color: '#6B7280', marginTop: 8 },
-              ]}
-            >
-              Willkommen,{' '}
-              <Text style={{ color: '#2F3E34', fontWeight: '700' }}>
-                {vm.user.name}
-              </Text>
-              {vm.team?.name && (
-                <Text style={{ color: '#7FA58C', fontWeight: '600' }}>
-                  {' · '}Team {vm.team.name}
-                </Text>
-              )}{' '}
+            <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 8 }]}>
+              Willkommen, <Text style={{ color: '#2F3E34', fontWeight: '700' }}>{vm.user.name}</Text>
+              {vm.team?.name && <Text style={{ color: '#7FA58C', fontWeight: '600' }}>{' · '}Team {vm.team.name}</Text>}{' '}
             </Text>
           )}
 
@@ -850,15 +558,8 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
           <View style={styles.metricsRow}>
             <View style={styles.metricSide}>
               <View style={{ alignItems: 'center' }}>
-                <Ionicons
-                  name="flame"
-                  size={screenWidth < 380 ? 22 : 24}
-                  color="#E25822"
-                  style={{ marginBottom: 4 }}
-                />
-                <Text style={[styles.metricSideValue, styles.font]}>
-                  {weekLoading ? '…' : kcal}
-                </Text>
+                <Ionicons name="flame" size={screenWidth < 380 ? 22 : 24} color="#E25822" style={{ marginBottom: 4 }} />
+                <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : kcal}</Text>
                 <Text style={[styles.metricSideLabel, styles.font]}>Kcal</Text>
               </View>
             </View>
@@ -867,9 +568,7 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
               <View style={styles.stepCircleOuter}>
                 <View style={styles.stepCircleInnerRing} />
                 <View style={styles.stepCircle}>
-                  <Text style={[styles.stepValue, styles.font]}>
-                    {weekLoading ? '…' : stepsToday}
-                  </Text>
+                  <Text style={[styles.stepValue, styles.font]}>{weekLoading ? '…' : stepsToday}</Text>
                   <Text style={[styles.stepLabel, styles.font]}>SCHRITTE</Text>
                 </View>
               </View>
@@ -877,25 +576,15 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
 
             <View style={styles.metricSide}>
               <View style={{ alignItems: 'center' }}>
-                <MaterialIcons
-                  name="place"
-                  size={screenWidth < 380 ? 22 : 24}
-                  color="#F54927"
-                  style={{ marginBottom: 4 }}
-                />
-                <Text style={[styles.metricSideValue, styles.font]}>
-                  {weekLoading ? '…' : distanceKmToday}
-                </Text>
+                <MaterialIcons name="place" size={screenWidth < 380 ? 22 : 24} color="#F54927" style={{ marginBottom: 4 }} />
+                <Text style={[styles.metricSideValue, styles.font]}>{weekLoading ? '…' : distanceKmToday}</Text>
                 <Text style={[styles.metricSideLabel, styles.font]}>km</Text>
               </View>
             </View>
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.editBtn,
-              (isFutureSelected || isChallengeExpired) && { opacity: 0.5 },
-            ]}
+            style={[styles.editBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
             disabled={isFutureSelected || isChallengeExpired}
             onPress={() => setModalVisible(true)}
           >
@@ -903,8 +592,8 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
               {isChallengeExpired
                 ? 'Challenge abgelaufen - Keine Bearbeitung möglich'
                 : isFutureSelected
-                  ? 'Zukunft nicht bearbeitbar'
-                  : 'Schritte bearbeiten'}
+                ? 'Zukunft nicht bearbeitbar'
+                : 'Schritte bearbeiten'}
             </Text>
           </TouchableOpacity>
 
@@ -928,17 +617,18 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
         </View>
 
         {/* MODAL: Schritte verwalten */}
-        <Modal
-          animationType="fade"
-          transparent
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
+        <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.stepsCard}>
               <View style={styles.cardHeader}>
                 <Text style={[styles.font, styles.cardTitle]}>Schritte verwalten</Text>
-                <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.headerX}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalVisible(false);
+                    setModalError(null);
+                  }}
+                  style={styles.headerX}
+                >
                   <Ionicons name="close" size={18} />
                 </TouchableOpacity>
               </View>
@@ -946,11 +636,7 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
               <View style={styles.fieldWrap}>
                 <Text style={[styles.font, styles.fieldLabel]}>Anzahl Schritte</Text>
                 <View style={styles.inputWrap}>
-                  <Ionicons
-                    name="walk-outline"
-                    size={18}
-                    style={{ marginRight: 8, opacity: 0.6 }}
-                  />
+                  <Ionicons name="walk-outline" size={18} style={{ marginRight: 8, opacity: 0.6 }} />
                   <TextInput
                     style={[styles.inputBare, styles.font]}
                     placeholder="z. B. 1200"
@@ -992,7 +678,6 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
                     const idx = (dateSafe.getDay() + 6) % 7;
                     const current = Number(weekSteps[idx] ?? 0);
 
-
                     if (!isNaN(num) && num > 0 && num <= current) {
                       setModalError(null);
                       await applyStepDelta(-num);
@@ -1010,17 +695,14 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
               </View>
 
               {modalError ? (
-                <Text style={[styles.font, { color: '#B91C1C', textAlign: 'center', marginTop: 8 }]}>
-                  {modalError}
-                </Text>
+                <Text style={[styles.font, { color: '#B91C1C', textAlign: 'center', marginTop: 8 }]}>{modalError}</Text>
               ) : null}
 
               {isChallengeExpired ? (
                 <View style={styles.expiredModalWarning}>
                   <Ionicons name="information-circle" size={18} color="#B91C1C" />
                   <Text style={[styles.font, styles.expiredModalWarningText]}>
-                    Diese Challenge ist bereits beendet. Das Hinzufügen oder Entfernen von
-                    Schritten ist nicht mehr möglich.
+                    Diese Challenge ist bereits beendet. Das Hinzufügen oder Entfernen von Schritten ist nicht mehr möglich.
                   </Text>
                 </View>
               ) : isFutureSelected ? (
@@ -1043,17 +725,8 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
         </Modal>
 
         {/* MODAL: Calendar */}
-        <Modal
-          animationType="fade"
-          transparent
-          visible={calendarOpen}
-          onRequestClose={() => setCalendarOpen(false)}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPressOut={() => setCalendarOpen(false)}
-          >
+        <Modal animationType="fade" transparent visible={calendarOpen} onRequestClose={() => setCalendarOpen(false)}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setCalendarOpen(false)}>
             <View style={styles.calendarCard}>
               <View style={styles.calHeader}>
                 <TouchableOpacity
@@ -1138,40 +811,6 @@ const saveAbsoluteStepsForSelectedDay = async (newValue: number) => {
           </TouchableOpacity>
         </Modal>
       </ScrollView>
-
-      {showCongrats && (
-        <View
-          style={{
-            position: 'absolute',
-            left: 20,
-            right: 20,
-            bottom: 40,
-            backgroundColor: '#2F3E34',
-            paddingVertical: 14,
-            paddingHorizontal: 16,
-            borderRadius: 18,
-            shadowColor: '#000',
-            shadowOpacity: 0.18,
-            shadowRadius: 16,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 6,
-          }}
-        >
-          <Text
-            style={[
-              styles.font,
-              {
-                color: '#fff',
-                fontWeight: '800',
-                textAlign: 'center',
-                fontSize: 15,
-              },
-            ]}
-          >
-            🎉 Gratulation! Challenge abgeschlossen!
-          </Text>
-        </View>
-      )}
     </>
   );
 };
