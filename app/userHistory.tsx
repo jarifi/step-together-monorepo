@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 26, marginBottom: 8 },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: 6,
     textAlign: 'center',

@@ -17,7 +17,7 @@ type UserShape = {
   email?: string;
   stepLength?: number | null;
   avatarUrl?: string | null;
-  avatar_url?: string | null; 
+  avatar_url?: string | null;
 };
 
 const COLORS = {
@@ -88,7 +88,7 @@ const ProfileInfoScreen: React.FC = () => {
         <View style={[styles.headerCard, shadow]}>
           <View style={styles.headerTopRow}>
             <View style={styles.avatarRing}>
-<Avatar user={user} name={user?.name} size={86} />
+              <Avatar user={user} name={user?.name} size={86} />
             </View>
 
             <View style={styles.headerRight}>

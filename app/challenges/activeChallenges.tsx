@@ -165,7 +165,7 @@ export default function OpenChallengesScreen() {
       <View style={styles.centered}>
         <View style={styles.hero}>
           <View style={styles.accentLine} />
-          <Text style={styles.heroTitle}>Alle Challenges</Text>
+          <Text style={styles.heroTitle}>Challenges</Text>
           <Text style={styles.heroSub}>Beweg dich gemeinsam mit anderen.</Text>
           {Tabs}
         </View>
