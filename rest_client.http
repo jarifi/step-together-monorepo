@@ -39,7 +39,7 @@ Content-Type: application/json
 }
 
 ### 2. Get All Users Using Access Token
-GET {{baseUrl}}/users/?skip=0&limit=200
+GET {{baseUrl}}/users/?skip=0&limit=10
 Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 2.1 Get Single User Using Access Token
