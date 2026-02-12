@@ -1,23 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import {
-    validateChallengeName,
-    validateDate,
-    validateDistance,
-    validateLocation
+  validateChallengeName,
+  validateDate,
+  validateDistance,
+  validateLocation,
 } from '../../lib/challengeValidation';
 import { createChallenge } from '../../services/challengeService';
 
@@ -53,17 +53,29 @@ const parseLocalYMD = (s) => {
 // For backend: create a UTC ISO at 00:00:00Z for that LOCAL calendar day
 const ymdToUtcMidnightIso = (ymd) => `${ymd}T00:00:00.000Z`;
 
+// ====== UI tokens ======
+const COLORS = {
+  bg: '#F5F7F4',
+  surface: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#55805c',
+  accentSoft: 'rgba(85,128,92,0.12)',
+  inputBg: '#FBFCFB',
+};
+
 export default function CreateChallengeScreen() {
   const router = useRouter();
-  const [name, setName] = useState('Graz Wien 2025');
-  const [startLocation, setStartLocation] = useState('Graz');
-  const [targetLocation, setTargetLocation] = useState('Wien');
-  const [distance, setDistance] = useState('200');
-  const [startDate, setStartDate] = useState('2025-12-17');
-  const [endDate, setEndDate] = useState('2025-12-31');
+
+  const [name, setName] = useState('');
+  const [startLocation, setStartLocation] = useState('');
+  const [targetLocation, setTargetLocation] = useState('');
+  const [distance, setDistance] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Kalender State
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarType, setCalendarType] = useState('start');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -74,6 +86,7 @@ export default function CreateChallengeScreen() {
     const locationErrors = validateLocation(startLocation, targetLocation);
     const distanceErrors = validateDistance(distance);
     const dateErrors = validateDate(startDate, endDate);
+
     const userId = await AsyncStorage.getItem('userId');
     const teamId = '1';
 
@@ -89,7 +102,12 @@ export default function CreateChallengeScreen() {
       return;
     }
 
-    if (nameErrors.length > 0 || locationErrors.length > 0 || distanceErrors.length > 0 || dateErrors.length > 0) {
+    if (
+      nameErrors.length > 0 ||
+      locationErrors.length > 0 ||
+      distanceErrors.length > 0 ||
+      dateErrors.length > 0
+    ) {
       const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors];
       allErrors.forEach((error, i) => {
         setTimeout(() => {
@@ -111,7 +129,6 @@ export default function CreateChallengeScreen() {
       start_location: startLocation,
       target_location: targetLocation,
       distance: parseFloat(distance),
-      // keep your existing API shape, but now the picked dates won't shift
       start_date: ymdToUtcMidnightIso(startDate),
       end_date: ymdToUtcMidnightIso(endDate),
       creator_id: parseInt(userId || '0', 10),
@@ -160,29 +177,28 @@ export default function CreateChallengeScreen() {
   };
 
   const applySelectedDate = () => {
-    // IMPORTANT: local Y-M-D, no toISOString() (UTC) => no "one day behind"
     const formatted = formatLocalYMD(calendarPick);
-    if (calendarType === 'start') {
-      setStartDate(formatted);
-    } else {
-      setEndDate(formatted);
-    }
+    if (calendarType === 'start') setStartDate(formatted);
+    else setEndDate(formatted);
     setCalendarOpen(false);
   };
 
-  const calendarHeader = calendarMonth.toLocaleDateString('de-DE', {
-    month: 'long',
-    year: 'numeric'
-  });
+  const calendarHeader = useMemo(
+    () =>
+      calendarMonth.toLocaleDateString('de-DE', {
+        month: 'long',
+        year: 'numeric',
+      }),
+    [calendarMonth]
+  );
 
-  const calendarGrid = (() => {
+  const calendarGrid = useMemo(() => {
     const first = firstOfMonth(calendarMonth);
-    const firstDayOfWeek = (first.getDay() + 6) % 7; // Montag = 0
+    const firstDayOfWeek = (first.getDay() + 6) % 7; 
     const start = new Date(first);
     start.setDate(first.getDate() - firstDayOfWeek);
 
     const cells = [];
-
     for (let i = 0; i < 42; i++) {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
@@ -204,7 +220,7 @@ export default function CreateChallengeScreen() {
       cells.push({ date, inMonth, selectable });
     }
     return cells;
-  })();
+  }, [calendarMonth, calendarType, startDate]);
 
   const canGoPrevMonth = () => {
     if (calendarType === 'start') {
@@ -214,8 +230,6 @@ export default function CreateChallengeScreen() {
     return true;
   };
 
-  const canGoNextMonth = () => true;
-
   const goPrevMonth = () => {
     if (canGoPrevMonth()) {
       setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
@@ -223,113 +237,110 @@ export default function CreateChallengeScreen() {
   };
 
   const goNextMonth = () => {
-    if (canGoNextMonth()) {
-      setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
-    }
+    setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
   };
+
+  const FieldLabel = ({ children }) => <Text style={styles.label}>{children}</Text>;
 
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.formContainer}>
+        {/* Header card */}
+        <View style={styles.headerCard}>
           <Text style={styles.title}>Challenge erstellen</Text>
+        </View>
 
+        {/* Form card */}
+        <View style={styles.formCard}>
+          <FieldLabel>Challenge Name</FieldLabel>
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder="Challenge Name"
+            placeholderTextColor="#8A9590"
             style={styles.input}
             editable={!loading}
           />
+
+          <FieldLabel>Startort</FieldLabel>
           <TextInput
             value={startLocation}
             onChangeText={setStartLocation}
-            placeholder="Startort"
+            placeholderTextColor="#8A9590"
             style={styles.input}
             editable={!loading}
           />
+
+          <FieldLabel>Zielort</FieldLabel>
           <TextInput
             value={targetLocation}
             onChangeText={setTargetLocation}
-            placeholder="Zielort"
+            placeholderTextColor="#8A9590"
             style={styles.input}
             editable={!loading}
           />
+
+          <FieldLabel>Distanz (km)</FieldLabel>
           <TextInput
             value={distance}
             onChangeText={setDistance}
-            placeholder="Distanz (in km)"
+            placeholderTextColor="#8A9590"
             style={styles.input}
             keyboardType="numeric"
             editable={!loading}
           />
 
-          {/* Start-Datum */}
-          <View style={styles.dateRow}>
-            <Pressable
-              onPress={() => openCalendar('start')}
-              style={[styles.input, styles.dateInput]}
-            >
-              <Text style={{ color: startDate ? '#000' : '#aaa' }}>
-                {startDate ? startDate : 'Start-Datum auswählen'}
-              </Text>
-            </Pressable>
-            <TouchableOpacity
-              style={styles.calendarIconContainer}
-              onPress={() => openCalendar('start')}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={24}
-                color="#6B8F71"
-              />
-            </TouchableOpacity>
+          {/* Dates */}
+          <View style={styles.twoCol}>
+            <View style={{ flex: 1 }}>
+              <FieldLabel>Start</FieldLabel>
+              <Pressable onPress={() => openCalendar('start')} style={styles.datePill}>
+                <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
+                <Text style={[styles.dateText, !startDate && { color: '#8A9590' }]}>
+                  {startDate || 'Start-Datum'}
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <FieldLabel>Ende</FieldLabel>
+              <Pressable onPress={() => openCalendar('end')} style={styles.datePill}>
+                <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
+                <Text style={[styles.dateText, !endDate && { color: '#8A9590' }]}>
+                  {endDate || 'End-Datum'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
-          {/* End-Datum */}
-          <View style={styles.dateRow}>
-            <Pressable
-              onPress={() => openCalendar('end')}
-              style={[styles.input, styles.dateInput]}
-            >
-              <Text style={{ color: endDate ? '#000' : '#aaa' }}>
-                {endDate ? endDate : 'End-Datum auswählen'}
-              </Text>
-            </Pressable>
-            <TouchableOpacity
-              style={styles.calendarIconContainer}
-              onPress={() => openCalendar('end')}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={24}
-                color="#6B8F71"
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.buttonContainer}>
+          {/* Buttons */}
+          <View style={styles.buttonRow}>
             <Pressable
               onPress={() => router.back()}
               disabled={loading}
-              style={[styles.cancelButton, loading && styles.disabledButton]}
+              style={({ pressed }) => [
+                styles.secondaryBtn,
+                pressed && styles.pressed,
+                loading && styles.disabled,
+              ]}
             >
-              <Text style={styles.cancelButtonText}>Abbrechen</Text>
+              <Text style={styles.secondaryBtnText}>Abbrechen</Text>
             </Pressable>
 
             <Pressable
               onPress={handleCreate}
               disabled={loading}
-              style={[styles.createButton, loading && styles.disabledButton]}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.pressed,
+                loading && styles.disabled,
+              ]}
             >
-              <Text style={styles.buttonText}>
-                {loading ? 'Erstelle...' : 'Erstellen'}
-              </Text>
+              <Text style={styles.primaryBtnText}>{loading ? 'Erstelle…' : 'Erstellen'}</Text>
             </Pressable>
           </View>
         </View>
@@ -354,21 +365,19 @@ export default function CreateChallengeScreen() {
                 style={[styles.navPill, !canGoPrevMonth() && { opacity: 0.35 }]}
                 disabled={!canGoPrevMonth()}
               >
-                <Ionicons name="chevron-back" size={18} />
+                <Ionicons name="chevron-back" size={18} color={COLORS.text} />
               </TouchableOpacity>
-              <Text style={[styles.calHeaderTitle]}>{calendarHeader}</Text>
-              <TouchableOpacity
-                onPress={goNextMonth}
-                style={[styles.navPill, !canGoNextMonth() && { opacity: 0.35 }]}
-                disabled={!canGoNextMonth()}
-              >
-                <Ionicons name="chevron-forward" size={18} />
+
+              <Text style={styles.calHeaderTitle}>{calendarHeader}</Text>
+
+              <TouchableOpacity onPress={goNextMonth} style={styles.navPill}>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.weekRow}>
               {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
-                <Text key={d} style={[styles.weekCell]}>
+                <Text key={d} style={styles.weekCell}>
                   {d}
                 </Text>
               ))}
@@ -376,29 +385,32 @@ export default function CreateChallengeScreen() {
 
             <View style={styles.grid}>
               {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
-                const isSame = sameDay(date, calendarPick);
+                const isSelected = sameDay(date, calendarPick);
                 const disabled = !selectable;
                 const isToday = sameDay(date, new Date());
 
                 return (
                   <TouchableOpacity
                     key={`${date.getTime()}-${idx}`}
-                    style={[
-                      styles.dayCellWrap,
-                      isToday && styles.dayTodayWrap,
-                      isSame && !disabled && styles.daySelectedWrap,
-                      disabled && { opacity: 0.35 },
-                    ]}
+                    style={[styles.dayCellWrap, disabled && { opacity: 0.35 }]}
                     onPress={() => !disabled && setCalendarPick(date)}
                     disabled={disabled}
+                    activeOpacity={0.8}
                   >
-                    <View style={styles.dayCellInner}>
+                    <View
+                      style={[
+                        styles.dayCellInner,
+                        !inMonth && styles.dayCellInnerOutMonth,
+                        isToday && !isSelected && styles.dayCellInnerToday,
+                        isSelected && !disabled && styles.dayCellInnerSelected,
+                      ]}
+                    >
                       <Text
                         style={[
                           styles.dayCellText,
                           !inMonth && styles.dayOutText,
-                          isSame && !disabled && styles.daySelectedText,
-                          isToday && !isSame && styles.dayTodayText,
+                          isToday && !isSelected && styles.dayTodayText,
+                          isSelected && !disabled && styles.daySelectedText,
                         ]}
                       >
                         {date.getDate()}
@@ -409,19 +421,19 @@ export default function CreateChallengeScreen() {
               })}
             </View>
 
-            <TouchableOpacity
-              style={styles.applyBtn}
+            <Pressable
+              style={({ pressed }) => [styles.applyBtn, pressed && styles.pressed]}
               onPress={applySelectedDate}
             >
-              <Text style={[styles.applyBtnText]}>Übernehmen</Text>
-            </TouchableOpacity>
+              <Text style={styles.applyBtnText}>Übernehmen</Text>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.cancelBtn}
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
               onPress={() => setCalendarOpen(false)}
             >
-              <Text style={[styles.cancelBtnText]}>Abbrechen</Text>
-            </TouchableOpacity>
+              <Text style={styles.cancelBtnText}>Abbrechen</Text>
+            </Pressable>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -429,224 +441,283 @@ export default function CreateChallengeScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        padding: 16,
-        paddingTop: 60,
-    },
-    formContainer: {
-        flex: 1,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 30,
-        color: '#333',
-        textAlign: 'center',
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ddd',
-        padding: 16,
-        marginBottom: 20,
-        borderRadius: 6,
-        fontSize: 16,
-    },
-    dateRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        position: 'relative',
-        marginBottom: 20,
-    },
-    dateInput: {
-        flex: 1,
-    },
-    calendarIconContainer: {
-        position: 'absolute',
-        right: 16,
-        //top: 0,
-        //bottom: 0,
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: 40,
-        height: '100%',
-    },
-    pickerWrapper: {
-        marginBottom: 20,
-    },
-    pickerLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    pickerContainer: {
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 6,
-        overflow: 'hidden',
-    },
-    picker: {
-        height: 50,
-        backgroundColor: '#fff',
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 20,
-        marginBottom: 40,
-    },
-    createButton: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: '#6B8F71',
-        borderRadius: 6,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cancelButton: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: '#f0f0f0',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 6,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    buttonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    cancelButtonText: {
-        color: '#333',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    disabledButton: {
-        backgroundColor: '#aaa',
-        borderColor: '#aaa',
-        opacity: 0.6,
-    },
-    // Kalender Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    calendarCard: {
-        backgroundColor: 'white',
-        borderRadius: 12,
-        padding: 20,
-        width: '100%',
-        maxWidth: 400,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-    },
-    calHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    navPill: {
-        padding: 8,
-        borderRadius: 8,
-        backgroundColor: '#f5f5f5',
-    },
-    calHeaderTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    weekRow: {
-        flexDirection: 'row',
-        marginBottom: 8,
-    },
-    weekCell: {
-        flex: 1,
-        textAlign: 'center',
-        fontWeight: '600',
-        color: '#666',
-        fontSize: 14,
-    },
-    grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-    },
-    dayCellWrap: {
-        width: '14.28%',
-        aspectRatio: 1,
-        padding: 4,
-    },
-    dayCellInner: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 8,
-    },
-    dayCellText: {
-        fontSize: 14,
-        color: '#333',
-    },
-    dayOutText: {
-        color: '#ccc',
-    },
-    dayTodayWrap: {
-        backgroundColor: '#f0f9ff',
-    },
-    dayTodayText: {
-        color: '#6B8F71',
-        fontWeight: 'bold',
-    },
-    daySelectedWrap: {
-        backgroundColor: '#6B8F71',
-    },
-    daySelectedText: {
-        color: 'white',
-        fontWeight: 'bold',
-    },
-    applyBtn: {
-        backgroundColor: '#6B8F71',
-        padding: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 16,
-    },
-    applyBtnText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    cancelBtn: {
-        padding: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    cancelBtnText: {
-        color: '#666',
-        fontSize: 16,
-    },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  scrollView: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 56,
+    paddingBottom: 28,
+  },
+
+  headerCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 14,
+    position: 'relative',
+    alignItems: 'center',
+
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: 'rgba(15,20,17,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    paddingHorizontal: 56, 
+  },
+  formCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 3,
+  },
+
+  label: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.sub,
+    marginBottom: 8,
+    marginLeft: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: COLORS.text,
+    marginBottom: 14,
+  },
+
+  twoCol: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 2,
+  },
+  datePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  dateText: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: '700',
+  },
+
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 6,
+  },
+  primaryBtn: {
+    flex: 1,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  primaryBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
+
+  secondaryBtn: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: {
+    color: COLORS.text,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  disabled: {
+    opacity: 0.6,
+  },
+
+  // Kalender Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  calendarCard: {
+    backgroundColor: 'white',
+    borderRadius: 22,
+    padding: 16,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 22,
+    elevation: 6,
+  },
+  calHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  navPill: {
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    backgroundColor: 'rgba(15,20,17,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  weekCell: {
+    flex: 1,
+    textAlign: 'center',
+    fontWeight: '800',
+    color: COLORS.sub,
+    fontSize: 12,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCellWrap: {
+    width: '14.28%',
+    aspectRatio: 1,
+    padding: 4,
+  },
+
+  dayCellInner: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(15,20,17,0.06)',
+  },
+  dayCellInnerOutMonth: {
+    backgroundColor: 'rgba(15,20,17,0.02)',
+  },
+  dayCellInnerToday: {
+    borderColor: 'rgba(85,128,92,0.30)',
+    backgroundColor: 'rgba(85,128,92,0.06)',
+  },
+  dayCellInnerSelected: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+
+  dayCellText: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontWeight: '800',
+  },
+  dayOutText: {
+    color: 'rgba(15,20,17,0.25)',
+  },
+  dayTodayText: {
+    color: COLORS.accent,
+  },
+  daySelectedText: {
+    color: '#fff',
+  },
+
+  applyBtn: {
+    backgroundColor: COLORS.accent,
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  applyBtnText: {
+    color: 'white',
+    fontWeight: '900',
+    fontSize: 15,
+  },
+  cancelBtn: {
+    paddingVertical: 13,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: '#F9FAFB',
+  },
+  cancelBtnText: {
+    color: COLORS.sub,
+    fontSize: 14,
+    fontWeight: '800',
+  },
 });
