@@ -44,7 +44,7 @@ export default function Start() {
       <View style={styles.header}>
         <Text style={styles.title}>Wie können wir helfen?</Text>
         <Text style={styles.subtitle}>
-          Hilfe, Support und rechtliche Informationen zu Step Together Together
+          Hilfe, Support und rechtliche Informationen zu Step Together 
         </Text>
       </View>
 

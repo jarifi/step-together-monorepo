@@ -61,7 +61,7 @@ export default function Privacy() {
   <View style={styles.headerText}>
     <Text style={styles.title}>Datenschutz</Text>
     <Text style={styles.subtitle}>
-      Was wir verarbeiten, warum — und was wir bewusst nicht tun.
+      Was wir verarbeiten, warum und was wir bewusst nicht tun.
     </Text>
   </View>
 

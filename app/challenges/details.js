@@ -64,8 +64,14 @@ export default function ChallengeDetailsScreen() {
     });
   }, [teams]);
 
-  const isUpcoming = challenge?.state === 'upcoming';
-  const isClosed = challenge?.state === 'closed';
+  // --- FIX: Normalize state to avoid showing "Führendes Team" before start ---
+  const state = String(challenge?.state ?? '').trim().toLowerCase();
+
+  // adjust these arrays if your backend uses other values
+  const isUpcoming = ['upcoming', 'not_started', 'scheduled', 'future'].includes(state);
+  const isClosed = ['closed', 'finished', 'ended'].includes(state);
+  const isRunning = ['open', 'running', 'active'].includes(state);
+
   const leadingTeam = sortedTeams[0] ?? null;
 
   if (loading) {
@@ -119,16 +125,37 @@ export default function ChallengeDetailsScreen() {
         </Text>
       </View>
 
-      {!isUpcoming && leadingTeam && (
+      {/* LEADING / WINNER CARD */}
+      {isRunning && leadingTeam && (
         <View style={[styles.card, styles.centered]}>
-          <Text style={styles.sectionHeader}>
-            {isClosed ? 'Gewinner-Team' : 'Führendes Team'}
-          </Text>
+          <Text style={styles.sectionHeader}>Führendes Team</Text>
 
           <Text style={styles.highlight}>{leadingTeam.name}</Text>
 
           <Text style={styles.subSmall}>
             {(leadingTeam.totalSteps ?? 0).toLocaleString()} Schritte gesamt
+          </Text>
+        </View>
+      )}
+
+      {isClosed && leadingTeam && (
+        <View style={[styles.card, styles.centered]}>
+          <Text style={styles.sectionHeader}>Gewinner-Team</Text>
+
+          <Text style={styles.highlight}>{leadingTeam.name}</Text>
+
+          <Text style={styles.subSmall}>
+            {(leadingTeam.totalSteps ?? 0).toLocaleString()} Schritte gesamt
+          </Text>
+        </View>
+      )}
+
+      {/* Optional hint for upcoming */}
+      {isUpcoming && (
+        <View style={[styles.card, styles.centered]}>
+          <Text style={styles.sectionHeader}>Noch nicht gestartet</Text>
+          <Text style={styles.subSmall}>
+            Das führende Team wird erst angezeigt, sobald die Challenge gestartet ist.
           </Text>
         </View>
       )}

@@ -62,7 +62,7 @@ export default function Help() {
       <View style={styles.headerText}>
         <Text style={styles.title}>Hilfe</Text>
         <Text style={styles.subtitle}>
-          Kleine Checkliste für die häufigsten Themen. Die meist Schnell lösbar sind.
+          Kleine Checkliste für die häufigsten Themen, die meist Schnell lösbar sind.
         </Text>
       </View>
 
