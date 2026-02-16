@@ -27,29 +27,28 @@ const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 if (__DEV__) console.log("DEBUG: Current API URL is:", API_BASE_URL);
 
 const PRIVACY_POLICY_TEXT = `
-Datenschutzerklärung (Kurzversion)
+1. Verarbeitete Daten
+Wir verarbeiten im Rahmen der App-Nutzung:
+- E-Mail-Adresse
+- Benutzer-ID
+- Team- und Challenge-Daten
+- ggf. Schritt-/Aktivitätsdaten
+- technische Log-Daten
 
-1. Welche Daten wir verarbeiten
-- E-Mail-Adresse, Benutzer-ID
-- Schritt-Daten (falls genutzt)
-- Team-/Challenge-Zuordnung (falls genutzt)
+2. Zweck
+Die Verarbeitung dient der Bereitstellung der App, der Durchführung von Challenges, der Benutzerverwaltung sowie der technischen Sicherheit.
 
-2. Zweck der Verarbeitung
-- Login & Accountverwaltung
-- Anzeige von Team-Rankings & Challenges
-- Sicherheits-/Fehleranalyse (Logs)
+3. Speicherung
+Die Speicherung und Verarbeitung der Daten erfolgt auf Servern innerhalb der Europäischen Union (EU). Eine Übermittlung in Drittstaaten erfolgt nicht, sofern dies nicht gesetzlich erforderlich ist.
 
-3. Speicherdauer
-- Solange der Account besteht bzw. rechtliche Pflichten
+4. Speicherdauer
+Daten werden nur so lange gespeichert, wie das Benutzerkonto besteht oder gesetzliche Pflichten dies erfordern.
 
-4. Weitergabe
-- Keine Weitergabe an Dritte, außer zwingend notwendig (z.B. Hosting)
-
-5. Deine Rechte
-- Auskunft, Berichtigung, Löschung, Einschränkung, Widerspruch
-
-(Platzhalter)
+5. Rechte
+Nutzer haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und Widerspruch gemäß DSGVO.
 `;
+
+
 
 async function loginRequest(params: {
   baseUrl: string;
