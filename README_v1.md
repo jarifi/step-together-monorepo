@@ -50,6 +50,18 @@ sudo systemctl stop step_together_api.service
 sudo systemctl status step_together_api.service
 sudo systemctl start step_together_api.service
 
+# Update Database
+
+`mysql -u dein_nutzername -p deine_datenbank < dateiname.sql`
+
+oder
+
+```
+mysql -u root -p
+USE deine_datenbank;
+source /pfad/zu/deiner/dateiname.sql;
+```
+
 # Run as App bindid on console for debuging
 
 cd /srv/step_together_api/
