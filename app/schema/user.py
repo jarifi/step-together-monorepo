@@ -9,14 +9,20 @@ from app.models.base import CamelCaseBaseModel
 # Password complexity check
 def validate_password_complexity(password: str) -> str:
     """Enforces password complexity rules."""
-    if len(password) < 8:
-        raise ValueError("Password must be at least 8 characters long")
+    if len(password) < 12:
+        raise ValueError("Password must be at least 12 characters long")
+    if len(password) > 20:
+        raise ValueError("Password must be at most 20 characters long")
     if not re.search(r"[A-Z]", password):
         raise ValueError("Password must contain at least one uppercase letter")
     if not re.search(r"[a-z]", password):
         raise ValueError("Password must contain at least one lowercase letter")
     if not re.search(r"\d", password):
         raise ValueError("Password must contain at least one digit")
+    if " " in password:
+        raise ValueError("Password must not contain spaces.")
+    if not re.match(r"^[a-zA-Z0-9!.#$%&*(),?/\-_@#]+$", password):
+        raise ValueError("Password contains forbidden characters. Allowed characters: ! . $ % & * ( ) , ? /  - _ @ #")
     return password
 
 # Reusable password type
@@ -122,6 +128,17 @@ class PasswordResetConfirm(CamelCaseBaseModel):
             raise ValueError('Passwords do not match')
         return self
     
-class PasswordChange(BaseModel):
-    old_password: str
-    new_password: str
+# class PasswordChange(BaseModel):
+#     old_password: str
+#     new_password: str
+
+class PasswordChange(CamelCaseBaseModel): # CamelCaseBaseModel nutzen für Konsistenz!
+    old_password: str = Field(..., description="Das aktuelle Passwort")
+    # Hier nutzen wir deinen fertigen PasswordString (min 8 chars, Zahl, Groß/Klein)
+    new_password: PasswordString 
+    
+    @model_validator(mode='after')
+    def validate_different_passwords(self) -> 'PasswordChange':
+        if self.old_password == self.new_password:
+            raise ValueError('Das neue Passwort darf nicht identisch mit dem alten sein.')
+        return self
