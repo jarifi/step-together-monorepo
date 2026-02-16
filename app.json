@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "step-together",
+    "slug": "step-together",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "at.bfi.stmk.steptogether",
+      "bundleIdentifier": "at.bfistmk.steptogether",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "This app needs access to devices on your local network.",
         "NSBonjourServices": ["_http._tcp", "_https._tcp"],
