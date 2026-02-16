@@ -21,7 +21,10 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     role = Column(Enum('admin', 'user'), default='user', nullable=False)
+    public_profile = Column(Boolean, nullable=True)
     avatar_url = Column(String(255), nullable=True)
+    privacy_policy_accepted = Column(Boolean, default=False, nullable=False)
+    privacy_policy_accepted_at = Column(DateTime, nullable=True)
 
     # Relationship to refresh tokens
     refresh_tokens = relationship(

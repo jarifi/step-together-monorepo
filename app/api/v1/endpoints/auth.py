@@ -62,6 +62,20 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         db_user.failed_login_attempts = 0
         db.commit()
 
+    if not db_user.privacy_policy_accepted:
+        if user.privacy_policy_accepted is True:
+            db_user.privacy_policy_accepted = True
+            db_user.privacy_policy_accepted_at = datetime.now(timezone.utc)
+            db.commit()
+        else:
+            auth_logger.warning(
+                f"LOGIN BLOCKED | user_id={db_user.id} | email={user.email} | reason=privacy_policy_not_accepted"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bitte akzeptiere die Datenschutzerklärung, um fortzufahren."
+            )
+
 
     team = get_team_by_user_id(db, db_user.id)
     team_id = team.id if team else None
