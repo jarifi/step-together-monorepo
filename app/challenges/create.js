@@ -50,8 +50,16 @@ const parseLocalYMD = (s) => {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 };
 
-// For backend: create a UTC ISO at 00:00:00Z for that LOCAL calendar day
-const ymdToUtcMidnightIso = (ymd) => `${ymd}T00:00:00.000Z`;
+// ---------- TIME helpers ----------
+const isValidHHMM = (t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t ?? '').trim());
+
+// Local date + local time -> UTC ISO for backend
+const localDateTimeToUtcIso = (ymd, hhmm) => {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  const [hh, mm] = String(hhmm).split(':').map(Number);
+  const local = new Date(y, m - 1, d, hh, mm, 0, 0);
+  return local.toISOString();
+};
 
 // ====== UI tokens ======
 const COLORS = {
@@ -74,12 +82,27 @@ export default function CreateChallengeScreen() {
   const [distance, setDistance] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('17:00');
+
   const [loading, setLoading] = useState(false);
 
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarType, setCalendarType] = useState('start');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarPick, setCalendarPick] = useState(new Date());
+
+  const showError = (msg) => {
+    Toast.show({
+      type: 'error',
+      text1: 'Error',
+      text2: String(msg),
+      position: 'top',
+      visibilityTime: 2000,
+      topOffset: 100,
+    });
+  };
 
   const handleCreate = async () => {
     const nameErrors = validateChallengeName(name);
@@ -90,15 +113,30 @@ export default function CreateChallengeScreen() {
     const userId = await AsyncStorage.getItem('userId');
     const teamId = '1';
 
-    if (!name || !startLocation || !targetLocation || !distance || !startDate || !endDate) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Alle Felder sind Pflichtfelder!',
-        position: 'top',
-        visibilityTime: 2000,
-        topOffset: 100,
-      });
+    if (
+      !name ||
+      !startLocation ||
+      !targetLocation ||
+      !distance ||
+      !startDate ||
+      !endDate ||
+      !startTime ||
+      !endTime
+    ) {
+      showError('Alle Felder sind Pflichtfelder!');
+      return;
+    }
+
+    if (!isValidHHMM(startTime) || !isValidHHMM(endTime)) {
+      showError('Bitte Zeiten im Format HH:mm eingeben (z.B. 08:30).');
+      return;
+    }
+
+    // Optional: ensure end datetime >= start datetime
+    const startIso = localDateTimeToUtcIso(startDate, startTime);
+    const endIso = localDateTimeToUtcIso(endDate, endTime);
+    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
+      showError('Ende darf nicht vor Start liegen.');
       return;
     }
 
@@ -110,16 +148,7 @@ export default function CreateChallengeScreen() {
     ) {
       const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors];
       allErrors.forEach((error, i) => {
-        setTimeout(() => {
-          Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: error,
-            position: 'top',
-            visibilityTime: 2000,
-            topOffset: 100,
-          });
-        }, i * 2500);
+        setTimeout(() => showError(error), i * 900);
       });
       return;
     }
@@ -129,8 +158,10 @@ export default function CreateChallengeScreen() {
       start_location: startLocation,
       target_location: targetLocation,
       distance: parseFloat(distance),
-      start_date: ymdToUtcMidnightIso(startDate),
-      end_date: ymdToUtcMidnightIso(endDate),
+
+      start_date: startIso,
+      end_date: endIso,
+
       creator_id: parseInt(userId || '0', 10),
       team_id: parseInt(teamId, 10),
     };
@@ -147,13 +178,7 @@ export default function CreateChallengeScreen() {
       });
       router.replace('/challenges');
     } catch (error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: error?.message || 'Challenge konnte nicht erstellt werden!',
-        position: 'top',
-        topOffset: 100,
-      });
+      showError(error?.message || 'Challenge konnte nicht erstellt werden!');
       console.error(error);
     } finally {
       setLoading(false);
@@ -194,7 +219,7 @@ export default function CreateChallengeScreen() {
 
   const calendarGrid = useMemo(() => {
     const first = firstOfMonth(calendarMonth);
-    const firstDayOfWeek = (first.getDay() + 6) % 7; 
+    const firstDayOfWeek = (first.getDay() + 6) % 7;
     const start = new Date(first);
     start.setDate(first.getDate() - firstDayOfWeek);
 
@@ -297,7 +322,7 @@ export default function CreateChallengeScreen() {
           {/* Dates */}
           <View style={styles.twoCol}>
             <View style={{ flex: 1 }}>
-              <FieldLabel>Start</FieldLabel>
+              <FieldLabel>Start Datum</FieldLabel>
               <Pressable onPress={() => openCalendar('start')} style={styles.datePill}>
                 <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
                 <Text style={[styles.dateText, !startDate && { color: '#8A9590' }]}>
@@ -307,13 +332,39 @@ export default function CreateChallengeScreen() {
             </View>
 
             <View style={{ flex: 1 }}>
-              <FieldLabel>Ende</FieldLabel>
+              <FieldLabel>Ende Datum</FieldLabel>
               <Pressable onPress={() => openCalendar('end')} style={styles.datePill}>
                 <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
                 <Text style={[styles.dateText, !endDate && { color: '#8A9590' }]}>
                   {endDate || 'End-Datum'}
                 </Text>
               </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.twoCol}>
+            <View style={{ flex: 1 }}>
+              <FieldLabel>Startzeit</FieldLabel>
+              <TextInput
+                value={startTime}
+                onChangeText={setStartTime}
+                placeholder="HH:mm"
+                placeholderTextColor="#8A9590"
+                style={styles.input}
+                editable={!loading}
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <FieldLabel>Endzeit</FieldLabel>
+              <TextInput
+                value={endTime}
+                onChangeText={setEndTime}
+                placeholder="HH:mm"
+                placeholderTextColor="#8A9590"
+                style={styles.input}
+                editable={!loading}
+              />
             </View>
           </View>
 
@@ -460,39 +511,28 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     position: 'relative',
     alignItems: 'center',
-
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
   },
-  backBtn: {
-    position: 'absolute',
-    left: 16,
-    top: 16,
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: 'rgba(15,20,17,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   title: {
     fontSize: 20,
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: 0.2,
     textAlign: 'center',
-    paddingHorizontal: 56, 
+    paddingHorizontal: 56,
   },
+
   formCard: {
     backgroundColor: COLORS.surface,
     borderRadius: 22,
     padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 16,
@@ -527,6 +567,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 2,
   },
+
   datePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -539,6 +580,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 14,
   },
+
   dateText: {
     fontSize: 14,
     color: COLORS.text,
@@ -550,6 +592,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 6,
   },
+
   primaryBtn: {
     flex: 1,
     backgroundColor: COLORS.accent,
@@ -557,13 +600,13 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 3,
   },
+
   primaryBtnText: {
     color: '#fff',
     fontWeight: '700',
@@ -581,6 +624,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   secondaryBtnText: {
     color: COLORS.text,
     fontWeight: '700',
@@ -591,6 +635,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     transform: [{ scale: 0.99 }],
   },
+
   disabled: {
     opacity: 0.6,
   },
@@ -603,6 +648,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+
   calendarCard: {
     backgroundColor: 'white',
     borderRadius: 22,
@@ -611,19 +657,20 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     borderWidth: 1,
     borderColor: COLORS.border,
-
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.18,
     shadowRadius: 22,
     elevation: 6,
   },
+
   calHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+
   navPill: {
     width: 36,
     height: 36,
@@ -632,15 +679,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   calHeaderTitle: {
     fontSize: 16,
     fontWeight: '900',
     color: COLORS.text,
   },
+
   weekRow: {
     flexDirection: 'row',
     marginBottom: 6,
   },
+
   weekCell: {
     flex: 1,
     textAlign: 'center',
@@ -648,10 +698,12 @@ const styles = StyleSheet.create({
     color: COLORS.sub,
     fontSize: 12,
   },
+
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
+
   dayCellWrap: {
     width: '14.28%',
     aspectRatio: 1,
@@ -667,13 +719,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(15,20,17,0.06)',
   },
+
   dayCellInnerOutMonth: {
     backgroundColor: 'rgba(15,20,17,0.02)',
   },
+
   dayCellInnerToday: {
     borderColor: 'rgba(85,128,92,0.30)',
     backgroundColor: 'rgba(85,128,92,0.06)',
   },
+
   dayCellInnerSelected: {
     backgroundColor: COLORS.accent,
     borderColor: COLORS.accent,
@@ -684,12 +739,15 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '800',
   },
+
   dayOutText: {
     color: 'rgba(15,20,17,0.25)',
   },
+
   dayTodayText: {
     color: COLORS.accent,
   },
+
   daySelectedText: {
     color: '#fff',
   },
@@ -701,11 +759,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 14,
   },
+
   applyBtnText: {
     color: 'white',
     fontWeight: '900',
     fontSize: 15,
   },
+
   cancelBtn: {
     paddingVertical: 13,
     borderRadius: 18,
@@ -715,6 +775,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: '#F9FAFB',
   },
+
   cancelBtnText: {
     color: COLORS.sub,
     fontSize: 14,
