@@ -1,167 +1,268 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+} from 'react-native';
 import Toast from 'react-native-toast-message';
 import { validateTeamName } from '../../lib/teamValidation';
 import { createTeam } from '../../services/teamService';
 
+const COLORS = {
+  bg: '#F5F7F4',
+  surface: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#55805c',
+  inputBg: '#FBFCFB',
+};
+
 export default function CreateTeamScreen() {
-    const router = useRouter();
-    const [name, setName] = useState('');
-    const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-    const handleCreate = async () => {
-        const nameErrors = validateTeamName(name);
+  const handleCreate = async () => {
+    const nameErrors = validateTeamName(name);
 
-        if (!name.trim()) {
-            setTimeout(() => {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Error',
-                    text2: 'Alle Felder sind Pflichtfelder!',
-                    position: 'top',
-                    visibilityTime: 2000,
-                    topOffset: 100,
-                });
-            });
-            return;
-        }
-        if (nameErrors.length > 0) {
-            nameErrors.forEach((error, index) => {
-                setTimeout(() => {
-                    Toast.show({
-                        type: 'error',
-                        text1: "Error",
-                        text2: error,
-                        position: 'top',
-                        visibilityTime: 2000,
-                        topOffset: 100,
-                    });
-                }, index * 2500);
-            });
-            return;
-        }
-        setLoading(true);
-        try {
-            await createTeam({ name });
-            Toast.show({
-                type: 'success',
-                text1: 'Erfolg',
-                text2: 'Team erfolgreich erstellt! ',
-                position: 'top',
-                topOffset: 100,
-            });
-            router.replace('/teams');
-        } catch (error) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error?.message || 'Team konnte nicht erstellt werden!',
-                position: 'top',
-                topOffset: 100,
-            });
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    if (!name.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Bitte einen Teamnamen eingeben.',
+        position: 'top',
+        topOffset: 100,
+      });
+      return;
+    }
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.formContainer}>
-                {/* Titel "Team erstellen" über dem Eingabefeld */}
-                <Text style={styles.title}>Team erstellen</Text>
-                
-                <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Team Name"
-                    style={styles.input}
-                    editable={!loading}
-                />
-                
-                <View style={styles.buttonContainer}>
-                    <Pressable
-                        onPress={() => router.back()}
-                        disabled={loading}
-                        style={[styles.cancelButton, loading && styles.disabledButton]}
-                    >
-                        <Text style={styles.cancelButtonText}>Abbrechen</Text>
-                    </Pressable>
-                    
-                    <Pressable
-                        onPress={handleCreate}
-                        disabled={loading}
-                        style={[styles.createButton, loading && styles.disabledButton]}
-                    >
-                        <Text style={styles.buttonText}>
-                            {loading ? 'Erstelle...' : 'Erstellen'}
-                        </Text>
-                    </Pressable>
-                </View>
-            </View>
+    if (nameErrors.length > 0) {
+      nameErrors.forEach((error, index) => {
+        setTimeout(() => {
+          Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: error,
+            position: 'top',
+            topOffset: 100,
+          });
+        }, index * 900);
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createTeam({ name: name.trim() });
+
+      Toast.show({
+        type: 'success',
+        text1: 'Erfolg',
+        text2: 'Team erfolgreich erstellt!',
+        position: 'top',
+        topOffset: 100,
+      });
+
+      router.replace('/teams');
+    } catch (error) {
+      const apiMsg =
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'Team konnte nicht erstellt werden!';
+
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: String(apiMsg),
+        position: 'top',
+        topOffset: 100,
+      });
+
+      console.error('Create team failed:', error?.response?.data ?? error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.screen}>
+      {/* Header Card */}
+      <View style={styles.headerCard}>
+
+        <Text style={styles.title}>Team erstellen</Text>
+      </View>
+
+      {/* Form Card */}
+      <View style={styles.formCard}>
+        <Text style={styles.label}>TEAM NAME</Text>
+
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          editable={!loading}
+          returnKeyType="done"
+          onSubmitEditing={handleCreate}
+        />
+
+        <View style={styles.buttonRow}>
+          <Pressable
+            onPress={() => router.back()}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.secondaryBtn,
+              pressed && styles.pressed,
+              loading && styles.disabled,
+            ]}
+          >
+            <Text style={styles.secondaryBtnText}>Abbrechen</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleCreate}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              pressed && styles.pressed,
+              loading && styles.disabled,
+            ]}
+          >
+            <Text style={styles.primaryBtnText}>
+              {loading ? 'Erstelle…' : 'Erstellen'}
+            </Text>
+          </Pressable>
         </View>
-    );
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 16,
-        flex: 1,
-        backgroundColor: '#fff',
-        paddingTop: 40, // Verkleinert von 60 auf 40
-    },
-    formContainer: {
-        flex: 1,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        textAlign: 'left',
-        marginBottom: 20, // Verkleinert von 30 auf 20
-        color: '#333',
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ddd',
-        padding: 14, // Verkleinert von 16 auf 14
-        marginBottom: 16, // Verkleinert von 20 auf 16
-        borderRadius: 6,
-        fontSize: 16,
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        gap: 10, // Verkleinert von 12 auf 10
-        marginTop: 16, // Verkleinert von 20 auf 16
-    },
-    createButton: {
-        flex: 1,
-        padding: 14, // Verkleinert von 16 auf 14
-        backgroundColor: '#6B8F71',
-        borderRadius: 6,
-        alignItems: 'center',
-    },
-    cancelButton: {
-        flex: 1,
-        padding: 14, // Verkleinert von 16 auf 14
-        backgroundColor: '#f0f0f0',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 6,
-        alignItems: 'center',
-    },
-    buttonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    cancelButtonText: {
-        color: '#333',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    disabledButton: {
-        backgroundColor: '#aaa',
-        borderColor: '#aaa',
-    },
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+    paddingHorizontal: 16,
+    paddingTop: 56,
+  },
+
+  headerCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 14,
+    position: 'relative',
+    alignItems: 'center',
+
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    paddingHorizontal: 56,
+  },
+
+  formCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 3,
+  },
+
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.sub,
+    marginBottom: 8,
+    marginLeft: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: COLORS.text,
+    marginBottom: 14,
+  },
+
+  buttonRow: {
+    flexDirection: 'row',
+    marginTop: 6,
+  },
+
+  primaryBtn: {
+    flex: 1,
+    marginLeft: 12,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+
+  primaryBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
+
+  secondaryBtn: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  secondaryBtnText: {
+    color: COLORS.text,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+
+  disabled: {
+    opacity: 0.6,
+  },
 });

@@ -3,11 +3,15 @@ import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Avatar from '../components/Avatar';
 
+const BTN = 38;
+const R = 12;
+
 export default function UserCard({ user, onUpdate, onDelete }) {
   const [modalVisible, setModalVisible] = useState(false);
 
   const name = user?.name ?? '—';
   const email = user?.email ?? '—';
+  const userId = user?.id ?? '—';
 
   const openDelete = () => setModalVisible(true);
   const closeDelete = () => setModalVisible(false);
@@ -18,146 +22,214 @@ export default function UserCard({ user, onUpdate, onDelete }) {
   };
 
   return (
-    <View style={styles.card}>
-      <Avatar user={user} name={name} size={44} />
+    <>
+      <View style={styles.card}>
+        <Avatar user={user} name={name} size={44} />
 
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={styles.email} numberOfLines={1}>
-          {email}
-        </Text>
-      </View>
+        <View style={styles.info}>
+          <Text style={styles.name} numberOfLines={2}>
+            {name}
+          </Text>
 
-      <View style={styles.buttonContainer}>
-        {onUpdate ? (
-          <Pressable onPress={onUpdate} style={styles.iconButtonGreen} android_ripple={{ borderless: true }}>
-            <MaterialIcons name="edit" size={20} color="#fff" />
+          <Text style={styles.email} numberOfLines={2}>
+            {email}
+          </Text>
+
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>User ID: {userId}</Text>
+          </View>
+        </View>
+
+        <View style={styles.buttonStack}>
+          {onUpdate && (
+            <Pressable
+              onPress={onUpdate}
+              style={({ pressed }) => [
+                styles.iconButton,
+                styles.updateButton,
+                pressed && styles.pressedBtn,
+              ]}
+              hitSlop={8}
+            >
+              <MaterialIcons name="edit" size={20} color="#fff" />
+            </Pressable>
+          )}
+
+          <Pressable
+            onPress={openDelete}
+            style={({ pressed }) => [
+              styles.iconButton,
+              styles.deleteButton,
+              onUpdate ? styles.stackSpace : null,
+              pressed && styles.pressedBtn,
+            ]}
+            hitSlop={8}
+          >
+            <MaterialIcons name="delete" size={20} color="#fff" />
           </Pressable>
-        ) : null}
-
-        <Pressable onPress={openDelete} style={styles.iconButtonDark} android_ripple={{ borderless: true }}>
-          <MaterialIcons name="delete" size={20} color="#fff" />
-        </Pressable>
+        </View>
       </View>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={modalVisible}
-        onRequestClose={closeDelete}
-      >
+      <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={closeDelete}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
               Möchten Sie diesen Benutzer wirklich löschen?
             </Text>
 
-            <Pressable style={styles.actionButton} onPress={confirmDelete}>
-              <Text style={styles.actionText}>Benutzer löschen</Text>
+            <Pressable
+              style={({ pressed }) => [styles.modalDanger, pressed && styles.modalPressed]}
+              onPress={confirmDelete}
+            >
+              <Text style={styles.modalDangerText}>Benutzer löschen</Text>
             </Pressable>
 
-            <Pressable style={styles.cancelButton} onPress={closeDelete}>
-              <Text style={styles.cancelText}>Abbrechen</Text>
+            <Pressable
+              style={({ pressed }) => [styles.modalCancel, pressed && styles.modalPressed]}
+              onPress={closeDelete}
+            >
+              <Text style={styles.modalCancelText}>Abbrechen</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 14,
     backgroundColor: '#fff',
-    marginBottom: 12,
-    borderRadius: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(15,20,17,0.08)',
     elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+
     alignItems: 'center',
   },
+
   info: {
     flex: 1,
-    justifyContent: 'center',
+    paddingRight: 10,
     marginLeft: 12,
   },
+
   name: {
-    fontWeight: '800',
-    color: '#111827',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#101613',
+    marginBottom: 4,
   },
+
   email: {
-    color: '#6B7280',
-    marginTop: 2,
+    fontSize: 13.5,
+    color: '#4B5563',
   },
-  buttonContainer: {
+
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 10,
+    marginTop: 8,
   },
-  iconButtonGreen: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#6B8F71',
-    borderRadius: 10,
+
+  metaText: {
+    fontSize: 13,
+    color: '#4B5563',
+  },
+
+  buttonStack: {
+    alignItems: 'center',
+    paddingLeft: 8,
+    paddingTop: 2,
+  },
+
+  stackSpace: {
+    marginTop: 8,
+  },
+
+  iconButton: {
+    width: BTN,
+    height: BTN,
+    borderRadius: R,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
   },
-  iconButtonDark: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#444',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
+
+  updateButton: {
+    backgroundColor: '#5B8EDB',
   },
+
+  deleteButton: {
+    backgroundColor: '#E57373',
+  },
+
+  pressedBtn: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
+
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    width: '85%',
+    borderRadius: 16,
+    padding: 18,
+    width: '88%',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(15,20,17,0.08)',
   },
+
   modalTitle: {
-    fontWeight: '800',
+    fontWeight: '600',
     fontSize: 16,
     marginBottom: 14,
     textAlign: 'center',
     color: '#111827',
   },
-  actionButton: {
-    backgroundColor: '#DC2626',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+
+  modalDanger: {
+    backgroundColor: '#E53935',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
     marginBottom: 10,
-    width: '100%',
-    alignItems: 'center',
   },
-  actionText: {
+
+  modalDangerText: {
     color: '#fff',
-    fontWeight: '800',
+    fontWeight: '600',
   },
-  cancelButton: {
-    backgroundColor: '#E5E7EB',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+
+  modalCancel: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
     width: '100%',
     alignItems: 'center',
   },
-  cancelText: {
-    fontWeight: '800',
+
+  modalCancelText: {
+    fontWeight: '600',
     color: '#111827',
+  },
+
+  modalPressed: {
+    opacity: 0.9,
   },
 });

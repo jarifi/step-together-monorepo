@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    marginBottom: 10,
+    marginBottom: 20,
     marginTop: 40,
   },
 

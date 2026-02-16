@@ -1,93 +1,103 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
 import UserCard from '../../components/UserCard';
 import { deleteUser, getUsers, searchUsers } from '../../services/userService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
+const COLORS = {
+  bg: '#F5F7F4',
+  surface: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#55805c',
+  accentSoft: 'rgba(85,128,92,0.12)',
+};
+
 export default function UsersScreen() {
   const [users, setUsers] = useState([]);
   const [skip, setSkip] = useState(0);
   const limit = 10;
+
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
   const searchTimeoutRef = useRef(null);
   const router = useRouter();
 
   const filteredUsers = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return users;
-    }
-    
-    // If we have API search results, use those
-    if (searchResults.length > 0) {
-      return searchResults;
-    }
-    
-    // Otherwise, filter locally loaded users
-    const query = searchQuery.toLowerCase().trim();
-    return users.filter(user => 
-      user.name?.toLowerCase().includes(query) ||
-      user.email?.toLowerCase().includes(query) ||
-      user.id?.toString().includes(query)
-    );
+    const q = searchQuery.trim();
+    if (!q) return users;
+
+    if (searchResults.length > 0) return searchResults;
+
+    const query = q.toLowerCase();
+    return users.filter((user) => {
+      const name = user?.name?.toLowerCase?.() ?? '';
+      const email = user?.email?.toLowerCase?.() ?? '';
+      const id = user?.id?.toString?.() ?? '';
+      return name.includes(query) || email.includes(query) || id.includes(query);
+    });
   }, [searchQuery, users, searchResults]);
 
-  // Search with debounce and API fallback
   useEffect(() => {
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
-    const query = searchQuery.trim();
-    
-    // If no search query, clear search results
-    if (!query) {
+    const q = searchQuery.trim();
+
+    if (!q) {
       setSearchResults([]);
       setIsSearching(false);
       return;
     }
 
-    // First, check if we have local results
-    const localResults = users.filter(user => 
-      user.name?.toLowerCase().includes(query.toLowerCase()) ||
-      user.email?.toLowerCase().includes(query.toLowerCase()) ||
-      user.id?.toString().includes(query)
-    );
+    const lower = q.toLowerCase();
+    const localResults = users.filter((user) => {
+      const name = user?.name?.toLowerCase?.() ?? '';
+      const email = user?.email?.toLowerCase?.() ?? '';
+      const id = user?.id?.toString?.() ?? '';
+      return name.includes(lower) || email.includes(lower) || id.includes(q);
+    });
 
-    // If we have local results, no need to search API
     if (localResults.length > 0) {
       setSearchResults([]);
       setIsSearching(false);
       return;
     }
 
-    // No local results - search API after debounce
     setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const results = await searchUsers(query);
-        setSearchResults(results);
+        const results = await searchUsers(q);
+        setSearchResults(Array.isArray(results) ? results : []);
       } catch (error) {
         console.error('Search failed:', error);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
-    }, 500); // 500ms debounce
+    }, 500);
 
-    // Cleanup function
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchQuery, users]);
 
@@ -100,13 +110,12 @@ export default function UsersScreen() {
 
     try {
       const data = await getUsers(skip, limit);
-      setUsers(prev => [...prev, ...data]);
-      setSkip(prev => prev + data.length);
+      const safe = Array.isArray(data) ? data : [];
 
-      if (data.length < limit) {
-        setHasMore(false);
-      }
+      setUsers((prev) => [...prev, ...safe]);
+      setSkip((prev) => prev + safe.length);
 
+      if (safe.length < limit) setHasMore(false);
     } catch (err) {
       console.error('Failed to load users:', err);
     } finally {
@@ -127,181 +136,293 @@ export default function UsersScreen() {
   );
 
   if (loadingInitial && users.length === 0) {
-    return <ActivityIndicator style={styles.loader} size="large" />;
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Lade Benutzer...</Text>
+      </View>
+    );
   }
 
+  const showSearchInfo = searchQuery.trim().length > 0;
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
-      <View style={[styles.container]}>
-        {/* Suchleiste */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Benutzer suchen..."
-            style={styles.searchInput}
-            clearButtonMode="while-editing"
-          />
-          {searchQuery.length > 0 && (
-            <Pressable 
-              onPress={() => setSearchQuery('')}
-              style={styles.clearButton}
-            >
-              <Text style={styles.clearButtonText}>✕</Text>
-            </Pressable>
-          )}
+    <View style={styles.screen}>
+      <View style={styles.container}>
+        {/* Header Card */}
+        <View style={styles.headerCard}>
+          <Text style={styles.title}>Alle Benutzer</Text>
+
+          {/* Search */}
+          <View style={styles.searchWrap}>
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Benutzer suchen…"
+              placeholderTextColor="#8A9590"
+              style={styles.searchInput}
+              clearButtonMode="while-editing"
+            />
+
+            {searchQuery.length > 0 && (
+              <Pressable
+                onPress={() => setSearchQuery('')}
+                style={styles.clearButton}
+                hitSlop={10}
+              >
+                <Text style={styles.clearButtonText}>✕</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Search Info */}
+          {showSearchInfo ? (
+            <View style={styles.searchInfoPill}>
+              <Text style={styles.searchInfoText}>
+                {isSearching
+                  ? 'Suche in der Datenbank…'
+                  : searchResults.length > 0
+                    ? `${filteredUsers.length} Ergebnis(se) aus Datenbank · „${searchQuery.trim()}“`
+                    : `${filteredUsers.length} von ${users.length} gefunden · „${searchQuery.trim()}“`}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Create */}
+          <Pressable
+            onPress={() => router.push('/users/create')}
+            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.primaryBtnText}>+ Neuer Benutzer</Text>
+          </Pressable>
         </View>
 
-        {/* Such-Info */}
-        {searchQuery.trim() && (
-          <View style={styles.searchInfo}>
-            <Text style={styles.searchInfoText}>
-              {isSearching ? (
-                'Suche in der Datenbank...'
-              ) : (
-                <>
-                  {filteredUsers.length} {searchResults.length > 0 ? 'Ergebnis(se) aus Datenbank' : `von ${users.length} Benutzern`} gefunden
-                  {searchQuery.trim() && ` für "${searchQuery}"`}
-                </>
-              )}
-            </Text>
-          </View>
-        )}
-
-        <Pressable onPress={() => router.push('/users/create')} style={styles.createButton}>
-          <Text style={styles.createButtonText}>Neue Benutzer erstellen</Text>
-        </Pressable>
-
-        {loadingInitial && users.length === 0 ? (
-          <ActivityIndicator style={styles.loader} size="large" />
-        ) : (
-          <FlatList
-            data={filteredUsers}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <UserCard
-                user={item}
-                onUpdate={() =>
-                  router.push({
-                    pathname: '/users/update',
-                    params: {
-                      id: item.id,
-                      name: item.name,
-                      email: item.email,
-                      stepLength: item.stepLength,
-                    },
-                  })
+        {/* List */}
+        <FlatList
+          data={filteredUsers}
+          keyExtractor={(item) => String(item?.id)}
+          renderItem={({ item }) => (
+            <UserCard
+              user={item}
+              onUpdate={() =>
+                router.push({
+                  pathname: '/users/update',
+                  params: {
+                    id: item.id,
+                    name: item.name,
+                    email: item.email,
+                    stepLength: item.stepLength,
+                  },
+                })
+              }
+              onDelete={async () => {
+                try {
+                  await deleteUser(item.id);
+                  setUsers((prev) => prev.filter((u) => u.id !== item.id));
+                  setSearchResults((prev) => prev.filter((u) => u.id !== item.id));
+                } catch (error) {
+                  console.error('Delete failed:', error);
                 }
-                onDelete={async () => {
-                  try {
-                    await deleteUser(item.id);
-                    setUsers((prev) => prev.filter((u) => u.id !== item.id));
-                  } catch (error) {
-                    console.error('Delete failed:', error);
-                  }
-                }}
-              />
-            )}
-            onEndReached={searchQuery.trim() ? null : loadUsers}
-            onEndReachedThreshold={0.5}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                  {searchQuery.trim() 
-                    ? `Keine Benutzer gefunden für "${searchQuery}"`
-                    : 'Keine Benutzer vorhanden'
-                  }
-                </Text>
-              </View>
-            }
-            ListFooterComponent={
-              (loadingMore && !searchQuery.trim()) || isSearching ? (
-                <ActivityIndicator style={{ margin: 16 }} />
-              ) : null
-            }
-            contentContainerStyle={{ flexGrow: 1, minHeight: screenHeight - 180 }}
-          />
-        )}
+              }}
+            />
+          )}
+          onEndReached={searchQuery.trim() ? undefined : loadUsers}
+          onEndReachedThreshold={0.5}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>
+                {searchQuery.trim() ? 'Keine Treffer' : 'Keine Benutzer'}
+              </Text>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim()
+                  ? `Für „${searchQuery.trim()}“ wurde nichts gefunden.`
+                  : 'Erstell deinen ersten Benutzer.'}
+              </Text>
+
+              {!searchQuery.trim() && (
+                <Pressable
+                  onPress={() => router.push('/users/create')}
+                  style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+                >
+                  <Text style={styles.secondaryBtnText}>Benutzer erstellen</Text>
+                </Pressable>
+              )}
+            </View>
+          }
+          ListFooterComponent={
+            (loadingMore && !searchQuery.trim()) || isSearching ? (
+              <ActivityIndicator style={{ marginVertical: 18 }} />
+            ) : null
+          }
+          contentContainerStyle={{
+            paddingBottom: 28,
+            flexGrow: 1,
+            minHeight: screenHeight - 180,
+          }}
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
-    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingTop: 56,
   },
-  loader: {
+
+  loadingWrap: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  searchContainer: {
-    flexDirection: 'row',
+    backgroundColor: COLORS.bg,
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    padding: 16,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: COLORS.sub,
+  },
+
+  headerCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 14,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: 0.2,
+  },
+
+  searchWrap: {
+    marginTop: 14,
     position: 'relative',
   },
   searchInput: {
-    flex: 1,
     borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 16,
-    borderRadius: 8,
-    fontSize: 16,
-    backgroundColor: '#fff',
-    paddingRight: 45,
+    borderColor: COLORS.border,
+    backgroundColor: '#FBFCFB',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingRight: 44,
+    fontSize: 15,
+    color: COLORS.text,
   },
+
   clearButton: {
     position: 'absolute',
-    right: 12,
-    backgroundColor: '#ccc',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
+    right: 10,
+    top: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(15,20,17,0.10)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   clearButtonText: {
-    color: '#fff',
+    color: COLORS.sub,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '900',
+    marginTop: -1,
   },
-  searchInfo: {
-    backgroundColor: '#f0f8ff',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#6B8F71',
+
+  searchInfoPill: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.accentSoft,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(85,128,92,0.18)',
   },
   searchInfoText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    fontSize: 12,
+    color: COLORS.sub,
+    fontWeight: '700',
   },
-  emptyContainer: {
-    padding: 40,
+
+  primaryBtn: {
+    marginTop: 14,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 13,
+    borderRadius: 18,
     alignItems: 'center',
+    justifyContent: 'center',
+
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  primaryBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
+
+  secondaryBtn: {
+    marginTop: 14,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 12,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: {
+    color: COLORS.text,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: COLORS.text,
+    marginBottom: 6,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 13,
+    lineHeight: 18,
+    color: COLORS.sub,
     textAlign: 'center',
-  },
-  createButton: {
-    backgroundColor: '#6B8F71',
-    padding: 12,
-    marginTop: 16,
-    marginBottom: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  createButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+    maxWidth: 320,
   },
 });

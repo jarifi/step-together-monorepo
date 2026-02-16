@@ -81,7 +81,6 @@ const ChallengeCard = ({
         </View>
       </View>
 
-      {/* RIGHT — vertical button stack (prettier + saves width) */}
       <View style={styles.buttonStack}>
         {onPress && (
           <Pressable
@@ -266,7 +265,7 @@ const styles = StyleSheet.create({
   },
 
   modalTitle: {
-    fontWeight: '800',
+    fontWeight: '500',
     fontSize: 16,
     marginBottom: 14,
     textAlign: 'center',
@@ -285,7 +284,7 @@ const styles = StyleSheet.create({
 
   modalDangerText: {
     color: '#fff',
-    fontWeight: '800',
+    fontWeight: '600',
   },
 
   modalCancel: {
@@ -298,7 +297,7 @@ const styles = StyleSheet.create({
   },
 
   modalCancelText: {
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#111827',
   },
 
