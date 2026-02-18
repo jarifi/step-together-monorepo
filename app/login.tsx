@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
-  logo: { width: 250, height: 150, marginBottom: 52 },
+  logo: { width: 250, height: 140, marginBottom: 32, marginTop: -100 },
 
   card: {
     width: "100%",
