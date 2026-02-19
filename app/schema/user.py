@@ -82,6 +82,11 @@ class UserLogin(CamelCaseBaseModel):
         min_length=8,
         json_schema_extra={"example": "Str0ngPass!"}
     )
+    privacy_policy_accepted: Optional[bool] = Field(
+        default=None,
+        description="Set to true to accept the privacy policy during login.",
+        json_schema_extra={"example": True}
+    )
 
 class UserUpdate(CamelCaseBaseModel):
     name: Optional[
