@@ -26,6 +26,7 @@ def test_users(db_session):
     db_session.commit()
     for user, _ in users:
         db_session.refresh(user)
+        db_session.expunge(user)
     return users
 
 def test_login_success(client, test_users):
@@ -43,5 +44,5 @@ def test_login_success(client, test_users):
     
     assert response.status_code == 200
     data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
+    assert "accessToken" in data
+    assert data["tokenType"] == "bearer"

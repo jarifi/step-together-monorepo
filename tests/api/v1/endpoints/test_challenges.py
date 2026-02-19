@@ -25,7 +25,7 @@ def test_create_challenge_success(client, test_user):
     login_response = client.post("/api/v1/auth/login", json={"email": "alice1@example.com", "password": "StrongPassword123"})
 
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     start_date = datetime.now().isoformat()
     end_date = (datetime.now() + timedelta(days=10)).isoformat()
@@ -60,7 +60,7 @@ def test_get_all_challenges_success(client, db_session, test_user):
         json={"email": test_user.email, "password": "StrongPassword123"})
     
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     headers = {"Authorization": f"Bearer {token}"}
     teamId = 1
@@ -106,7 +106,7 @@ def test_get_challenge_by_id_success(client, db_session, test_user):
         json={"email": test_user.email, "password": "StrongPassword123"})
     
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
@@ -141,7 +141,7 @@ def test_update_challenge_success(client, test_user):
         json={"email": test_user.email, "password": "StrongPassword123"})
 
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     create_payload = {
@@ -188,7 +188,7 @@ def test_delete_challenge_success(client, test_user):
     login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
 
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {

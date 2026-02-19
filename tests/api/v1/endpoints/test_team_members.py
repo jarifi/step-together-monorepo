@@ -17,15 +17,17 @@ def test_user(db_session):
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+    db_session.expunge(user)
     return user
 
 @pytest.fixture
-def test_team(db_session):
+def test_team(db_session, test_user):
     """Create a test team"""
-    team = Team(name="Test Team")
+    team = Team(name="Test Team", creator_id=test_user.id)
     db_session.add(team)
     db_session.commit()
     db_session.refresh(team)
+    db_session.expunge(team)
     return team
 
 # POST / CREATE
@@ -33,10 +35,10 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
     # Verify endpoint matches your actual route
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": "alice1@example.com", "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123"}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     payload = {
         "userId": test_user.id,
@@ -66,7 +68,7 @@ def test_get_all_team_members_success(client, db_session, test_user, test_team):
         json={"email": test_user.email, "password": "StrongPassword123"}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     payload1 = {
         "userId": test_user.id,
@@ -117,7 +119,7 @@ def test_get_team_member_by_id_success(client, db_session, test_user, test_team)
     )
     
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -148,7 +150,7 @@ def test_delete_team_member_success(client, db_session, test_user, test_team):
     login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
 
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {
