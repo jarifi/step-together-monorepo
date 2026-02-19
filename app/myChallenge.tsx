@@ -429,8 +429,13 @@ const MyChallenge: React.FC = () => {
         <LeafletOSMMap start={startLocation} end={targetLocation} />
 
         <Text style={[styles.progressNote, styles.font]}>
-          <Text style={{ color: '#5F764E', fontWeight: '800' }}>{distancePct}%</Text>{' '}
-          der Strecke geschafft. ({fmt1.format(distanceKmDone)} / {challengeDistanceKm} km)
+          <Text style={{ color: '#5F764E', fontWeight: '800' }}>
+            {distancePct}%
+          </Text>{' '}
+          der Strecke geschafft.
+          {'\n'}
+          ({fmt1.format(distanceKmDone)} / {challengeDistanceKm} km)
+
           {timeLeftText && (
             <>
               {'\n'}
