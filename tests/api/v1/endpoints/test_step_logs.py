@@ -11,6 +11,7 @@ def test_user(db_session):
         name="Alice",
         email="alice1@example.com",
         hashed_password=get_password_hash("StrongPassword123"),
+        privacy_policy_accepted = True,
         is_active=True,
         is_verified=True
     )
@@ -45,7 +46,7 @@ def test_create_step_log_success(client, db_session, test_user, test_challenge):
     # Verify endpoint matches your actual route
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -78,7 +79,7 @@ def test_create_step_log_success(client, db_session, test_user, test_challenge):
 def test_get_all_step_logs_success(client, db_session, test_user, test_challenge):
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -130,7 +131,7 @@ def test_get_all_step_logs_success(client, db_session, test_user, test_challenge
 # GET BY ID
 def test_get_step_log_by_id_success(client, db_session, test_user, test_challenge):
     login_response = client.post("/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
     
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -163,7 +164,7 @@ def test_get_step_log_by_id_success(client, db_session, test_user, test_challeng
 
 # PUT / UPDATE
 def test_update_step_log_success(client, db_session, test_user, test_challenge):
-    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -206,7 +207,7 @@ def test_update_step_log_success(client, db_session, test_user, test_challenge):
 
 # DELETE
 def test_delete_step_log_success(client, db_session, test_user, test_challenge):
-    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]

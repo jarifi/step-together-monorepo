@@ -9,6 +9,7 @@ def test_create_user_success(client, db_session):
         "email": "alice2@example.com",
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
+        "privacyPolicyAccepted": True,
         "stepLength": 0.75,
     }
 
@@ -36,6 +37,7 @@ def test_get_all_users_success(client, db_session):
         "email": "alice2@example.com",
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
+        "privacyPolicyAccepted": True,
         "stepLength": 0.75,
     }
 
@@ -44,7 +46,7 @@ def test_get_all_users_success(client, db_session):
 
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": "alice2@example.com", "password": "StrongPassword123"}
+        json={"email": "alice2@example.com", "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -69,6 +71,7 @@ def test_get_user_by_id_success(client, db_session):
         "email": "alice2@example.com",
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
+        "privacyPolicyAccepted": True,
         "stepLength": 0.75,
     }
 
@@ -77,7 +80,7 @@ def test_get_user_by_id_success(client, db_session):
     progress_data = create_response.json()
     users_id = progress_data["id"]
 
-    login_response = client.post("/api/v1/auth/login", json={"email": payload["email"], "password": payload["password"]})
+    login_response = client.post("/api/v1/auth/login", json={"email": payload["email"], "password": payload["password"], "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -101,6 +104,7 @@ def test_update_user_success(client, db_session):
         "email": "alice2@example.com",
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
+        "privacyPolicyAccepted": True,
         "stepLength": 0.75,
     }
 
@@ -113,7 +117,7 @@ def test_update_user_success(client, db_session):
     created_data = create_response.json()
     user_id = created_data["id"]
 
-    login_response = client.post("/api/v1/auth/login", json={"email": create_payload["email"], "password": create_payload["password"]})
+    login_response = client.post("/api/v1/auth/login", json={"email": create_payload["email"], "password": create_payload["password"], "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -147,6 +151,7 @@ def test_delete_user_success(client, db_session):
         "email": "alice2@example.com",
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
+        "privacyPolicyAccepted": True,
         "stepLength": 0.75,
     }
 
@@ -157,7 +162,7 @@ def test_delete_user_success(client, db_session):
 
     assert create_response.status_code == 201
     user_id = create_response.json()["id"]
-    login_response = client.post("/api/v1/auth/login", json={"email": payload["email"], "password": payload["password"]})
+    login_response = client.post("/api/v1/auth/login", json={"email": payload["email"], "password": payload["password"] , "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]

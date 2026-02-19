@@ -11,6 +11,7 @@ def test_user(db_session):
         name="Alice",
         email="alice1@example.com",
         hashed_password=get_password_hash("StrongPassword123"),
+        privacy_policy_accepted = True,
         is_active=True,  # CRITICAL
         is_verified=True  # CRITICAL
     )
@@ -22,7 +23,7 @@ def test_user(db_session):
 # POST / CREATE
 def test_create_challenge_success(client, test_user):
     # Verify endpoint matches your actual route
-    login_response = client.post("/api/v1/auth/login", json={"email": "alice1@example.com", "password": "StrongPassword123"})
+    login_response = client.post("/api/v1/auth/login", json={"email": "alice1@example.com", "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -57,7 +58,7 @@ def test_create_challenge_success(client, test_user):
 # GET / READ
 def test_get_all_challenges_success(client, db_session, test_user):
     login_response = client.post( "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
     
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -103,7 +104,7 @@ def test_get_all_challenges_success(client, db_session, test_user):
 # GET BY ID
 def test_get_challenge_by_id_success(client, db_session, test_user):
     login_response = client.post("/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
     
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -138,7 +139,7 @@ def test_get_challenge_by_id_success(client, db_session, test_user):
 # PUT / UPDATE
 def test_update_challenge_success(client, test_user):
     login_response = client.post( "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -185,7 +186,7 @@ def test_update_challenge_success(client, test_user):
 
 # DELETE
 def test_delete_challenge_success(client, test_user):
-    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]

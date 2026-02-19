@@ -10,6 +10,7 @@ def test_user(db_session):
         name="Alice",
         email="alice1@example.com",
         hashed_password=get_password_hash("StrongPassword123"),
+        privacy_policy_accepted = True,
         is_active=True,  # CRITICAL
         is_verified=True  # CRITICAL
     )

@@ -11,6 +11,7 @@ def test_user(db_session):
         name="Alice",
         email="alice1@example.com",
         hashed_password=get_password_hash("StrongPassword123"),
+        privacy_policy_accepted = True,
         is_active=True,  # CRITICAL
         is_verified=True  # CRITICAL
     )
@@ -35,7 +36,7 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
     # Verify endpoint matches your actual route
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -65,7 +66,7 @@ def test_create_team_member_success(client, db_session, test_user, test_team):
 def test_get_all_team_members_success(client, db_session, test_user, test_team):
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
@@ -115,7 +116,7 @@ def test_get_all_team_members_success(client, db_session, test_user, test_team):
 def test_get_team_member_by_id_success(client, db_session, test_user, test_team):
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     
     assert login_response.status_code == 200
@@ -147,7 +148,7 @@ def test_get_team_member_by_id_success(client, db_session, test_user, test_team)
 
 # DELETE
 def test_delete_team_member_success(client, db_session, test_user, test_team):
-    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
     token = login_response.json()["accessToken"]
