@@ -11,12 +11,14 @@ def test_user(db_session):
         name="Alice",
         email="alice1@example.com",
         hashed_password=get_password_hash("StrongPassword123"),
+        privacy_policy_accepted = True,
         is_active=True,  # CRITICAL
         is_verified=True  # CRITICAL
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+    db_session.expunge(user)
     return user
 
 @pytest.fixture
@@ -36,6 +38,7 @@ def test_challenge(db_session, test_user):
     db_session.add(challenge)
     db_session.commit()
     db_session.refresh(challenge)
+    db_session.expunge(challenge)
     return challenge
 
 # POST / CREATE
@@ -43,10 +46,10 @@ def test_create_challenge_progress_success(client, db_session, test_user, test_c
     # Verify endpoint matches your actual route
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": "alice1@example.com", "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     payload = {
         "userId": test_user.id,
@@ -76,10 +79,10 @@ def test_create_challenge_progress_success(client, db_session, test_user, test_c
 def test_get_all_challenge_progress_success(client, db_session, test_user, test_challenge):
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     payload1 = {
         "userId": test_user.id,
@@ -128,10 +131,10 @@ def test_get_all_challenge_progress_success(client, db_session, test_user, test_
 # GET BY ID
 def test_get_challenge_progress_by_id_success(client, db_session, test_user, test_challenge):
     login_response = client.post("/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"})
+        json={"email": test_user.email, "password": "StrongPassword123" , "privacyPolicyAccepted": True})
     
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
 
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -163,10 +166,10 @@ def test_get_challenge_progress_by_id_success(client, db_session, test_user, tes
 
 # PUT / UPDATE
 def test_update_challenge_progress_success(client, db_session, test_user, test_challenge):
-    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     create_payload = {
@@ -209,10 +212,10 @@ def test_update_challenge_progress_success(client, db_session, test_user, test_c
 
 # DELETE
 def test_delete_challenge_progress_success(client, db_session, test_user, test_challenge):
-    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123"})
+    login_response = client.post("/api/v1/auth/login", json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True})
 
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {

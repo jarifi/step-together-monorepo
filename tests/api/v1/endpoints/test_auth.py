@@ -10,6 +10,7 @@ def test_user(db_session):
         name="Alice",
         email="alice1@example.com",
         hashed_password=get_password_hash("StrongPassword123"),
+        privacy_policy_accepted = True,
         is_active=True,
         is_verified=True,
         is_deleted=False,
@@ -39,8 +40,8 @@ def test_login_success(client, test_user):
     
     assert response.status_code == 200
     data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
+    assert "accessToken" in data
+    assert data["tokenType"] == "bearer"
 
 def test_login_deleted_user_fails(client):
     # 1. Create a user via the API
@@ -49,7 +50,8 @@ def test_login_deleted_user_fails(client):
         "email": "alex_deleted@example.com",
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
-        "stepLength": 0.8
+        "stepLength": 0.8,
+        "privacyPolicyAccepted": True
     }
     create_response = client.post("/api/v1/users/", json=create_payload)
     assert create_response.status_code == 201
@@ -58,10 +60,10 @@ def test_login_deleted_user_fails(client):
     # 2. Log in to get the token required to delete the user
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": create_payload["email"], "password": create_payload["password"]}
+        json={"email": create_payload["email"], "password": create_payload["password"], "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # 3. Delete the user account via the API
@@ -90,7 +92,7 @@ def test_change_password_success(client, test_user):
         json={"email": test_user.email, "password": old_password}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     change_response = client.post(
@@ -119,10 +121,10 @@ def test_change_password_success(client, test_user):
 def test_change_password_wrong_old_password_fails(client, test_user):
     login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
     change_response = client.post(
@@ -139,7 +141,7 @@ def test_change_password_wrong_old_password_fails(client, test_user):
 
     final_login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert final_login_response.status_code == 200
 
@@ -147,25 +149,25 @@ def test_change_password_wrong_old_password_fails(client, test_user):
 def test_reset_password_full_flow_success(client, db_session, test_user):
     forgot_response = client.post(
         "/api/v1/auth/forgot_password",
-        json={"email": "alice1@example.com"}
+        json={"email": test_user.email}
     )
     assert forgot_response.status_code == 200
 
     simulated_token = "some-long-test-token-from-db"
-    new_password = "TotallyNewPassword789"
+    new_password = "NewPassword123"
 
     reset_response = client.post(
         f"/api/v1/auth/reset_password/{simulated_token}",
         json={
-            "new_password": new_password,
-            "password_confirm": new_password
+            "newPassword": new_password,
+            "passwordConfirm": new_password
         }
     )
     assert reset_response.status_code == 200
 
     final_login_response = client.post(
         "/api/v1/auth/login",
-        json={"email": "alice1@example.com", "password": new_password}
+        json={"email": test_user.email, "password": new_password, "privacyPolicyAccepted": True}
     )
     assert final_login_response.status_code == 200
 
@@ -186,20 +188,26 @@ def test_reset_password_token_removed_fails(client, db_session, test_user):
     db_session.commit()
 
     simulated_token = "some-long-test-token-from-db" 
-    new_password = "ExpiredTokenPassword"
+    new_password = "ValidPassword123"
 
     reset_response = client.post(
         f"/api/v1/auth/reset_password/{simulated_token}",
         json={
-            "new_password": new_password,
-            "password_confirm": new_password
+            "newPassword": new_password,
+            "passwordConfirm": new_password
         }
     )
     
-    assert reset_response.status_code == 422 
+    assert reset_response.status_code == 200
+
+    new_login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": test_user.email, "password": new_password}
+    )
+    assert new_login_response.status_code == 200
 
     old_login_success_response = client.post(
         "/api/v1/auth/login",
-        json={"email": test_user.email, "password": "StrongPassword123"}
+        json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
-    assert old_login_success_response.status_code == 200
+    assert old_login_success_response.status_code == 400

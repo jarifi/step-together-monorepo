@@ -17,6 +17,7 @@ def test_users(db_session):
             name=data["name"],
             email=data["email"],
             hashed_password=get_password_hash(data["password"]),
+            privacy_policy_accepted = True,
             is_active=True,  # CRITICAL
             is_verified=True  # CRITICAL
         )
@@ -26,6 +27,7 @@ def test_users(db_session):
     db_session.commit()
     for user, _ in users:
         db_session.refresh(user)
+        db_session.expunge(user)
     return users
 
 def test_login_success(client, test_users):
@@ -33,7 +35,7 @@ def test_login_success(client, test_users):
     for user, password in test_users:
         response = client.post(
             "/api/v1/auth/login",
-            json={"email": user.email, "password": password}
+            json={"email": user.email, "password": password, "privacyPolicyAccepted": True}
     )
     
     # Debug output
@@ -43,5 +45,5 @@ def test_login_success(client, test_users):
     
     assert response.status_code == 200
     data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
+    assert "accessToken" in data
+    assert data["tokenType"] == "bearer"
