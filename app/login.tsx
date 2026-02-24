@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -47,8 +48,6 @@ Daten werden nur so lange gespeichert, wie das Benutzerkonto besteht oder gesetz
 5. Rechte
 Nutzer haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und Widerspruch gemäß DSGVO.
 `;
-
-
 
 async function loginRequest(params: {
   baseUrl: string;
@@ -120,6 +119,20 @@ export default function LoginScreen() {
     errorTimerRef.current = setTimeout(() => setErrorMessage(null), 3000);
   };
 
+  const openRegistrationHelp = async () => {
+    const url = "https://step-together.at/help/registrierung.php";
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        showError("Link kann nicht geöffnet werden.");
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      showError("Link kann nicht geöffnet werden.");
+    }
+  };
+
   const handleLogin = async () => {
     if (isPending) return;
     clearError();
@@ -178,7 +191,8 @@ export default function LoginScreen() {
       if (Number(err?.status) === 403) {
         setPolicyRequiredNow(true);
         showError(
-          err?.message ?? "Bitte akzeptiere die Datenschutzerklärung, um fortzufahren."
+          err?.message ??
+            "Bitte akzeptiere die Datenschutzerklärung, um fortzufahren."
         );
       } else {
         showError(err?.message ?? "Unbekannter Fehler");
@@ -194,7 +208,8 @@ export default function LoginScreen() {
     };
   }, []);
 
-  const loginDisabled = isPending || (policyRequiredNow && !privacyPolicyAccepted);
+  const loginDisabled =
+    isPending || (policyRequiredNow && !privacyPolicyAccepted);
 
   return (
     <View style={styles.background}>
@@ -260,7 +275,12 @@ export default function LoginScreen() {
             accessibilityState={{ checked: privacyPolicyAccepted }}
             testID="login-privacy-checkbox"
           >
-            <View style={[styles.checkbox, privacyPolicyAccepted && styles.checkboxChecked]}>
+            <View
+              style={[
+                styles.checkbox,
+                privacyPolicyAccepted && styles.checkboxChecked,
+              ]}
+            >
               {privacyPolicyAccepted && (
                 <Ionicons name="checkmark" size={16} color="#fff" />
               )}
@@ -297,9 +317,21 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
+          <View style={styles.registerRow}>
+            <Text style={styles.registerText}>Noch nicht registriert? </Text>
+            <Pressable
+              onPress={openRegistrationHelp}
+              hitSlop={8}
+              accessibilityRole="link"
+            >
+              <Text style={styles.registerLink}>Hier registrieren</Text>
+            </Pressable>
+          </View>
+
           {policyRequiredNow && !privacyPolicyAccepted && (
             <Text style={styles.hint}>
-              Beim ersten Login musst du die Datenschutzerklärung einmal akzeptieren.
+              Beim ersten Login musst du die Datenschutzerklärung einmal
+              akzeptieren.
             </Text>
           )}
         </View>
@@ -326,7 +358,10 @@ export default function LoginScreen() {
               </Pressable>
             </View>
 
-            <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+            >
               <Text style={styles.modalText}>{PRIVACY_POLICY_TEXT.trim()}</Text>
             </ScrollView>
 
@@ -473,9 +508,34 @@ const styles = StyleSheet.create({
 
   buttonDisabled: { opacity: 0.55 },
 
-  buttonText: { color: "#fff", textAlign: "center", fontSize: 16, fontWeight: "600" },
+  buttonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 
   error: { color: "#ff6b6b", marginBottom: 10, textAlign: "center" },
+
+  registerRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 14,
+    flexWrap: "wrap",
+  },
+
+  registerText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+  },
+
+  registerLink: {
+    color: "#ffffff",
+    fontWeight: "700",
+    textDecorationLine: "underline",
+    fontSize: 14,
+  },
 
   // Modal styles
   modalOverlay: {
