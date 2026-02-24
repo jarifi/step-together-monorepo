@@ -128,6 +128,83 @@ const RequirementLine = ({
   );
 };
 
+const levenshtein = (a: string, b: string): number => {
+  const matrix = Array.from({ length: b.length + 1 }, (_, i) =>
+    Array.from({ length: a.length + 1 }, (_, j) =>
+      i === 0 ? j : j === 0 ? i : 0
+    )
+  );
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b[i - 1] === a[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] =
+          1 +
+          Math.min(
+            matrix[i - 1][j],
+            matrix[i][j - 1],
+            matrix[i - 1][j - 1]
+          );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+};
+
+const similarityPercentage = (a: string, b: string): number => {
+  const distance = levenshtein(a, b);
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 100;
+  return ((maxLen - distance) / maxLen) * 100;
+};
+
+// ---- stronger similarity rules (keeps your UI/code structure the same) ----
+const commonPrefixLength = (a: string, b: string): number => {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i;
+};
+
+const commonSuffixLength = (a: string, b: string): number => {
+  let i = 0;
+  while (
+    i < a.length &&
+    i < b.length &&
+    a[a.length - 1 - i] === b[b.length - 1 - i]
+  ) {
+    i++;
+  }
+  return i;
+};
+
+const isTooSimilar = (oldPw: string, newPw: string): boolean => {
+  const oldS = oldPw.trim();
+  const newS = newPw.trim();
+  if (!oldS || !newS) return false;
+
+  const minLen = Math.min(oldS.length, newS.length);
+  if (minLen === 0) return true;
+
+  // Rule A: Levenshtein similarity
+  const sim = similarityPercentage(oldS, newS);
+  if (sim >= 85) return true;
+
+  // Rule B: very long common prefix/suffix
+  const prefix = commonPrefixLength(oldS, newS);
+  const suffix = commonSuffixLength(oldS, newS);
+
+  if (prefix / minLen >= 0.7) return true;
+  if (suffix / minLen >= 0.7) return true;
+
+  // Rule C: only a tiny middle part changed
+  if ((prefix + suffix) / minLen >= 0.85) return true;
+
+  return false;
+};
+
 const PasswordScreen: React.FC = () => {
   const router = useRouter();
   const { user } = useUser();
@@ -154,6 +231,15 @@ const PasswordScreen: React.FC = () => {
 
     if (!oldPassword || !newPassword) {
       Alert.alert('Fehler', 'Bitte alle Felder ausfüllen.');
+      setNewTouched(true);
+      return;
+    }
+
+    if (isTooSimilar(oldPassword, newPassword)) {
+      Alert.alert(
+        'Fehler',
+        'Das neue Passwort ist dem alten zu ähnlich. Bitte wähle ein deutlich anderes Passwort.'
+      );
       setNewTouched(true);
       return;
     }
@@ -249,9 +335,7 @@ const PasswordScreen: React.FC = () => {
                         color={newValid ? COLORS.ok : COLORS.sub}
                       />
                       <Text style={styles.reqHeaderText}>
-                        {newValid
-                          ? 'Passwort ist stark genug.'
-                          : 'Passwort-Anforderungen'}
+                        {newValid ? 'Passwort ist stark genug.' : 'Passwort-Anforderungen'}
                       </Text>
                     </View>
 
