@@ -10,7 +10,7 @@ import {
 } from "react-native";
 
 const BG = "#f7f9f5ff";
-const EMAIL_SUPPORT = "support@StepTogether.com";
+const EMAIL_SUPPORT = "support@step-together.at";
 
 export default function Contact() {
   const openMail = (email: string) => {
