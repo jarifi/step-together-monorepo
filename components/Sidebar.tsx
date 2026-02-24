@@ -166,9 +166,6 @@ export default function Sidebar({
               <Text style={styles.profileName} numberOfLines={1}>
                 {displayName}
               </Text>
-              <Text style={styles.profileEmail} numberOfLines={1}>
-                {displayEmail}
-              </Text>
             </View>
           </Pressable>
         ) : (
