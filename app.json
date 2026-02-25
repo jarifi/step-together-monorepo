@@ -17,9 +17,7 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
-        },
-
-        "NSPhotoLibraryUsageDescription": "Step Together requires access to your photo library so you can select a profile picture or upload an image for a challenge. The selected image is only displayed within your profile or challenge and is not accessed without your action."
+        }
       }
     },
     "android": {
