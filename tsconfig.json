@@ -11,6 +11,15 @@
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-native"
   },
-  "include": ["./*.ts", "./*.tsx", "./components/**/*", "./screens/**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "./*.ts",
+    "./*.tsx",
+    "./components/**/*",
+    "./screens/**/*",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
