@@ -13,11 +13,15 @@
       "bundleIdentifier": "at.bfistmk.steptogether",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "This app needs access to devices on your local network.",
-        "NSBonjourServices": ["_http._tcp", "_https._tcp"],
+        "NSBonjourServices": [
+          "_http._tcp",
+          "_https._tcp"
+        ],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
-        }
+        },
+        "NSPhotoLibraryUsageDescription": "Step-Together requests access to your photo library so you can select a profile picture or upload an image for a challenge. The selected photo is only used to display it in your profile or the specific challenge inside the app. For example, when you edit your profile, you can choose a picture from your gallery that will be shown to your team members."
       }
     },
     "android": {
