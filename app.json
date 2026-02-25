@@ -4,11 +4,11 @@
     "slug": "step-together",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/AppIcon.png",
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "icon": "./assets/images/AppIcon.png",
       "supportsTablet": true,
       "bundleIdentifier": "at.bfistmk.steptogether",
       "infoPlist": {
