@@ -6,9 +6,10 @@ from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from PIL import Image
+from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, verify_password
 from app.core.config import settings
 from app.crud import user as user_crud
 from app.schema.user import UserCreate, UserResponse, CurrentUser, UserUpdate
@@ -24,6 +25,10 @@ router = APIRouter(tags=["users"])
 
 PROFILE_PICTURES_DIR = "user_profiles"
 ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
+
+
+class DeleteOwnAccountRequest(BaseModel):
+    password: str
 
 
 @router.get("/", response_model=List[UserResponse], dependencies=[Depends(get_current_user)])
@@ -62,6 +67,36 @@ def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     Expected path: /api/v1/users/me
     """
     return current_user
+
+
+@router.post("/me/delete", status_code=status.HTTP_200_OK)
+def delete_my_own_account(
+    payload: DeleteOwnAccountRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db)
+):
+    """
+    Delete the currently authenticated user's own account after password check.
+    Expected path: /api/v1/users/me/delete
+    """
+    if not verify_password(payload.password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Falsches Passwort"
+        )
+
+    success = user_crud.delete_user(db, current_user.id)
+    if not success:
+        user_logger.warning(
+            f"SELF USER DELETE FAILED | user_id={current_user.id}"
+        )
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_logger.info(
+        f"SELF USER DELETED WITH PASSWORD CHECK | user_id={current_user.id}"
+    )
+
+    return {"deleted": True}
 
 
 @router.get("/{user_id}", response_model=UserResponse, dependencies=[Depends(get_current_user)])
@@ -147,8 +182,12 @@ def delete_existing_user(
     Requires authentication. Only the user themselves can delete their account.
     Expected path: /api/v1/users/{user_id}
     """
-    # if current_user.id != user_id:
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this user's account")
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this user's account"
+        )
+
     success = user_crud.delete_user(db, user_id)
     if not success:
         user_logger.warning(
@@ -161,6 +200,7 @@ def delete_existing_user(
     )
 
     return {"deleted": True}
+
 
 @router.get("/user/dashboard/init", response_model=UserDashboardResponse)
 def init_dashboard_data(
@@ -211,7 +251,7 @@ async def upload_profile_picture(
         with open(file_path, "wb") as f:
             f.write(content)
     else:
-        image = Image.open(io.BytesIO(content)).convert("RGB") # Use RGB for standard webp
+        image = Image.open(io.BytesIO(content)).convert("RGB")  # Use RGB for standard webp
         image.save(file_path, "WEBP", quality=85)
 
     # 4. Update Database
