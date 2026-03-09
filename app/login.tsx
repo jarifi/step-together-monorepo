@@ -1,15 +1,11 @@
-// file: app/login.tsx
-
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
-  Linking,
-  Modal,
   Platform,
   Pressable,
-  ScrollView,
+  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -27,33 +23,10 @@ const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
 if (__DEV__) console.log("DEBUG: Current API URL is:", API_BASE_URL);
 
-const PRIVACY_POLICY_TEXT = `
-1. Verarbeitete Daten
-Wir verarbeiten im Rahmen der App-Nutzung:
-- E-Mail-Adresse
-- Benutzer-ID
-- Team- und Challenge-Daten
-- ggf. Schritt-/Aktivitätsdaten
-- technische Log-Daten
-
-2. Zweck
-Die Verarbeitung dient der Bereitstellung der App, der Durchführung von Challenges, der Benutzerverwaltung sowie der technischen Sicherheit.
-
-3. Speicherung
-Die Speicherung und Verarbeitung der Daten erfolgt auf Servern innerhalb der Europäischen Union (EU). Eine Übermittlung in Drittstaaten erfolgt nicht, sofern dies nicht gesetzlich erforderlich ist.
-
-4. Speicherdauer
-Daten werden nur so lange gespeichert, wie das Benutzerkonto besteht oder gesetzliche Pflichten dies erfordern.
-
-5. Rechte
-Nutzer haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und Widerspruch gemäß DSGVO.
-`;
-
 async function loginRequest(params: {
   baseUrl: string;
   email: string;
   password: string;
-  privacyPolicyAccepted: boolean;
 }) {
   const res = await fetch(`${params.baseUrl}/auth/login`, {
     method: "POST",
@@ -64,16 +37,16 @@ async function loginRequest(params: {
     body: JSON.stringify({
       email: params.email,
       password: params.password,
-      privacyPolicyAccepted: params.privacyPolicyAccepted,
     }),
   });
 
   const text = await res.text();
   let data: any = null;
+
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    // ignore
+    // ignore parse error
   }
 
   if (!res.ok) {
@@ -96,41 +69,20 @@ export default function LoginScreen() {
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showPassword, setShowPassword] = useState(false);
-
-  const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState(false);
-  const [policyRequiredNow, setPolicyRequiredNow] = useState(false);
-
   const [isPending, setIsPending] = useState(false);
-
-  // ✅ Modal state
-  const [policyModalVisible, setPolicyModalVisible] = useState(false);
 
   const { setUser, setToken, setUserId } = useUser();
 
   const clearError = () => {
     setErrorMessage(null);
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current as any);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     errorTimerRef.current = null;
   };
 
   const showError = (message: string) => {
     setErrorMessage(message);
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current as any);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     errorTimerRef.current = setTimeout(() => setErrorMessage(null), 3000);
-  };
-
-  const openRegistrationHelp = async () => {
-    const url = "https://step-together.at/help/registrierung.php";
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        showError("Link kann nicht geöffnet werden.");
-        return;
-      }
-      await Linking.openURL(url);
-    } catch {
-      showError("Link kann nicht geöffnet werden.");
-    }
   };
 
   const handleLogin = async () => {
@@ -144,23 +96,19 @@ export default function LoginScreen() {
       showError("Bitte gültige E-Mail eingeben");
       return;
     }
+
     if (!trimmedPassword) {
       showError("Bitte gültiges Passwort eingeben");
       return;
     }
 
-    if (policyRequiredNow && !privacyPolicyAccepted) {
-      showError("Bitte akzeptiere die Datenschutzerklärung, um fortzufahren.");
-      return;
-    }
-
     setIsPending(true);
+
     try {
       const data = await loginRequest({
         baseUrl: API_BASE_URL,
         email: trimmedEmail,
         password: trimmedPassword,
-        privacyPolicyAccepted: privacyPolicyAccepted === true,
       });
 
       await saveTokens(data.accessToken, data.refreshToken);
@@ -179,7 +127,6 @@ export default function LoginScreen() {
         activeChallengeId: data.activeChallengeId,
       });
 
-      setPolicyRequiredNow(false);
       router.replace("/dashboard");
     } catch (err: any) {
       if (__DEV__) {
@@ -188,15 +135,7 @@ export default function LoginScreen() {
         console.log("LOGIN ERROR data:", err?.data);
       }
 
-      if (Number(err?.status) === 403) {
-        setPolicyRequiredNow(true);
-        showError(
-          err?.message ??
-            "Bitte akzeptiere die Datenschutzerklärung, um fortzufahren."
-        );
-      } else {
-        showError(err?.message ?? "Unbekannter Fehler");
-      }
+      showError(err?.message ?? "Unbekannter Fehler");
     } finally {
       setIsPending(false);
     }
@@ -204,15 +143,14 @@ export default function LoginScreen() {
 
   useEffect(() => {
     return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current as any);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
   }, []);
 
-  const loginDisabled =
-    isPending || (policyRequiredNow && !privacyPolicyAccepted);
+  const loginDisabled = isPending;
 
   return (
-    <View style={styles.background}>
+    <SafeAreaView style={styles.background}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
@@ -224,12 +162,16 @@ export default function LoginScreen() {
         />
 
         <View style={styles.card}>
-          <Text style={styles.title}>Willkommen</Text>
+          <Text style={styles.title}>Willkommen zurück</Text>
+          <Text style={styles.subtitle}>
+            Melde dich an und mach bei deinen Challenges weiter.
+          </Text>
 
+          <Text style={styles.label}>E-MAIL</Text>
           <TextInput
             style={styles.input}
             placeholder="E-Mail"
-            placeholderTextColor="#ccc"
+            placeholderTextColor="rgba(255,255,255,0.55)"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -239,11 +181,14 @@ export default function LoginScreen() {
             testID="login-email"
           />
 
+          <Text style={styles.label}>PASSWORT</Text>
           <View style={styles.passwordWrapper}>
+            <Ionicons name="lock-closed-outline" size={18} color="#fff" />
+
             <TextInput
               style={styles.passwordInput}
               placeholder="Passwort"
-              placeholderTextColor="#ccc"
+              placeholderTextColor="rgba(255,255,255,0.55)"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -255,7 +200,7 @@ export default function LoginScreen() {
             <Pressable
               onPress={() => setShowPassword((prev) => !prev)}
               hitSlop={10}
-              style={styles.eyeButton}
+              style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
             >
               <Ionicons
                 name={showPassword ? "eye-off-outline" : "eye-outline"}
@@ -265,161 +210,111 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={() => {
-              setPrivacyPolicyAccepted((prev) => !prev);
-              clearError();
-            }}
-            style={styles.policyRow}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: privacyPolicyAccepted }}
-            testID="login-privacy-checkbox"
-          >
-            <View
-              style={[
-                styles.checkbox,
-                privacyPolicyAccepted && styles.checkboxChecked,
-              ]}
-            >
-              {privacyPolicyAccepted && (
-                <Ionicons name="checkmark" size={16} color="#fff" />
-              )}
-            </View>
-
-            <Text style={styles.policyText}>
-              Ich akzeptiere die{" "}
-              <Text
-                style={styles.policyLink}
-                onPress={() => setPolicyModalVisible(true)}
-                suppressHighlighting
-              >
-                Datenschutzerklärung
-              </Text>
-            </Text>
-          </Pressable>
-
           {errorMessage && (
             <Text style={styles.error} testID="login-error">
               {errorMessage}
             </Text>
           )}
 
-          <Pressable
-            style={[styles.button, loginDisabled && styles.buttonDisabled]}
-            onPress={handleLogin}
-            disabled={loginDisabled}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: loginDisabled }}
-            testID="login-submit"
-          >
-            <Text style={styles.buttonText}>
-              {isPending ? "Wird eingeloggt…" : "Einloggen"}
-            </Text>
-          </Pressable>
-
-          <View style={styles.registerRow}>
-            <Text style={styles.registerText}>Noch nicht registriert? </Text>
+          <View style={styles.buttonRow}>
             <Pressable
-              onPress={openRegistrationHelp}
-              hitSlop={8}
-              accessibilityRole="link"
+              onPress={() => router.back()}
+              disabled={isPending}
+              style={({ pressed }) => [
+                styles.secondaryBtn,
+                pressed && styles.pressed,
+              ]}
             >
-              <Text style={styles.registerLink}>Hier registrieren</Text>
+              <Text style={styles.secondaryBtnText}>Zurück</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.pressed,
+                loginDisabled && styles.buttonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={loginDisabled}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: loginDisabled }}
+              testID="login-submit"
+            >
+              <Text style={styles.primaryBtnText}>
+                {isPending ? "Wird eingeloggt…" : "Weiter"}
+              </Text>
             </Pressable>
           </View>
 
-          {policyRequiredNow && !privacyPolicyAccepted && (
-            <Text style={styles.hint}>
-              Beim ersten Login musst du die Datenschutzerklärung einmal
-              akzeptieren.
+          <Pressable
+            onPress={() => router.push("/register")}
+            style={({ pressed }) => [styles.registerLinkWrap, pressed && styles.pressed]}
+          >
+            <Text style={styles.registerText}>
+              Noch kein Konto?{" "}
+              <Text style={styles.registerLink}>Registrieren</Text>
             </Text>
-          )}
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
-
-      {/* Privacy Policy Modal */}
-      <Modal
-        visible={policyModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setPolicyModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Datenschutzerklärung</Text>
-
-              <Pressable
-                onPress={() => setPolicyModalVisible(false)}
-                hitSlop={10}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={22} color="#fff" />
-              </Pressable>
-            </View>
-
-            <ScrollView
-              style={styles.modalBody}
-              contentContainerStyle={styles.modalBodyContent}
-            >
-              <Text style={styles.modalText}>{PRIVACY_POLICY_TEXT.trim()}</Text>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setPolicyModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Schließen</Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonPrimary]}
-                onPress={() => {
-                  setPrivacyPolicyAccepted(true);
-                  clearError();
-                  setPolicyModalVisible(false);
-                }}
-              >
-                <Text style={styles.modalButtonText}>Akzeptieren</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1, backgroundColor: "#313633c7" },
+  background: {
+    flex: 1,
+    backgroundColor: "#313633c7",
+  },
 
   container: {
     flex: 1,
     justifyContent: "center",
-    paddingBottom: 110,
     alignItems: "center",
     paddingHorizontal: 16,
   },
 
-  logo: { width: 250, height: 140, marginBottom: 32, marginTop: -100 },
+  logo: {
+    width: 240,
+    height: 130,
+    marginBottom: 40,
+  },
 
   card: {
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 420,
     padding: 24,
     borderRadius: 18,
     backgroundColor: "rgba(94, 103, 81, 0.83)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
+    marginBottom: 100,
   },
 
   title: {
-    fontSize: 26,
+    fontSize: 28,
     color: "#fff",
     textAlign: "center",
-    marginBottom: 20,
-    fontWeight: "600",
+    marginBottom: 8,
+    fontWeight: "700",
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.78)",
+    textAlign: "center",
+    marginBottom: 22,
+    lineHeight: 20,
+  },
+
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 8,
+    marginLeft: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
 
   input: {
@@ -430,7 +325,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 14 : 10,
-    marginBottom: 16,
+    marginBottom: 14,
     fontSize: 16,
   },
 
@@ -443,7 +338,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingLeft: 14,
     paddingRight: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
 
   passwordInput: {
@@ -451,6 +346,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     paddingVertical: Platform.OS === "ios" ? 14 : 10,
+    marginLeft: 10,
   },
 
   eyeButton: {
@@ -461,163 +357,70 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  policyRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  error: {
+    color: "#ff8d8d",
     marginBottom: 10,
-    paddingVertical: 6,
-  },
-
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.85)",
-    borderRadius: 4,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-
-  checkboxChecked: {
-    backgroundColor: "#698059ff",
-    borderColor: "#698059ff",
-  },
-
-  policyText: { color: "#fff", flex: 1, fontSize: 14, lineHeight: 18 },
-
-  policyLink: {
-    textDecorationLine: "underline",
-    fontWeight: "700",
-    color: "#fff",
-  },
-
-  hint: {
-    marginTop: 6,
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 12,
     textAlign: "center",
   },
 
-  button: {
+  buttonRow: {
+    flexDirection: "row",
+    marginTop: 10,
+  },
+
+  primaryBtn: {
+    flex: 1,
+    marginLeft: 12,
     backgroundColor: "#698059ff",
     paddingVertical: 14,
     borderRadius: 10,
-    marginTop: 8,
-  },
-
-  buttonDisabled: { opacity: 0.55 },
-
-  buttonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
-  error: { color: "#ff6b6b", marginBottom: 10, textAlign: "center" },
-
-  registerRow: {
-    flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginTop: 14,
-    flexWrap: "wrap",
+  },
+
+  primaryBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+
+  secondaryBtn: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  secondaryBtnText: {
+    fontWeight: "700",
+    color: "#fff",
+    fontSize: 15,
+  },
+
+  registerLinkWrap: {
+    marginTop: 18,
+    alignItems: "center",
   },
 
   registerText: {
-    color: "rgba(255,255,255,0.85)",
+    color: "rgba(255,255,255,0.82)",
     fontSize: 14,
   },
 
   registerLink: {
-    color: "#ffffff",
+    color: "#fff",
     fontWeight: "700",
     textDecorationLine: "underline",
-    fontSize: 14,
   },
 
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    padding: 16,
+  buttonDisabled: {
+    opacity: 0.55,
   },
 
-  modalCard: {
-    borderRadius: 16,
-    backgroundColor: "rgba(94, 103, 81, 0.96)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    overflow: "hidden",
-    maxHeight: "80%",
-  },
-
-  modalHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.10)",
-  },
-
-  modalTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  modalCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  modalBody: {
-    paddingHorizontal: 16,
-  },
-
-  modalBodyContent: {
-    paddingVertical: 14,
-  },
-
-  modalText: {
-    color: "#fff",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-
-  modalFooter: {
-    flexDirection: "row",
-    gap: 10,
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.10)",
-  },
-
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  modalButtonPrimary: {
-    backgroundColor: "#698059ff",
-  },
-
-  modalButtonSecondary: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-
-  modalButtonText: {
-    color: "#fff",
-    fontWeight: "700",
+  pressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
 });

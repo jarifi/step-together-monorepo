@@ -4,7 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View
+} from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import BottomBar from '../components/BottomBar';
@@ -15,11 +22,8 @@ import { useColorScheme } from '../hooks/useColorScheme';
 import { isLoggedIn } from '../lib/auth';
 
 const queryClient = new QueryClient();
-
-// Height of your phone-only burger header (the absolute header in Sidebar.tsx).
-// This reserves space ONLY on phone so pages don't start underneath it.
-// Adjust if your header is taller/shorter.
 const PHONE_HEADER_HEIGHT = 72;
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/welcome'];
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -34,33 +38,65 @@ export default function RootLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
 
-  // animated push for content (TABLET ONLY)
   const contentLeft = useRef(new Animated.Value(0)).current;
+  const redirectingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const isPublicRoute = useMemo(() => {
+    return PUBLIC_ROUTES.includes(pathname);
+  }, [pathname]);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     const checkAuth = async () => {
       try {
         const loggedIn = await isLoggedIn();
 
-        if (!loggedIn && pathname !== '/login') {
-          router.replace('/login');
-        } else {
-          const shouldShow = loggedIn && pathname !== '/login';
-          setShowSidebar(shouldShow);
+        if (!mountedRef.current) return;
 
-          if (!shouldShow) setSidebarOpen(false);
+        // unauthenticated users may only see public routes
+        if (!loggedIn && !isPublicRoute) {
+          if (!redirectingRef.current) {
+            redirectingRef.current = true;
+            router.replace('/');
+          }
+          return;
+        }
+
+        // reset redirect lock once we are on a valid route
+        redirectingRef.current = false;
+
+        const shouldShow = loggedIn && !isPublicRoute;
+        setShowSidebar(shouldShow);
+
+        if (!shouldShow) {
+          setSidebarOpen(false);
         }
       } catch (err) {
         console.error('Auth check failed:', err);
-        router.replace('/login');
+
+        if (!redirectingRef.current) {
+          redirectingRef.current = true;
+          router.replace('/');
+        }
       } finally {
-        setAuthChecked(true);
+        if (mountedRef.current) {
+          setAuthChecked(true);
+        }
       }
     };
+
     checkAuth();
-  }, [pathname]);
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [pathname, isPublicRoute]);
 
   useEffect(() => {
+    if (!authChecked) return;
+
     const target = showSidebar ? (isTablet ? sidebarWidth : 0) : 0;
 
     Animated.timing(contentLeft, {
@@ -68,7 +104,7 @@ export default function RootLayout() {
       duration: 260,
       useNativeDriver: false,
     }).start();
-  }, [showSidebar, isTablet, sidebarWidth, contentLeft]);
+  }, [authChecked, showSidebar, isTablet, sidebarWidth, contentLeft]);
 
   useEffect(() => {
     if (isTablet) setSidebarOpen(false);
@@ -81,13 +117,26 @@ export default function RootLayout() {
     return onDashboard || onMyChallenge;
   }, [showSidebar, pathname]);
 
-  // ✅ Only add top space on phones (because only phones show the burger header).
-  // On tablet/desktop, there is no burger header, so we MUST NOT reserve space.
   const contentTopPadding = useMemo(() => {
     return showSidebar && !isTablet ? PHONE_HEADER_HEIGHT : 0;
   }, [showSidebar, isTablet]);
 
-  if (!authChecked) return null;
+  if (!authChecked) {
+    return (
+      <UserProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <View style={styles.loadingScreen}>
+              <ActivityIndicator size="large" color="#698059ff" />
+              <Text style={styles.loadingText}>Step Together</Text>
+            </View>
+            <StatusBar style="light" />
+            <Toast />
+          </ThemeProvider>
+        </QueryClientProvider>
+      </UserProvider>
+    );
+  }
 
   return (
     <UserProvider>
@@ -110,9 +159,12 @@ export default function RootLayout() {
               },
             ]}
           >
-            <Stack initialRouteName="login">
-              <Stack.Screen name="users/update" options={{ headerShown: false }} />
+            <Stack initialRouteName="index">
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="welcome" options={{ headerShown: false }} />
               <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="register" options={{ headerShown: false }} />
+              <Stack.Screen name="users/update" options={{ headerShown: false }} />
               <Stack.Screen name="admin" options={{ headerShown: false }} />
               <Stack.Screen name="teams/index" options={{ headerShown: false }} />
               <Stack.Screen name="teams/create" options={{ headerShown: false }} />
@@ -143,7 +195,7 @@ export default function RootLayout() {
             {showPill && <BottomBar pathname={pathname} />}
           </Animated.View>
 
-          <StatusBar style="auto" />
+          <StatusBar style="light" />
           <Toast />
         </ThemeProvider>
       </QueryClientProvider>
@@ -154,5 +206,17 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   contentWrap: {
     flex: 1,
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: '#313633c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 14,
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
