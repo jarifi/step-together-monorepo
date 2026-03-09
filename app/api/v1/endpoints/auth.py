@@ -38,6 +38,9 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     
     if db_user.is_deleted:
         raise HTTPException(status_code=403, detail="Konto deaktiviert.")
+
+    if db_user.is_verified is False:
+        raise HTTPException(status_code=403, detail="Konto ist nicht verifiziert.")
     
     if db_user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
 
