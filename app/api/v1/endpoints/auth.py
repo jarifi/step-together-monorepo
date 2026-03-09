@@ -6,8 +6,9 @@ from typing import Annotated
 from app.core.security import create_access_token, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash, get_current_user
 from app.db.session import get_db
 from app.schema.token import Token
-from app.schema.user import UserLogin
+from app.schema.user import UserLogin, UserCreate, UserResponse
 from app.crud.user import get_user_by_email
+from app.crud import user as user_crud
 
 from app.crud.team import get_team_by_user_id
 from app.crud.challenge import get_active_challenge
@@ -24,6 +25,16 @@ MAX_FAILED_ATTEMPTS = 3
 
 from datetime import datetime, timezone
 from app.core.security import create_refresh_token, get_refresh_token_expiry, create_db_refresh_token
+
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    """Public sign-up endpoint. Creates a user account without authentication."""
+    created_user = user_crud.create_user(db, user)
+    auth_logger.info(
+        f"REGISTER SUCCESS | user_id={created_user.id} | email={created_user.email}"
+    )
+    return created_user
 
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):

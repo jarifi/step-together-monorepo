@@ -43,6 +43,38 @@ def test_login_success(client, test_user):
     assert "accessToken" in data
     assert data["tokenType"] == "bearer"
 
+
+def test_register_success(client):
+    payload = {
+        "name": "Register User",
+        "email": "register_user@example.com",
+        "password": "StrongPassword123",
+        "passwordConfirm": "StrongPassword123",
+        "stepLength": 0.8,
+    }
+
+    response = client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["email"] == payload["email"]
+    assert data["name"] == payload["name"]
+
+
+def test_register_duplicate_email_fails(client):
+    payload = {
+        "name": "Register User",
+        "email": "register_duplicate@example.com",
+        "password": "StrongPassword123",
+        "passwordConfirm": "StrongPassword123",
+    }
+
+    first = client.post("/api/v1/auth/register", json=payload)
+    assert first.status_code == 201
+
+    second = client.post("/api/v1/auth/register", json=payload)
+    assert second.status_code == 400
+    assert second.json()["detail"] == "A user with this email already exists."
+
 def test_login_deleted_user_fails(client):
     # 1. Create a user via the API
     create_payload = {
