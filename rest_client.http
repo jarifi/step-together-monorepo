@@ -1,6 +1,20 @@
 #@baseUrl = https://api.step-together.at/api/v1
 @baseUrl = http://localhost:3000/api/v1
 
+### 0. Register New User
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "email": "new.user@example.com",
+    "password": "StrongPassword123",
+    "passwordConfirm": "StrongPassword123",
+    "name": "New User",
+    "stepLength": 0.75
+}
+
+###
+
 
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
