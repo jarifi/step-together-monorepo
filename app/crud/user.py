@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from app.models.user import User
 from app.schema.user import UserCreate, UserUpdate, UserRegister
-from app.core.security import verify_password, get_password_hash  # We'll define hash_password below
+from app.core.security import verify_password, get_password_hash
 
 
 def get_all_users(db: Session, skip: int = 0, limit: int = 10) -> List[User]:
@@ -49,10 +49,12 @@ def create_user(db: Session, user: UserCreate | UserRegister):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this email already exists."
         )
+
     hashed_password = get_password_hash(user.password)
+
     db_user = User(
         email=user.email,
-        hashed_password=hashed_password,  # Store hashed password
+        hashed_password=hashed_password,
         name=user.name,
         step_length=user.step_length,
         is_active=True,
@@ -63,9 +65,10 @@ def create_user(db: Session, user: UserCreate | UserRegister):
             if getattr(user, "privacy_policy_accepted", False)
             else None
         )
-        
     )
+
     db.add(db_user)
+
     try:
         db.commit()
     except IntegrityError:
@@ -87,7 +90,8 @@ def update_user(db: Session, user_id: int, user_data: UserUpdate):
     update_data = user_data.model_dump(exclude_unset=True)
 
     if "password" in update_data and update_data["password"]:
-        update_data["password"] = get_password_hash(update_data["password"])
+        update_data["hashed_password"] = get_password_hash(update_data["password"])
+        del update_data["password"]
 
     for key, value in update_data.items():
         setattr(user, key, value)
@@ -101,8 +105,7 @@ def delete_user(db: Session, user_id: int):
     user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
     if not user:
         return None
-    
-    
+
     user.is_deleted = True
     db.commit()
     db.refresh(user)
@@ -111,6 +114,11 @@ def delete_user(db: Session, user_id: int):
 
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
-    if not user or not verify_password(password, user.hashed_password):
+
+    if not user or user.is_deleted:
         return None
+
+    if not verify_password(password, user.hashed_password):
+        return None
+
     return user
