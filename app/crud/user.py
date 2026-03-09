@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 from typing import Optional, List
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from app.models.user import User
-from app.schema.user import UserCreate, UserUpdate
+from app.schema.user import UserCreate, UserUpdate, UserRegister
 from app.core.security import verify_password, get_password_hash  # We'll define hash_password below
 
 
@@ -41,7 +42,7 @@ def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
 
 
-def create_user(db: Session, user: UserCreate):
+def create_user(db: Session, user: UserCreate | UserRegister):
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(
@@ -55,7 +56,13 @@ def create_user(db: Session, user: UserCreate):
         name=user.name,
         step_length=user.step_length,
         is_active=True,
-        is_verified=False
+        is_verified=False,
+        privacy_policy_accepted=getattr(user, "privacy_policy_accepted", False),
+        privacy_policy_accepted_at=(
+            datetime.now(timezone.utc)
+            if getattr(user, "privacy_policy_accepted", False)
+            else None
+        )
         
     )
     db.add(db_user)

@@ -51,6 +51,7 @@ def test_register_success(client):
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
         "stepLength": 0.8,
+        "privacyPolicyAccepted": True,
     }
 
     response = client.post("/api/v1/auth/register", json=payload)
@@ -66,6 +67,7 @@ def test_register_duplicate_email_fails(client):
         "email": "register_duplicate@example.com",
         "password": "StrongPassword123",
         "passwordConfirm": "StrongPassword123",
+        "privacyPolicyAccepted": True,
     }
 
     first = client.post("/api/v1/auth/register", json=payload)

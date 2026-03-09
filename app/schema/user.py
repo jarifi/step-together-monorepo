@@ -66,6 +66,20 @@ class UserCreate(UserBase):
             raise ValueError('Passwords do not match')
         return self
 
+
+class UserRegister(UserCreate):
+    privacy_policy_accepted: bool = Field(
+        ...,
+        description="Must be true to complete registration.",
+        json_schema_extra={"example": True}
+    )
+
+    @model_validator(mode='after')
+    def privacy_policy_must_be_accepted(self) -> 'UserRegister':
+        if self.privacy_policy_accepted is not True:
+            raise ValueError('Privacy policy must be accepted')
+        return self
+
 class UserResponse(CamelCaseBaseModel):
     id: int
     name: str
@@ -81,11 +95,6 @@ class UserLogin(CamelCaseBaseModel):
         ..., 
         min_length=8,
         json_schema_extra={"example": "Str0ngPass!"}
-    )
-    privacy_policy_accepted: Optional[bool] = Field(
-        default=None,
-        description="Set to true to accept the privacy policy during login.",
-        json_schema_extra={"example": True}
     )
 
 class UserUpdate(CamelCaseBaseModel):

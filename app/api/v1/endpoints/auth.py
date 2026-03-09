@@ -6,7 +6,7 @@ from typing import Annotated
 from app.core.security import create_access_token, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash, get_current_user
 from app.db.session import get_db
 from app.schema.token import Token
-from app.schema.user import UserLogin, UserCreate, UserResponse
+from app.schema.user import UserLogin, UserRegister, UserResponse
 from app.crud.user import get_user_by_email
 from app.crud import user as user_crud
 
@@ -14,7 +14,7 @@ from app.crud.team import get_team_by_user_id
 from app.crud.challenge import get_active_challenge
 
 from app.models.user import User
-from app.schema.user import UserLogin, PasswordChange, PasswordResetConfirm, PasswordResetRequest
+from app.schema.user import PasswordChange, PasswordResetConfirm, PasswordResetRequest
 
 from app.logfile import auth_logger
 
@@ -23,12 +23,11 @@ router = APIRouter()
 
 MAX_FAILED_ATTEMPTS = 3
 
-from datetime import datetime, timezone
 from app.core.security import create_refresh_token, get_refresh_token_expiry, create_db_refresh_token
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(user: UserRegister, db: Session = Depends(get_db)):
     """Public sign-up endpoint. Creates a user account without authentication."""
     created_user = user_crud.create_user(db, user)
     auth_logger.info(
@@ -77,18 +76,13 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         db.commit()
 
     if not db_user.privacy_policy_accepted:
-        if user.privacy_policy_accepted is True:
-            db_user.privacy_policy_accepted = True
-            db_user.privacy_policy_accepted_at = datetime.now(timezone.utc)
-            db.commit()
-        else:
-            auth_logger.warning(
-                f"LOGIN BLOCKED | user_id={db_user.id} | email={user.email} | reason=privacy_policy_not_accepted"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bitte akzeptiere die Datenschutzerklärung, um fortzufahren."
-            )
+        auth_logger.warning(
+            f"LOGIN BLOCKED | user_id={db_user.id} | email={user.email} | reason=privacy_policy_not_accepted"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bitte akzeptiere die Datenschutzerklärung, um fortzufahren."
+        )
 
 
     team = get_team_by_user_id(db, db_user.id)
