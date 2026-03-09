@@ -24,7 +24,7 @@ export const getDisplayAvatarUri = (userLike) => {
     userLike?.profile_picture ??
     userLike?.profile_picture_url ??
     userLike?.profilePictureUrl ??
-    userLike?.avatar ?? 
+    userLike?.avatar ??
     userLike?.picture ??
     userLike?.pictureUrl ??
     userLike?.image ??
@@ -66,7 +66,6 @@ export const uploadMyProfilePicture = async (imageUri) => {
 
   return await apiPost('/users/me/profile-picture', formData);
 };
-
 
 // ---------------------------------------------------------------------------
 // GET USERS (with skip/limit)
@@ -132,6 +131,18 @@ export const deleteUser = async (id) => {
     return await apiDelete(`/users/${id}`);
   } catch (err) {
     console.error('Error deleting user:', err);
+    throw err;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// DELETE OWN ACCOUNT
+// ---------------------------------------------------------------------------
+export const deleteOwnAccount = async (password) => {
+  try {
+    return await apiPost('/users/me/delete', { password });
+  } catch (err) {
+    console.error('Error deleting own account:', err);
     throw err;
   }
 };

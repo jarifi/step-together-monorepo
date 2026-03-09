@@ -74,6 +74,31 @@ export default function SettingsScreen() {
           />
         </Pressable>
 
+        <Pressable
+          style={({ pressed }) => [
+            styles.navRow,
+            pressed && styles.navRowPressed,
+          ]}
+          onPress={() => router.push('/settings/userDelete')}
+        >
+          <View style={styles.navContent}>
+            <View style={styles.navIconWrapper}>
+              <MaterialIcons name="delete" size={22} style={styles.navIcon} />
+            </View>
+            <View style={styles.navTextContainer}>
+              <Text style={styles.navText}>Account löschen</Text>
+              <Text style={styles.navSubText}>
+                Account dauerhaft entfernen
+              </Text>
+            </View>
+          </View>
+          <MaterialIcons
+            name="chevron-right"
+            size={22}
+            style={styles.chevron}
+          />
+        </Pressable>
+        
       </View>
     </ScrollView>
   );

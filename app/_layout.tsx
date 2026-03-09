@@ -182,6 +182,7 @@ export default function RootLayout() {
               <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
               <Stack.Screen name="settings/profile" options={{ headerShown: false }} />
               <Stack.Screen name="settings/password" options={{ headerShown: false }} />
+              <Stack.Screen name="settings/userDelete" options={{ headerShown: false }} />
               <Stack.Screen name="users/create" options={{ headerShown: false }} />
               <Stack.Screen name="help/start" options={{ headerShown: false }} />
               <Stack.Screen name="help/help" options={{ headerShown: false }} />
