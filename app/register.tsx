@@ -2,25 +2,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ReactNode, useMemo, useState } from 'react';
 import {
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import {
-    validateEmail,
-    validateName,
-    validatePassword,
+  validateEmail,
+  validateName,
+  validatePassword,
 } from '../lib/userValidation';
-import { createUser } from '../services/userService';
+import { registerUser } from '../services/userService';
 
 type FieldLabelProps = {
   children: ReactNode;
@@ -264,12 +264,13 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
-      await createUser({
+      await registerUser({
         email: trimmedEmail,
         password,
         passwordConfirm,
         name: fullName,
         stepLength: stepLengthNumber,
+        privacyPolicyAccepted,
       });
 
       Toast.show({
