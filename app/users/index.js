@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
   Pressable,
@@ -124,6 +125,34 @@ export default function UsersScreen() {
     }
   };
 
+  const handleVerifyUser = async (userToVerify) => {
+    try {
+      // HIER deinen echten API-Call einbauen, z. B.:
+      // await verifyUser(userToVerify.id);
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userToVerify.id
+            ? { ...u, is_verified: true, verified: true, isVerified: true }
+            : u
+        )
+      );
+
+      setSearchResults((prev) =>
+        prev.map((u) =>
+          u.id === userToVerify.id
+            ? { ...u, is_verified: true, verified: true, isVerified: true }
+            : u
+        )
+      );
+
+      Alert.alert('Erfolg', 'Benutzer wurde verifiziert.');
+    } catch (error) {
+      console.error('Verify failed:', error);
+      Alert.alert('Fehler', 'Benutzer konnte nicht verifiziert werden.');
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       setSkip(0);
@@ -149,11 +178,9 @@ export default function UsersScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.container}>
-        {/* Header Card */}
         <View style={styles.headerCard}>
           <Text style={styles.title}>Alle Benutzer</Text>
 
-          {/* Search */}
           <View style={styles.searchWrap}>
             <TextInput
               value={searchQuery}
@@ -175,7 +202,6 @@ export default function UsersScreen() {
             )}
           </View>
 
-          {/* Search Info */}
           {showSearchInfo ? (
             <View style={styles.searchInfoPill}>
               <Text style={styles.searchInfoText}>
@@ -188,7 +214,6 @@ export default function UsersScreen() {
             </View>
           ) : null}
 
-          {/* Create */}
           <Pressable
             onPress={() => router.push('/users/create')}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
@@ -197,13 +222,13 @@ export default function UsersScreen() {
           </Pressable>
         </View>
 
-        {/* List */}
         <FlatList
           data={filteredUsers}
           keyExtractor={(item) => String(item?.id)}
           renderItem={({ item }) => (
             <UserCard
               user={item}
+              onVerify={handleVerifyUser}
               onUpdate={() =>
                 router.push({
                   pathname: '/users/update',
@@ -298,7 +323,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: 14,
-
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 18,
@@ -370,7 +394,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 14,
