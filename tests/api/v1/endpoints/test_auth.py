@@ -77,7 +77,7 @@ def test_register_duplicate_email_fails(client):
     assert second.status_code == 400
     assert second.json()["detail"] == "A user with this email already exists."
 
-def test_login_deleted_user_fails(client):
+def test_login_deleted_user_fails(client, db_session):
     # 1. Create a user via the API
     create_payload = {
         "name": "Alex",
@@ -87,9 +87,13 @@ def test_login_deleted_user_fails(client):
         "stepLength": 0.8,
         "privacyPolicyAccepted": True
     }
-    create_response = client.post("/api/v1/users/", json=create_payload)
+    create_response = client.post("/api/v1/auth/register", json=create_payload)
     assert create_response.status_code == 201
     user_id = create_response.json()["id"]
+
+    user = db_session.query(User).filter(User.id == user_id).first()
+    user.is_verified = True
+    db_session.commit()
 
     # 2. Log in to get the token required to delete the user
     login_response = client.post(
@@ -245,3 +249,30 @@ def test_reset_password_token_removed_fails(client, db_session, test_user):
         json={"email": test_user.email, "password": "StrongPassword123", "privacyPolicyAccepted": True}
     )
     assert old_login_success_response.status_code == 400
+
+def test_login_unverified_user_fails(client, db_session):
+    user = User(
+        name="Bob",
+        email="bob_unverified@example.com",
+        hashed_password=get_password_hash("StrongPassword123"),
+        privacy_policy_accepted=True,
+        is_active=True,
+        is_verified=False,  # 👈 important
+        is_deleted=False,
+        failed_login_attempts=0,
+        role="user"
+    )
+
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "bob_unverified@example.com",
+            "password": "StrongPassword123"
+        }
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Konto ist nicht verifiziert."
