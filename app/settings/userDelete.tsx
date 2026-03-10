@@ -193,9 +193,6 @@ const UserDeleteScreen: React.FC = () => {
 
               <Text style={styles.header}>Account löschen</Text>
 
-              <Text style={styles.headerSubtext}>
-                Diese Aktion ist endgültig und kann nicht rückgängig gemacht werden.
-              </Text>
             </View>
 
             <View style={styles.warningBox}>
@@ -214,10 +211,6 @@ const UserDeleteScreen: React.FC = () => {
               onToggle={() => setShowPassword((v) => !v)}
               disabled={loading}
             />
-
-            <Text style={styles.helperText}>
-              Danach erscheint noch ein Bestätigungs-Popup.
-            </Text>
 
             {!!errorMessage && (
               <Text style={styles.errorText}>{errorMessage}</Text>
