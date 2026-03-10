@@ -69,7 +69,8 @@ npm install react-native-reanimated@~3.10.1 react-native-worklets@0.5.1 --legacy
 
 Remove-Item -Recurse -Force $env:TEMP\metro-cache
 Remove-Item -Recurse -Force $env:TEMP\haste-map-\*
-Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+node molue löschen
 npm install
+npx expo-doctor
 npx react-native start --reset-cache
 npx expo start -c --lan

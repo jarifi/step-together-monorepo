@@ -111,6 +111,22 @@ export const updateUser = async (id, data) => {
   }
 };
 
+
+// ---------------------------------------------------------------------------
+// CREATE USER
+// ---------------------------------------------------------------------------
+export const registerUser = async (userData) => {
+  try {
+    return await apiPost(`/auth/register/`, userData);
+  } catch (err) {
+    console.error('Error creating user:', err);
+    throw err;
+  }
+};
+
+
+
+
 // ---------------------------------------------------------------------------
 // CREATE USER
 // ---------------------------------------------------------------------------
