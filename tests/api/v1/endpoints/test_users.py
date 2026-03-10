@@ -1,5 +1,7 @@
 import pytest
 from datetime import datetime
+from app.models.user import User
+from app.core.security import get_password_hash
 
 # POST / CREATE
 def test_create_user_success(client, db_session):
@@ -176,3 +178,87 @@ def test_delete_user_success(client, db_session):
 
     print(f"DELETE /users/{user_id} status: {delete_response.status_code}")
     assert delete_response.status_code == 200
+
+
+def test_admin_can_verify_user(client, db_session):
+    admin_user = User(
+        name="Admin",
+        email="admin_verify@example.com",
+        hashed_password=get_password_hash("StrongPassword123"),
+        is_active=True,
+        is_verified=True,
+        privacy_policy_accepted=True,
+        role="admin"
+    )
+    target_user = User(
+        name="Target",
+        email="target_verify@example.com",
+        hashed_password=get_password_hash("StrongPassword123"),
+        is_active=True,
+        is_verified=False,
+        privacy_policy_accepted=True,
+        role="user"
+    )
+    db_session.add(admin_user)
+    db_session.add(target_user)
+    db_session.commit()
+    db_session.refresh(admin_user)
+    db_session.refresh(target_user)
+    admin_email = admin_user.email
+    target_user_id = target_user.id
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_email, "password": "StrongPassword123"}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["accessToken"]
+
+    verify_response = client.post(
+        f"/api/v1/users/{target_user_id}/verify",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert verify_response.status_code == 200
+    assert verify_response.json()["isVerified"] is True
+
+
+def test_non_admin_cannot_verify_user(client, db_session):
+    regular_user = User(
+        name="Regular",
+        email="regular_verify@example.com",
+        hashed_password=get_password_hash("StrongPassword123"),
+        is_active=True,
+        is_verified=True,
+        privacy_policy_accepted=True,
+        role="user"
+    )
+    target_user = User(
+        name="Target2",
+        email="target2_verify@example.com",
+        hashed_password=get_password_hash("StrongPassword123"),
+        is_active=True,
+        is_verified=False,
+        privacy_policy_accepted=True,
+        role="user"
+    )
+    db_session.add(regular_user)
+    db_session.add(target_user)
+    db_session.commit()
+    db_session.refresh(regular_user)
+    db_session.refresh(target_user)
+    regular_email = regular_user.email
+    target_user_id = target_user.id
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": regular_email, "password": "StrongPassword123"}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["accessToken"]
+
+    verify_response = client.post(
+        f"/api/v1/users/{target_user_id}/verify",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert verify_response.status_code == 403
+    assert verify_response.json()["detail"] == "Only admins can verify users"

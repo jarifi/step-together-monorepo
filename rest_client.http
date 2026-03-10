@@ -6,7 +6,7 @@ POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-    "email": "new.user@example.com",
+    "email": "new.user1@example.com",
     "password": "StrongPassword123",
     "passwordConfirm": "StrongPassword123",
     "name": "New User",
@@ -17,13 +17,14 @@ Content-Type: application/json
 ###
 
 
+### Admin Login (for admin-only actions like verify)
+# @name adminLogin
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "jeton@bfi.at",
-    "password": "StrongPassword123",
-    "privacyPolicyAccepted": true
+    "email": "admin@bfi.at",
+    "password": "StrongPassword123"
 }
 
 ###
@@ -106,6 +107,10 @@ Authorization: Bearer {{login.response.body.accessToken}}
 ### 2.5 Delete a User
 DELETE {{baseUrl}}/users/1
 Authorization: Bearer {{login.response.body.accessToken}}
+
+### 2.6 Admin Verify User
+POST {{baseUrl}}/users/14/verify
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
 
 ### 3. Get All Teams Using Access Token
 GET {{baseUrl}}/teams/

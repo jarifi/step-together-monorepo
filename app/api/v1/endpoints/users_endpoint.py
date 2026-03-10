@@ -99,6 +99,40 @@ def delete_my_own_account(
     return {"deleted": True}
 
 
+@router.post("/{user_id}/verify", status_code=status.HTTP_200_OK)
+def verify_user_by_admin(
+    user_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db)
+):
+    """Admin-only endpoint to verify a user account."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can verify users"
+        )
+
+    db_user = user_crud.get_user(db, user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if db_user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot verify a deleted user"
+        )
+
+    db_user.is_verified = True
+    db.add(db_user)
+    db.commit()
+
+    user_logger.info(
+        f"USER VERIFIED | target_user_id={user_id} | verified_by={current_user.id}"
+    )
+
+    return {"userId": db_user.id, "isVerified": db_user.is_verified}
+
+
 @router.get("/{user_id}", response_model=UserResponse, dependencies=[Depends(get_current_user)])
 def read_user(user_id: int, db: Session = Depends(get_db)):
     """
