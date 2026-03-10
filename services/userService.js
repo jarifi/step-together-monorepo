@@ -117,7 +117,7 @@ export const updateUser = async (id, data) => {
 // ---------------------------------------------------------------------------
 export const registerUser = async (userData) => {
   try {
-    return await apiPost(`/auth/register/`, userData);
+    return await apiPost(`/auth/register`, userData);
   } catch (err) {
     console.error('Error creating user:', err);
     throw err;
