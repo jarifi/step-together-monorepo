@@ -13,10 +13,7 @@
       "bundleIdentifier": "at.bfistmk.steptogether",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "This app needs access to devices on your local network.",
-        "NSBonjourServices": [
-          "_http._tcp",
-          "_https._tcp"
-        ],
+        "NSBonjourServices": ["_http._tcp", "_https._tcp"],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
@@ -25,8 +22,9 @@
       }
     },
     "android": {
+      "icon": "./assets/images/AppIcon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/AppIcon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
