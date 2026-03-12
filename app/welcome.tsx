@@ -1,12 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
-    Image,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 export default function WelcomeScreen() {
@@ -21,7 +21,7 @@ export default function WelcomeScreen() {
 
         <Text style={styles.title}>Step Together</Text>
         <Text style={styles.subtitle}>
-          Track your steps, join challenges and stay active together.
+          Tracke deine Schritte, Tritt challenges an und bleibe aktiv zusammen.
         </Text>
 
         <View style={styles.buttonGroup}>

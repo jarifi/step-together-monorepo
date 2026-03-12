@@ -23,7 +23,7 @@ import { isLoggedIn } from '../lib/auth';
 
 const queryClient = new QueryClient();
 const PHONE_HEADER_HEIGHT = 72;
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/welcome'];
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/welcome', '/verifyInfo'];
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -191,6 +191,7 @@ export default function RootLayout() {
               <Stack.Screen name="help/privacy" options={{ headerShown: false }} />
               <Stack.Screen name="help/terms" options={{ headerShown: false }} />
               <Stack.Screen name="teams/update" options={{ headerShown: false }} />
+              <Stack.Screen name="verifyInfo" options={{ headerShown: false }} />
             </Stack>
 
             {showPill && <BottomBar pathname={pathname} />}

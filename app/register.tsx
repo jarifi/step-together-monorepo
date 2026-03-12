@@ -281,7 +281,7 @@ export default function RegisterScreen() {
         topOffset: 100,
       });
 
-      router.replace('/login');
+      router.replace('/verifyInfo');
     } catch (error: any) {
       const apiMsg =
         error?.response?.data?.detail ||
