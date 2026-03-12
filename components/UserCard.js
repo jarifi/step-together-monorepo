@@ -15,8 +15,8 @@ export default function UserCard({ user, onUpdate, onDelete, onVerify }) {
 
   const isVerified = useMemo(() => {
     return Boolean(
-      user?.is_verified ??
       user?.isVerified ??
+      user?.is_verified ??
       user?.verified ??
       false
     );
@@ -70,7 +70,7 @@ export default function UserCard({ user, onUpdate, onDelete, onVerify }) {
         <View style={styles.buttonStack}>
           {!isVerified && onVerify && (
             <Pressable
-              onPress={() => onVerify?.(user)}
+              onPress={() => onVerify(user)}
               style={({ pressed }) => [
                 styles.iconButton,
                 styles.verifyButton,
@@ -88,7 +88,7 @@ export default function UserCard({ user, onUpdate, onDelete, onVerify }) {
               style={({ pressed }) => [
                 styles.iconButton,
                 styles.updateButton,
-                (!isVerified && onVerify) ? styles.stackSpace : null,
+                !isVerified && onVerify ? styles.stackSpace : null,
                 pressed && styles.pressedBtn,
               ]}
               hitSlop={8}
@@ -102,7 +102,7 @@ export default function UserCard({ user, onUpdate, onDelete, onVerify }) {
             style={({ pressed }) => [
               styles.iconButton,
               styles.deleteButton,
-              (onUpdate || (!isVerified && onVerify)) ? styles.stackSpace : null,
+              onUpdate || (!isVerified && onVerify) ? styles.stackSpace : null,
               pressed && styles.pressedBtn,
             ]}
             hitSlop={8}

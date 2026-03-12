@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import UserCard from '../../components/UserCard';
-import { deleteUser, getUsers, searchUsers } from '../../services/userService';
+import { deleteUser, getUsers, searchUsers, verifyUser } from '../../services/userService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -102,12 +102,31 @@ export default function UsersScreen() {
     };
   }, [searchQuery, users]);
 
-  const loadUsers = async () => {
-    if (loadingMore || !hasMore) return;
+  const refreshUsers = async () => {
+    setLoadingInitial(true);
+    setHasMore(true);
+    setSkip(0);
 
-    const isInitial = users.length === 0;
-    if (isInitial) setLoadingInitial(true);
-    else setLoadingMore(true);
+    try {
+      const data = await getUsers(0, limit);
+      const safe = Array.isArray(data) ? data : [];
+
+      setUsers(safe);
+      setSkip(safe.length);
+      setHasMore(safe.length >= limit);
+    } catch (err) {
+      console.error('Failed to refresh users:', err);
+      setUsers([]);
+      setHasMore(false);
+    } finally {
+      setLoadingInitial(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    if (loadingMore || loadingInitial || !hasMore || searchQuery.trim()) return;
+
+    setLoadingMore(true);
 
     try {
       const data = await getUsers(skip, limit);
@@ -120,28 +139,37 @@ export default function UsersScreen() {
     } catch (err) {
       console.error('Failed to load users:', err);
     } finally {
-      if (isInitial) setLoadingInitial(false);
-      else setLoadingMore(false);
+      setLoadingMore(false);
     }
   };
 
-  const handleVerifyUser = async (userToVerify) => {
+  const handleVerifyUser = async (user) => {
     try {
-      // HIER deinen echten API-Call einbauen, z. B.:
-      // await verifyUser(userToVerify.id);
+      const result = await verifyUser(user.id);
+      const verifiedValue = result?.isVerified ?? true;
 
       setUsers((prev) =>
         prev.map((u) =>
-          u.id === userToVerify.id
-            ? { ...u, is_verified: true, verified: true, isVerified: true }
+          u.id === user.id
+            ? {
+                ...u,
+                isVerified: verifiedValue,
+                is_verified: verifiedValue,
+                verified: verifiedValue,
+              }
             : u
         )
       );
 
       setSearchResults((prev) =>
         prev.map((u) =>
-          u.id === userToVerify.id
-            ? { ...u, is_verified: true, verified: true, isVerified: true }
+          u.id === user.id
+            ? {
+                ...u,
+                isVerified: verifiedValue,
+                is_verified: verifiedValue,
+                verified: verifiedValue,
+              }
             : u
         )
       );
@@ -155,12 +183,9 @@ export default function UsersScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setSkip(0);
-      setUsers([]);
-      setHasMore(true);
       setSearchQuery('');
       setSearchResults([]);
-      loadUsers();
+      refreshUsers();
     }, [])
   );
 

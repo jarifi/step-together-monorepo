@@ -45,6 +45,22 @@ export const getDisplayAvatarUri = (userLike) => {
   return makeAbsoluteMediaUrl(s) ?? s;
 };
 
+const normalizeUser = (u) => {
+  const verified =
+    u?.isVerified ??
+    u?.is_verified ??
+    u?.verified ??
+    false;
+
+  return {
+    ...u,
+    isVerified: verified,
+    is_verified: verified,
+    verified,
+    avatar: makeAbsoluteMediaUrl(u?.avatarUrl ?? u?.avatar_url ?? null),
+  };
+};
+
 // ------------------------------
 // UPLOAD profile picture
 // ------------------------------
@@ -73,10 +89,8 @@ export const uploadMyProfilePicture = async (imageUri) => {
 export const getUsers = async (skip = 0, limit = 10) => {
   try {
     const users = await apiGet(`/users/?skip=${skip}&limit=${limit}`);
-    return users.map((u) => ({
-      ...u,
-      avatar: makeAbsoluteMediaUrl(u.avatarUrl ?? u.avatar_url ?? null),
-    }));
+    console.log('GET USERS RESPONSE:', JSON.stringify(users, null, 2));
+    return Array.isArray(users) ? users.map(normalizeUser) : [];
   } catch (err) {
     console.error('Error fetching users:', err);
     return [];
@@ -89,10 +103,7 @@ export const getUsers = async (skip = 0, limit = 10) => {
 export const searchUsers = async (query) => {
   try {
     const users = await apiGet(`/users/search?q=${encodeURIComponent(query)}`);
-    return users.map((u) => ({
-      ...u,
-      avatar: makeAbsoluteMediaUrl(u.avatarUrl ?? u.avatar_url ?? null),
-    }));
+    return Array.isArray(users) ? users.map(normalizeUser) : [];
   } catch (err) {
     console.error('Error searching users:', err);
     return [];
@@ -111,9 +122,8 @@ export const updateUser = async (id, data) => {
   }
 };
 
-
 // ---------------------------------------------------------------------------
-// CREATE USER
+// REGISTER USER
 // ---------------------------------------------------------------------------
 export const registerUser = async (userData) => {
   try {
@@ -123,9 +133,6 @@ export const registerUser = async (userData) => {
     throw err;
   }
 };
-
-
-
 
 // ---------------------------------------------------------------------------
 // CREATE USER
@@ -147,6 +154,18 @@ export const deleteUser = async (id) => {
     return await apiDelete(`/users/${id}`);
   } catch (err) {
     console.error('Error deleting user:', err);
+    throw err;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// VERIFY USER
+// ---------------------------------------------------------------------------
+export const verifyUser = async (id) => {
+  try {
+    return await apiPost(`/users/${id}/verify`);
+  } catch (err) {
+    console.error('Error verifying user:', err);
     throw err;
   }
 };
