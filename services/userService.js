@@ -61,6 +61,23 @@ const normalizeUser = (u) => {
   };
 };
 
+const buildUserQuery = ({ skip = 0, limit = 10, isVerified = null, query = '' } = {}) => {
+  const params = new URLSearchParams();
+
+  params.append('skip', String(skip));
+  params.append('limit', String(limit));
+
+  if (isVerified !== null && isVerified !== undefined) {
+    params.append('is_verified', String(isVerified));
+  }
+
+  if (query.trim()) {
+    params.append('q', query.trim());
+  }
+
+  return params.toString();
+};
+
 // ------------------------------
 // UPLOAD profile picture
 // ------------------------------
@@ -84,11 +101,12 @@ export const uploadMyProfilePicture = async (imageUri) => {
 };
 
 // ---------------------------------------------------------------------------
-// GET USERS (with skip/limit)
+// GET USERS (with skip/limit + verified filter)
 // ---------------------------------------------------------------------------
-export const getUsers = async (skip = 0, limit = 10) => {
+export const getUsers = async (skip = 0, limit = 10, isVerified = null) => {
   try {
-    const users = await apiGet(`/users/?skip=${skip}&limit=${limit}`);
+    const qs = buildUserQuery({ skip, limit, isVerified });
+    const users = await apiGet(`/users/?${qs}`);
     console.log('GET USERS RESPONSE:', JSON.stringify(users, null, 2));
     return Array.isArray(users) ? users.map(normalizeUser) : [];
   } catch (err) {
@@ -98,11 +116,12 @@ export const getUsers = async (skip = 0, limit = 10) => {
 };
 
 // ---------------------------------------------------------------------------
-// SEARCH USERS (by name, email, or ID)
+// SEARCH USERS (with paging + verified filter)
 // ---------------------------------------------------------------------------
-export const searchUsers = async (query) => {
+export const searchUsers = async (query, skip = 0, limit = 10, isVerified = null) => {
   try {
-    const users = await apiGet(`/users/search?q=${encodeURIComponent(query)}`);
+    const qs = buildUserQuery({ skip, limit, isVerified, query });
+    const users = await apiGet(`/users/search?${qs}`);
     return Array.isArray(users) ? users.map(normalizeUser) : [];
   } catch (err) {
     console.error('Error searching users:', err);

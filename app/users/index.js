@@ -41,23 +41,48 @@ export default function UsersScreen() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  const [verifiedFilter, setVerifiedFilter] = useState('all');
+  // 'all' | 'verified' | 'unverified'
+
   const searchTimeoutRef = useRef(null);
   const router = useRouter();
 
+  const isUserVerified = useCallback((user) => {
+    return (
+      user?.isVerified === true ||
+      user?.is_verified === true ||
+      user?.verified === true
+    );
+  }, []);
+
   const filteredUsers = useMemo(() => {
-    const q = searchQuery.trim();
-    if (!q) return users;
+    const q = searchQuery.trim().toLowerCase();
 
-    if (searchResults.length > 0) return searchResults;
+    let baseUsers = users;
 
-    const query = q.toLowerCase();
-    return users.filter((user) => {
-      const name = user?.name?.toLowerCase?.() ?? '';
-      const email = user?.email?.toLowerCase?.() ?? '';
-      const id = user?.id?.toString?.() ?? '';
-      return name.includes(query) || email.includes(query) || id.includes(query);
-    });
-  }, [searchQuery, users, searchResults]);
+    if (q) {
+      if (searchResults.length > 0) {
+        baseUsers = searchResults;
+      } else {
+        baseUsers = users.filter((user) => {
+          const name = user?.name?.toLowerCase?.() ?? '';
+          const email = user?.email?.toLowerCase?.() ?? '';
+          const id = user?.id?.toString?.() ?? '';
+          return name.includes(q) || email.includes(q) || id.includes(q);
+        });
+      }
+    }
+
+    if (verifiedFilter === 'verified') {
+      return baseUsers.filter((user) => isUserVerified(user));
+    }
+
+    if (verifiedFilter === 'unverified') {
+      return baseUsers.filter((user) => !isUserVerified(user));
+    }
+
+    return baseUsers;
+  }, [searchQuery, users, searchResults, verifiedFilter, isUserVerified]);
 
   useEffect(() => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -185,6 +210,7 @@ export default function UsersScreen() {
     useCallback(() => {
       setSearchQuery('');
       setSearchResults([]);
+      setVerifiedFilter('all');
       refreshUsers();
     }, [])
   );
@@ -198,7 +224,14 @@ export default function UsersScreen() {
     );
   }
 
-  const showSearchInfo = searchQuery.trim().length > 0;
+  const showSearchInfo = searchQuery.trim().length > 0 || verifiedFilter !== 'all';
+
+  const filterLabel =
+    verifiedFilter === 'verified'
+      ? 'nur verifiziert'
+      : verifiedFilter === 'unverified'
+        ? 'nur nicht verifiziert'
+        : '';
 
   return (
     <View style={styles.screen}>
@@ -227,14 +260,40 @@ export default function UsersScreen() {
             )}
           </View>
 
+          <View style={styles.filterRow}>
+            {[
+              { key: 'all', label: 'Alle' },
+              { key: 'verified', label: 'Verifiziert' },
+              { key: 'unverified', label: 'Nicht verifiziert' },
+            ].map((item) => {
+              const active = verifiedFilter === item.key;
+
+              return (
+                <Pressable
+                  key={item.key}
+                  onPress={() => setVerifiedFilter(item.key)}
+                  style={({ pressed }) => [
+                    styles.filterChip,
+                    active && styles.filterChipActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           {showSearchInfo ? (
             <View style={styles.searchInfoPill}>
               <Text style={styles.searchInfoText}>
                 {isSearching
                   ? 'Suche in der Datenbank…'
-                  : searchResults.length > 0
-                    ? `${filteredUsers.length} Ergebnis(se) aus Datenbank · „${searchQuery.trim()}“`
-                    : `${filteredUsers.length} von ${users.length} gefunden · „${searchQuery.trim()}“`}
+                  : `${filteredUsers.length} Ergebnis(se)${
+                      searchQuery.trim() ? ` · „${searchQuery.trim()}“` : ''
+                    }${filterLabel ? ` · ${filterLabel}` : ''}`}
               </Text>
             </View>
           ) : null}
@@ -283,15 +342,15 @@ export default function UsersScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>
-                {searchQuery.trim() ? 'Keine Treffer' : 'Keine Benutzer'}
+                {searchQuery.trim() || verifiedFilter !== 'all' ? 'Keine Treffer' : 'Keine Benutzer'}
               </Text>
               <Text style={styles.emptyText}>
-                {searchQuery.trim()
-                  ? `Für „${searchQuery.trim()}“ wurde nichts gefunden.`
+                {searchQuery.trim() || verifiedFilter !== 'all'
+                  ? 'Für die aktuelle Suche bzw. den aktuellen Filter wurde nichts gefunden.'
                   : 'Erstell deinen ersten Benutzer.'}
               </Text>
 
-              {!searchQuery.trim() && (
+              {!searchQuery.trim() && verifiedFilter === 'all' && (
                 <Pressable
                   onPress={() => router.push('/users/create')}
                   style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
@@ -394,6 +453,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     marginTop: -1,
+  },
+
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.accentSoft,
+    borderColor: COLORS.accent,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.sub,
+  },
+  filterChipTextActive: {
+    color: COLORS.accent,
   },
 
   searchInfoPill: {
