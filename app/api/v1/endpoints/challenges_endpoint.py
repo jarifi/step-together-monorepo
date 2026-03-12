@@ -25,19 +25,31 @@ def create_challenge(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # ensure creator_id is always the logged-in user
-    challenge_data = challenge.model_copy(
-        update={"creator_id": current_user.id}
-    )
+    challenge_data = challenge.model_copy(update={"creator_id": current_user.id})
 
-    result = challenge_crud.create_challenge(db, challenge_data)
+    try:
+        result = challenge_crud.create_challenge(db, challenge_data)
 
-    challenge_logger.info(
-        f"CHALLENGE CREATED | challenge_id={result.id} | created_by={current_user.id}"
-    )
+        challenge_logger.info(
+            f"CHALLENGE CREATED | challenge_id={result.id} | created_by={current_user.id}"
+        )
 
-    return result
+        return result
 
+    except HTTPException as e:
+        challenge_logger.warning(
+            f"CHALLENGE CREATE FAILED | user_id={current_user.id} | reason={e.detail}"
+        )
+        raise e
+
+    except Exception as e:
+        challenge_logger.error(
+            f"CHALLENGE CREATE ERROR | user_id={current_user.id} | error={str(e)}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Challenge could not be created."
+        )
 
 @router.get("/", response_model=List[ChallengeResponse])
 def read_all_challenges(

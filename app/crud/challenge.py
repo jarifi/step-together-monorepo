@@ -3,15 +3,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime, timezone
+from fastapi import HTTPException, status
 
 from app.models.challenge import Challenge as ChallengeModel
 from app.schema.challenge import ChallengeCreate, ChallengeUpdate
 from app.models.challenge_team import ChallengeTeam
 from app.models.team import Team
 from app.models.step_log import StepLog
-from app.models.team_member import TeamMember 
+from app.models.team_member import TeamMember
 
 from app.schema.team import TeamSchema, ChallengeTeamWithSteps
+
 
 def get_all_challenges(db: Session, skip: int = 0, limit: int = 10) -> List[ChallengeModel]:
     return (
@@ -50,6 +52,22 @@ def get_active_challenge(db: Session, team_id: int):
 
 
 def create_challenge(db: Session, challenge_data: ChallengeCreate) -> ChallengeModel:
+    overlapping_challenge = (
+        db.query(ChallengeModel)
+        .filter(
+            ChallengeModel.is_deleted == False,
+            ChallengeModel.start_date <= challenge_data.end_date,
+            ChallengeModel.end_date >= challenge_data.start_date,
+        )
+        .first()
+    )
+
+    if overlapping_challenge:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Challenge within this time frame already exists."
+        )
+
     db_challenge = ChallengeModel(**challenge_data.model_dump())
     db.add(db_challenge)
     db.commit()
@@ -64,7 +82,7 @@ def update_challenge(db: Session, challenge_id: int, challenge_data: ChallengeUp
 
     for key, value in challenge_data.model_dump(exclude_unset=True).items():
         setattr(challenge_obj, key, value)
-    
+
     if challenge_data.is_deleted is not None:
         challenge_obj.is_deleted = challenge_data.is_deleted
 
@@ -89,6 +107,7 @@ def delete_challenge(db: Session, challenge_id: int) -> Optional[ChallengeModel]
     db.commit()
     db.refresh(challenge_obj)
     return challenge_obj
+
 
 def get_teams_for_challenge(
     db: Session, challenge_id: int
@@ -131,6 +150,7 @@ def get_teams_for_challenge(
         )
         for row in results
     ]
+
 
 def get_finished_challenges_for_user(db: Session, user_id: int):
     return (
