@@ -27,27 +27,27 @@ def validate_password_complexity(password: str) -> str:
 
 # Reusable password type
 PasswordString = Annotated[
-    str, 
+    str,
     Field(min_length=8, max_length=100, json_schema_extra={"example": "Str0ngPass!"}),
     AfterValidator(validate_password_complexity)
 ]
 
 class UserBase(CamelCaseBaseModel):
-    name: Annotated[ 
+    name: Annotated[
         str,
         StringConstraints(
             min_length=2,
             max_length=50,
             strip_whitespace=True
         )
-     ]= Field(
+    ] = Field(
         ...,
         pattern=r"^[a-zA-ZäöüÄÖÜß '\-]+$",
         json_schema_extra={"example": "John Doe"}
     )
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
     step_length: Optional[Annotated[float, Field(
-        ge=0, 
+        ge=0,
         le=200,
         json_schema_extra={"example": 75.0}
     )]] = None
@@ -65,7 +65,6 @@ class UserCreate(UserBase):
         if self.password != self.password_confirm:
             raise ValueError('Passwords do not match')
         return self
-
 
 class UserRegister(UserCreate):
     privacy_policy_accepted: bool = Field(
@@ -87,27 +86,29 @@ class UserResponse(CamelCaseBaseModel):
     step_length: Optional[float] = None
     is_active: bool = True
     is_deleted: bool = False
-    avatar_url: Optional[str] = None 
+    is_verified: bool = False
+    avatar_url: Optional[str] = None
 
 class UserLogin(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
     password: str = Field(
-        ..., 
+        ...,
         min_length=8,
         json_schema_extra={"example": "Str0ngPass!"}
     )
 
 class UserUpdate(CamelCaseBaseModel):
     name: Optional[
-        Annotated[ 
-        str,
-        StringConstraints(
-            min_length=2,
-            max_length=50,
-            strip_whitespace=True
-        )
-     ]] = Field(
-        None, 
+        Annotated[
+            str,
+            StringConstraints(
+                min_length=2,
+                max_length=50,
+                strip_whitespace=True
+            )
+        ]
+    ] = Field(
+        None,
         pattern=r"^[a-zA-ZäöüÄÖÜß '\-]+$",
         json_schema_extra={"example": "New Name"}
     )
@@ -116,12 +117,13 @@ class UserUpdate(CamelCaseBaseModel):
         json_schema_extra={"example": "new.email@example.com"}
     )
     step_length: Optional[Annotated[float, Field(
-        ge=0, 
+        ge=0,
         le=200,
         json_schema_extra={"example": 80.0}
     )]] = None
     is_active: Optional[bool] = None
     is_deleted: Optional[bool] = None
+    is_verified: Optional[bool] = None
     avatar_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,7 +134,6 @@ class PasswordResetRequest(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
 
 class PasswordResetConfirm(CamelCaseBaseModel):
-    #token: str = Field(json_schema_extra={"example": "reset-token-123"})
     new_password: PasswordString
     password_confirm: str = Field(json_schema_extra={"example": "NewStr0ngPass!"})
 
@@ -141,16 +142,11 @@ class PasswordResetConfirm(CamelCaseBaseModel):
         if self.new_password != self.password_confirm:
             raise ValueError('Passwords do not match')
         return self
-    
-# class PasswordChange(BaseModel):
-#     old_password: str
-#     new_password: str
 
-class PasswordChange(CamelCaseBaseModel): # CamelCaseBaseModel nutzen für Konsistenz!
+class PasswordChange(CamelCaseBaseModel):
     old_password: str = Field(..., description="Das aktuelle Passwort")
-    # Hier nutzen wir deinen fertigen PasswordString (min 8 chars, Zahl, Groß/Klein)
-    new_password: PasswordString 
-    
+    new_password: PasswordString
+
     @model_validator(mode='after')
     def validate_different_passwords(self) -> 'PasswordChange':
         if self.old_password == self.new_password:
