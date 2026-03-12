@@ -57,7 +57,25 @@ export const createChallenge = async (data) => {
     return await apiPost(`/challenges`, data);
   } catch (err) {
     console.error('Error creating challenge:', err);
-    throw err;
+
+    const status = err?.status || err?.response?.status;
+    const detail =
+      err?.response?.data?.detail ||
+      err?.data?.detail ||
+      err?.detail ||
+      err?.message ||
+      '';
+
+    const detailText = String(detail).toLowerCase();
+
+    if (
+      status === 409 ||
+      detailText.includes('already exists within this time frame')
+    ) {
+      throw new Error('Challenge within this time frame already exists.');
+    }
+
+    throw new Error(detail || 'Challenge could not be created.');
   }
 };
 
