@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -19,6 +19,7 @@ import {
   validateLocation,
 } from '../../lib/challengeValidation';
 import { updateChallenge } from '../../services/challengeService';
+import { getTeams } from '../../services/teamService';
 
 const COLORS = {
   bg: '#F5F7F4',
@@ -32,21 +33,20 @@ const COLORS = {
 };
 
 const toStr = (v) => (Array.isArray(v) ? v[0] : v ?? '');
+
 const toYmd = (v) => {
   if (!v) return '';
   const s = String(toStr(v));
   return s.includes('T') ? s.split('T')[0] : s;
 };
 
-// ---------- TIME helpers ----------
 const isValidHHMM = (t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t ?? '').trim());
 
-// Extract HH:mm from ISO if present, else fallback
 const toHHmm = (v, fallback = '08:00') => {
   const s = String(toStr(v));
   if (!s) return fallback;
+
   if (s.includes('T')) {
-    // try to read LOCAL time from ISO (new Date)
     const d = new Date(s);
     if (!isNaN(d.getTime())) {
       const hh = String(d.getHours()).padStart(2, '0');
@@ -54,12 +54,11 @@ const toHHmm = (v, fallback = '08:00') => {
       return `${hh}:${mm}`;
     }
   }
-  // allow passing "HH:mm" directly
+
   if (isValidHHMM(s)) return s.trim();
   return fallback;
 };
 
-// Local date + local time -> UTC ISO for backend
 const localDateTimeToUtcIso = (ymd, hhmm) => {
   const [y, m, d] = String(ymd).split('-').map(Number);
   const [hh, mm] = String(hhmm).split(':').map(Number);
@@ -67,7 +66,6 @@ const localDateTimeToUtcIso = (ymd, hhmm) => {
   return local.toISOString();
 };
 
-// ---------- Kalender/Date helpers (timezone-safe) ----------
 const stripTime = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -77,7 +75,6 @@ const stripTime = (date) => {
 const firstOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const sameDay = (a, b) => stripTime(a).getTime() === stripTime(b).getTime();
 
-// Format "YYYY-MM-DD" in LOCAL time (no UTC shift)
 const formatLocalYMD = (d) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -85,12 +82,33 @@ const formatLocalYMD = (d) => {
   return `${y}-${m}-${day}`;
 };
 
-// Parse "YYYY-MM-DD" as LOCAL date (avoid new Date("YYYY-MM-DD") UTC quirks)
 const parseLocalYMD = (s) => {
   if (!s) return null;
   const [y, m, d] = s.split('-').map(Number);
   if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d, 12, 0, 0, 0); 
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+};
+
+const parseInitialTeamIds = (value) => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.map(Number).filter(Boolean);
+  }
+
+  try {
+    const parsed = JSON.parse(String(value));
+    if (Array.isArray(parsed)) {
+      return parsed.map(Number).filter(Boolean);
+    }
+  } catch {
+    // ignore
+  }
+
+  return String(value)
+    .split(',')
+    .map((v) => Number(v.trim()))
+    .filter(Boolean);
 };
 
 export default function UpdateChallengeScreen() {
@@ -112,9 +130,17 @@ export default function UpdateChallengeScreen() {
 
   const [loading, setLoading] = useState(false);
 
-  // Calendar State
+  // teams
+  const [availableTeams, setAvailableTeams] = useState([]);
+  const [teamsLoading, setTeamsLoading] = useState(true);
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [selectedTeamIds, setSelectedTeamIds] = useState(
+    parseInitialTeamIds(params.teamIds)
+  );
+
+  // calendar
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarType, setCalendarType] = useState('start'); // 'start' | 'end'
+  const [calendarType, setCalendarType] = useState('start');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarPick, setCalendarPick] = useState(new Date());
 
@@ -128,6 +154,53 @@ export default function UpdateChallengeScreen() {
       position: 'top',
       topOffset: 100,
     });
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadTeams = async () => {
+      try {
+        setTeamsLoading(true);
+        const data = await getTeams(0, 100);
+
+        const normalized = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+            ? data.items
+            : [];
+
+        if (mounted) {
+          setAvailableTeams(
+            normalized.map((team) => ({
+              id: Number(team.id),
+              name: team.name ?? `Team ${team.id}`,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error('Error loading teams:', error);
+        if (mounted) showError('Teams konnten nicht geladen werden.');
+      } finally {
+        if (mounted) setTeamsLoading(false);
+      }
+    };
+
+    loadTeams();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const selectedTeams = useMemo(() => {
+    return availableTeams.filter((team) => selectedTeamIds.includes(team.id));
+  }, [availableTeams, selectedTeamIds]);
+
+  const toggleTeam = (teamId) => {
+    setSelectedTeamIds((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
+    );
   };
 
   const openCalendar = (type) => {
@@ -159,7 +232,7 @@ export default function UpdateChallengeScreen() {
 
   const calendarGrid = useMemo(() => {
     const first = firstOfMonth(calendarMonth);
-    const firstDayOfWeek = (first.getDay() + 6) % 7; // Monday=0
+    const firstDayOfWeek = (first.getDay() + 6) % 7;
     const start = new Date(first);
     start.setDate(first.getDate() - firstDayOfWeek);
 
@@ -171,7 +244,6 @@ export default function UpdateChallengeScreen() {
       const inMonth = date.getMonth() === calendarMonth.getMonth();
       let selectable = true;
 
-      // end must be >= startDate (if set)
       if (calendarType === 'end' && startDate) {
         const startObj = parseLocalYMD(startDate) ?? new Date();
         selectable = stripTime(date) >= stripTime(startObj);
@@ -184,6 +256,7 @@ export default function UpdateChallengeScreen() {
 
   const goPrevMonth = () =>
     setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+
   const goNextMonth = () =>
     setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
 
@@ -220,9 +293,8 @@ export default function UpdateChallengeScreen() {
       return;
     }
 
-    const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors].filter(
-      Boolean
-    );
+    const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors].filter(Boolean);
+
     if (allErrors.length > 0) {
       allErrors.forEach((error, i) => setTimeout(() => showError(error), i * 900));
       return;
@@ -233,9 +305,9 @@ export default function UpdateChallengeScreen() {
       start_location: startLocation,
       target_location: targetLocation,
       distance: parseFloat(distance),
-
       start_date: startIso,
       end_date: endIso,
+      team_ids: selectedTeamIds,
     };
 
     setLoading(true);
@@ -264,12 +336,10 @@ export default function UpdateChallengeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.headerCard}>
           <Text style={styles.title}>Challenge bearbeiten</Text>
         </View>
 
-        {/* Form */}
         <View style={styles.formCard}>
           <FieldLabel>Challenge Name</FieldLabel>
           <TextInput
@@ -312,7 +382,35 @@ export default function UpdateChallengeScreen() {
             editable={!loading}
           />
 
-          {/* Dates */}
+          <FieldLabel>Teams</FieldLabel>
+          <Pressable
+            onPress={() => setTeamModalOpen(true)}
+            style={styles.selectorPill}
+            disabled={loading || teamsLoading}
+          >
+            <Text style={[styles.selectorText, selectedTeams.length === 0 && { color: '#8A9590' }]}>
+              {teamsLoading
+                ? 'Teams werden geladen...'
+                : selectedTeams.length > 0
+                  ? `${selectedTeams.length} Team(s) ausgewählt`
+                  : 'Teams auswählen'}
+            </Text>
+            <Ionicons name="people-outline" size={18} color={COLORS.accent} />
+          </Pressable>
+
+          {selectedTeams.length > 0 && (
+            <View style={styles.chipsWrap}>
+              {selectedTeams.map((team) => (
+                <View key={team.id} style={styles.chip}>
+                  <Text style={styles.chipText}>{team.name}</Text>
+                  <Pressable onPress={() => toggleTeam(team.id)} hitSlop={8}>
+                    <Ionicons name="close" size={16} color={COLORS.text} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
           <View style={styles.twoCol}>
             <View style={{ flex: 1 }}>
               <FieldLabel>Startdatum</FieldLabel>
@@ -396,7 +494,46 @@ export default function UpdateChallengeScreen() {
         </View>
       </ScrollView>
 
-      {/* Calendar Modal */}
+      <Modal
+        animationType="slide"
+        transparent
+        visible={teamModalOpen}
+        onRequestClose={() => setTeamModalOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setTeamModalOpen(false)}>
+          <Pressable style={styles.teamModalCard} onPress={() => {}}>
+            <Text style={styles.teamModalTitle}>Teams auswählen</Text>
+
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              {availableTeams.map((team) => {
+                const selected = selectedTeamIds.includes(team.id);
+
+                return (
+                  <Pressable
+                    key={team.id}
+                    style={[styles.teamRow, selected && styles.teamRowSelected]}
+                    onPress={() => toggleTeam(team.id)}
+                  >
+                    <Text style={[styles.teamRowText, selected && styles.teamRowTextSelected]}>
+                      {team.name}
+                    </Text>
+                    <Ionicons
+                      name={selected ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={selected ? COLORS.accent : COLORS.sub}
+                    />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Pressable style={styles.applyBtn} onPress={() => setTeamModalOpen(false)}>
+              <Text style={styles.applyBtnText}>Übernehmen</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal
         animationType="fade"
         transparent
@@ -537,6 +674,49 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
+  selectorPill: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  selectorText: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(85,128,92,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(85,128,92,0.20)',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  chipText: {
+    color: COLORS.text,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
   twoCol: { flexDirection: 'row', gap: 12 },
 
   datePill: {
@@ -590,7 +770,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   disabled: { opacity: 0.6 },
 
-  // Calendar modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -598,6 +777,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+
+  teamModalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 16,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  teamModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  teamRow: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+    backgroundColor: COLORS.inputBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  teamRowSelected: {
+    borderColor: 'rgba(85,128,92,0.35)',
+    backgroundColor: 'rgba(85,128,92,0.08)',
+  },
+  teamRowText: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  teamRowTextSelected: {
+    color: COLORS.text,
+  },
+
   calendarCard: {
     backgroundColor: 'white',
     borderRadius: 22,
