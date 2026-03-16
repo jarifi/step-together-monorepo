@@ -211,7 +211,7 @@ interface NavLinkProps {
 
 function NavLink({ href, label, icon, active, onNavigate }: NavLinkProps) {
   return (
-    <Link href={href} asChild>
+    <Link href={href as any} asChild>
       <Pressable style={styles.navLink} onPress={onNavigate}>
         <View style={[styles.navInner, active ? styles.navLinkActive : styles.navLinkInactive]}>
           {icon}
