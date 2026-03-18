@@ -18,7 +18,8 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         },
-        "NSPhotoLibraryUsageDescription": "Step-Together requests access to your photo library so you can select a profile picture or upload an image for a challenge. The selected photo is only used to display it in your profile or the specific challenge inside the app. For example, when you edit your profile, you can choose a picture from your gallery that will be shown to your team members."
+        "NSPhotoLibraryUsageDescription": "Step-Together requests access to your photo library so you can select a profile picture or upload an image for a challenge.",
+        "NSMotionUsageDescription": "This app needs access to your motion data to count your steps and track your physical activity goals."
       }
     },
     "android": {
@@ -28,7 +29,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.steptogether"
+      "package": "com.anonymous.steptogether",
+      "permissions": ["android.permission.ACTIVITY_RECOGNITION"]
     },
     "web": {
       "bundler": "metro",
@@ -47,7 +49,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sensors"
     ],
     "experiments": {
       "typedRoutes": true

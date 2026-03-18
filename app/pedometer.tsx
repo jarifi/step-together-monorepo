@@ -20,6 +20,7 @@ const PedometerScreen: React.FC = () => {
   const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
   const [stepsToday, setStepsToday] = useState(0);
   const [liveSteps, setLiveSteps] = useState(0);
+  const [isTrackingLive, setIsTrackingLive] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const subscriptionRef = useRef<any>(null);
@@ -68,29 +69,57 @@ const PedometerScreen: React.FC = () => {
     }
   }, []);
 
+  const startLiveTracking = useCallback(async () => {
+    if (isTrackingLive) return;
+
+    try {
+      setErrorMsg(null);
+
+      const available = await Pedometer.isAvailableAsync();
+      setSensorAvailable(available);
+      if (!available) {
+        setErrorMsg('Der Schrittzähler ist auf diesem Gerät nicht verfügbar.');
+        return;
+      }
+
+      const permission = await Pedometer.requestPermissionsAsync();
+      setPermissionStatus(permission.status);
+      if (permission.status !== 'granted') {
+        setErrorMsg('Der Zugriff auf Bewegungsdaten wurde nicht erlaubt.');
+        return;
+      }
+
+      setLiveSteps(0);
+      subscriptionRef.current?.remove?.();
+      subscriptionRef.current = Pedometer.watchStepCount((result) => {
+        setLiveSteps(result?.steps ?? 0);
+      });
+      setIsTrackingLive(true);
+    } catch (err) {
+      console.log('Live pedometer error:', err);
+      setErrorMsg('Live-Schritte konnten nicht gestartet werden.');
+    }
+  }, [isTrackingLive]);
+
+  const stopLiveTracking = useCallback(() => {
+    if (!isTrackingLive) return;
+
+    subscriptionRef.current?.remove?.();
+    subscriptionRef.current = null;
+    setIsTrackingLive(false);
+
+    if (liveSteps > 0) {
+      setStepsToday((prev) => prev + liveSteps);
+      setLiveSteps(0);
+    }
+  }, [isTrackingLive, liveSteps]);
+
   useEffect(() => {
     loadPedometerData();
 
-    const startLiveTracking = async () => {
-      try {
-        const available = await Pedometer.isAvailableAsync();
-        if (!available) return;
-
-        const permission = await Pedometer.requestPermissionsAsync();
-        if (permission.status !== 'granted') return;
-
-        subscriptionRef.current = Pedometer.watchStepCount((result) => {
-          setLiveSteps(result?.steps ?? 0);
-        });
-      } catch (err) {
-        console.log('Live pedometer error:', err);
-      }
-    };
-
-    startLiveTracking();
-
     return () => {
       subscriptionRef.current?.remove?.();
+      subscriptionRef.current = null;
     };
   }, [loadPedometerData]);
 
@@ -98,8 +127,8 @@ const PedometerScreen: React.FC = () => {
     permissionStatus === 'granted'
       ? 'Erlaubt'
       : permissionStatus === 'denied'
-      ? 'Verweigert'
-      : 'Unbekannt';
+        ? 'Verweigert'
+        : 'Unbekannt';
 
   if (loading) {
     return (
@@ -230,8 +259,40 @@ const PedometerScreen: React.FC = () => {
           <Text style={[styles.editBtnText, styles.font]}>Neu laden</Text>
         </TouchableOpacity>
 
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            gap: 10,
+            marginTop: 10,
+          }}
+        >
+          <TouchableOpacity
+            style={[
+              styles.editBtn,
+              { flex: 1, opacity: isTrackingLive ? 0.6 : 1, backgroundColor: '#5F764E' },
+            ]}
+            onPress={startLiveTracking}
+            disabled={isTrackingLive}
+          >
+            <Text style={[styles.editBtnText, styles.font]}>Live starten</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.editBtn,
+              { flex: 1, opacity: isTrackingLive ? 1 : 0.6, backgroundColor: '#B45309' },
+            ]}
+            onPress={stopLiveTracking}
+            disabled={!isTrackingLive}
+          >
+            <Text style={[styles.editBtnText, styles.font]}>Live stoppen</Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={[styles.weeklyTitle, styles.font]}>
-          Live seit Öffnen: <Text style={{ color: '#5F764E' }}>{liveSteps} Schritte</Text>
+          Live aktuell ({isTrackingLive ? 'aktiv' : 'gestoppt'}):{' '}
+          <Text style={{ color: '#5F764E' }}>{liveSteps} Schritte</Text>
         </Text>
 
         <View
