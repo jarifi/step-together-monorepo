@@ -174,6 +174,8 @@ export default function Sidebar({
 
         <View style={styles.linkContainer}>
           {renderNavLink('/dashboard', 'Dashboard', 'dashboard', MaterialIcons)}
+          {renderNavLink('/pedometer', 'Schrittzähler', 'directions-walk', MaterialIcons)}
+
 
           <View style={styles.separator} />
 

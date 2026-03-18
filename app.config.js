@@ -8,12 +8,15 @@ export default ({ config }) => ({
   version: '1.0.0',
   scheme: 'steptogether',
 
-  // ✅ App Icon
   icon: './assets/images/AppIcon.png',
 
   android: {
     ...config.android,
     package: 'at.bfistmk.steptogether',
+    permissions: [
+      ...(config.android?.permissions ?? []),
+      'android.permission.ACTIVITY_RECOGNITION',
+    ],
   },
 
   ios: {
@@ -23,6 +26,8 @@ export default ({ config }) => ({
     infoPlist: {
       ...(config.ios?.infoPlist ?? {}),
       ITSAppUsesNonExemptEncryption: false,
+      NSMotionUsageDescription:
+        'Step-Together benötigt Zugriff auf Bewegungsdaten, um deine Schritte und Challenge-Fortschritte anzuzeigen.',
     },
   },
 
