@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import ChallengeCard from '../../components/ChallengeCard';
-import { getChallenges } from '../../services/challengeService';
+import { getChallenges, getChallengeTeams } from '../../services/challengeService';
 
 type Challenge = {
   id: number | string;
@@ -93,7 +93,26 @@ export default function OpenChallengesScreen() {
         const data = await getChallenges(skipRef.current, limit);
         const safe: Challenge[] = Array.isArray(data) ? data : [];
 
-        setChallenges((prev) => (isInitial ? safe : [...prev, ...safe]));
+        const enrichedChallenges = await Promise.all(
+          safe.map(async (challenge) => {
+            try {
+              const teams = await getChallengeTeams(challenge.id);
+
+              return {
+                ...challenge,
+                teamCount: Array.isArray(teams) ? teams.length : 0,
+              };
+            } catch (err) {
+              console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
+              return {
+                ...challenge,
+                teamCount: 0,
+              };
+            }
+          })
+        );
+
+        setChallenges((prev) => (isInitial ? enrichedChallenges : [...prev, ...enrichedChallenges]));
         skipRef.current += safe.length;
 
         if (safe.length < limit) hasMoreRef.current = false;
@@ -137,7 +156,7 @@ export default function OpenChallengesScreen() {
             style={[styles.tabBtn, tab === 'incoming' && styles.tabBtnActive]}
           >
             <Text style={[styles.tabText, tab === 'incoming' && styles.tabTextActive]}>
-              Kommend 
+              Kommend
             </Text>
           </Pressable>
 
@@ -222,8 +241,8 @@ export default function OpenChallengesScreen() {
               <ChallengeCard
                 challenge={item}
                 onPress={() => goToDetails(String(item.id))}
-                onUpdate={() => {}}
-                onDelete={() => {}}
+                onUpdate={() => { }}
+                onDelete={() => { }}
                 showActions={false}
               />
             </View>

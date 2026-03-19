@@ -18,8 +18,8 @@ import {
   validateDistance,
   validateLocation,
 } from '../../lib/challengeValidation';
-import { updateChallenge } from '../../services/challengeService';
-import { getTeams } from '../../services/teamService';
+import { getChallengeTeams, updateChallenge } from '../../services/challengeService';
+import { getAllTeams } from '../../services/teamService';
 
 const COLORS = {
   bg: '#F5F7F4',
@@ -28,6 +28,8 @@ const COLORS = {
   sub: '#55605A',
   border: 'rgba(15,20,17,0.10)',
   accent: '#55805c',
+  accentSoft: 'rgba(85,128,92,0.10)',
+  accentBorder: 'rgba(85,128,92,0.20)',
   inputBg: '#FBFCFB',
   danger: '#B91C1C',
 };
@@ -130,15 +132,13 @@ export default function UpdateChallengeScreen() {
 
   const [loading, setLoading] = useState(false);
 
-  // teams
   const [availableTeams, setAvailableTeams] = useState([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
+  const [selectedTeamsLoading, setSelectedTeamsLoading] = useState(true);
+  const [selectedTeamIds, setSelectedTeamIds] = useState(parseInitialTeamIds(params.teamIds));
   const [teamModalOpen, setTeamModalOpen] = useState(false);
-  const [selectedTeamIds, setSelectedTeamIds] = useState(
-    parseInitialTeamIds(params.teamIds)
-  );
+  const [teamSearch, setTeamSearch] = useState('');
 
-  // calendar
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarType, setCalendarType] = useState('start');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -162,22 +162,19 @@ export default function UpdateChallengeScreen() {
     const loadTeams = async () => {
       try {
         setTeamsLoading(true);
-        const data = await getTeams(0, 100);
+        const data = await getAllTeams(100);
 
-        const normalized = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.items)
-            ? data.items
-            : [];
+        if (!mounted) return;
 
-        if (mounted) {
-          setAvailableTeams(
-            normalized.map((team) => ({
-              id: Number(team.id),
-              name: team.name ?? `Team ${team.id}`,
-            }))
-          );
-        }
+        const mapped = (Array.isArray(data) ? data : [])
+          .map((team) => ({
+            id: Number(team.id),
+            name: team.name ?? `Team ${team.id}`,
+          }))
+          .filter((team) => team.id)
+          .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+
+        setAvailableTeams(mapped);
       } catch (error) {
         console.error('Error loading teams:', error);
         if (mounted) showError('Teams konnten nicht geladen werden.');
@@ -193,9 +190,64 @@ export default function UpdateChallengeScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSelectedTeams = async () => {
+      if (!challengeId || Number.isNaN(challengeId)) {
+        if (mounted) setSelectedTeamsLoading(false);
+        return;
+      }
+
+      try {
+        setSelectedTeamsLoading(true);
+
+        const data = await getChallengeTeams(challengeId);
+        const ids = Array.isArray(data)
+          ? data.map((team) => Number(team.id)).filter(Boolean)
+          : [];
+
+        if (mounted) setSelectedTeamIds(ids);
+      } catch (error) {
+        console.error('Error loading selected challenge teams:', error);
+
+        if (mounted && parseInitialTeamIds(params.teamIds).length === 0) {
+          showError('Teilnehmende Teams konnten nicht geladen werden.');
+        }
+      } finally {
+        if (mounted) setSelectedTeamsLoading(false);
+      }
+    };
+
+    loadSelectedTeams();
+
+    return () => {
+      mounted = false;
+    };
+  }, [challengeId, params.teamIds]);
+
   const selectedTeams = useMemo(() => {
     return availableTeams.filter((team) => selectedTeamIds.includes(team.id));
   }, [availableTeams, selectedTeamIds]);
+
+  const filteredTeamResults = useMemo(() => {
+    const q = teamSearch.trim().toLowerCase();
+
+    const sorted = [...availableTeams].sort((a, b) => {
+      const aSelected = selectedTeamIds.includes(a.id) ? 1 : 0;
+      const bSelected = selectedTeamIds.includes(b.id) ? 1 : 0;
+      if (aSelected !== bSelected) return bSelected - aSelected;
+      return a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
+    });
+
+    if (!q) return sorted;
+
+    return sorted.filter((team) => {
+      const name = String(team.name ?? '').toLowerCase();
+      const id = String(team.id ?? '');
+      return name.includes(q) || id.includes(q);
+    });
+  }, [availableTeams, selectedTeamIds, teamSearch]);
 
   const toggleTeam = (teamId) => {
     setSelectedTeamIds((prev) =>
@@ -280,8 +332,13 @@ export default function UpdateChallengeScreen() {
       return;
     }
 
+    if (!challengeId || Number.isNaN(challengeId)) {
+      showError('Ungültige Challenge-ID.');
+      return;
+    }
+
     if (!isValidHHMM(startTime) || !isValidHHMM(endTime)) {
-      showError('Bitte Zeiten im Format HH:mm eingeben (z.B. 08:30).');
+      showError('Bitte Zeiten im Format HH:mm eingeben.');
       return;
     }
 
@@ -294,7 +351,6 @@ export default function UpdateChallengeScreen() {
     }
 
     const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors].filter(Boolean);
-
     if (allErrors.length > 0) {
       allErrors.forEach((error, i) => setTimeout(() => showError(error), i * 900));
       return;
@@ -322,8 +378,8 @@ export default function UpdateChallengeScreen() {
       });
       router.replace('/challenges');
     } catch (error) {
-      showError(error?.message || 'Challenge konnte nicht aktualisiert werden!');
       console.error(error);
+      showError(error?.message || 'Challenge konnte nicht aktualisiert werden!');
     } finally {
       setLoading(false);
     }
@@ -386,25 +442,30 @@ export default function UpdateChallengeScreen() {
           <Pressable
             onPress={() => setTeamModalOpen(true)}
             style={styles.selectorPill}
-            disabled={loading || teamsLoading}
+            disabled={loading || teamsLoading || selectedTeamsLoading}
           >
-            <Text style={[styles.selectorText, selectedTeams.length === 0 && { color: '#8A9590' }]}>
-              {teamsLoading
-                ? 'Teams werden geladen...'
-                : selectedTeams.length > 0
-                  ? `${selectedTeams.length} Team(s) ausgewählt`
-                  : 'Teams auswählen'}
-            </Text>
-            <Ionicons name="people-outline" size={18} color={COLORS.accent} />
+            <View style={styles.selectorLeft}>
+              <Ionicons name="people-outline" size={18} color={COLORS.accent} />
+              <Text style={[styles.selectorText, selectedTeams.length === 0 && styles.selectorPlaceholder]}>
+                {teamsLoading || selectedTeamsLoading
+                  ? 'Teams werden geladen...'
+                  : selectedTeams.length > 0
+                    ? `${selectedTeams.length} Teams ausgewählt`
+                    : 'Teams auswählen'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.sub} />
           </Pressable>
 
           {selectedTeams.length > 0 && (
             <View style={styles.chipsWrap}>
               {selectedTeams.map((team) => (
                 <View key={team.id} style={styles.chip}>
-                  <Text style={styles.chipText}>{team.name}</Text>
-                  <Pressable onPress={() => toggleTeam(team.id)} hitSlop={8}>
-                    <Ionicons name="close" size={16} color={COLORS.text} />
+                  <Text style={styles.chipText} numberOfLines={1}>
+                    {team.name}
+                  </Text>
+                  <Pressable onPress={() => toggleTeam(team.id)} hitSlop={8} disabled={loading}>
+                    <Ionicons name="close" size={15} color={COLORS.text} />
                   </Pressable>
                 </View>
               ))}
@@ -415,8 +476,8 @@ export default function UpdateChallengeScreen() {
             <View style={{ flex: 1 }}>
               <FieldLabel>Startdatum</FieldLabel>
               <Pressable onPress={() => openCalendar('start')} style={styles.datePill}>
-                <Text style={[styles.dateText, !startDate && { color: '#8A9590' }]}>
-                  {startDate || 'Start-Datum auswählen'}
+                <Text style={[styles.dateText, !startDate && styles.selectorPlaceholder]}>
+                  {startDate || 'Auswählen'}
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
               </Pressable>
@@ -425,8 +486,8 @@ export default function UpdateChallengeScreen() {
             <View style={{ flex: 1 }}>
               <FieldLabel>Enddatum</FieldLabel>
               <Pressable onPress={() => openCalendar('end')} style={styles.datePill}>
-                <Text style={[styles.dateText, !endDate && { color: '#8A9590' }]}>
-                  {endDate || 'End-Datum auswählen'}
+                <Text style={[styles.dateText, !endDate && styles.selectorPlaceholder]}>
+                  {endDate || 'Auswählen'}
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
               </Pressable>
@@ -463,31 +524,27 @@ export default function UpdateChallengeScreen() {
             <Pressable
               onPress={() => router.back()}
               disabled={loading}
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                pressed && styles.pressed,
-                loading && styles.disabled,
-              ]}
+              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed, loading && styles.disabled]}
             >
               <Text style={styles.secondaryBtnText}>Abbrechen</Text>
             </Pressable>
 
             <Pressable
               onPress={handleUpdate}
-              disabled={loading}
+              disabled={loading || selectedTeamsLoading}
               style={({ pressed }) => [
                 styles.primaryBtn,
                 pressed && styles.pressed,
-                loading && styles.disabled,
+                (loading || selectedTeamsLoading) && styles.disabled,
               ]}
             >
               {loading ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.loadingBtnContent}>
                   <ActivityIndicator color="#fff" />
-                  <Text style={styles.primaryBtnText}>Aktualisieren…</Text>
+                  <Text style={styles.primaryBtnText}>Speichern…</Text>
                 </View>
               ) : (
-                <Text style={styles.primaryBtnText}>Aktualisieren</Text>
+                <Text style={styles.primaryBtnText}>Speichern</Text>
               )}
             </Pressable>
           </View>
@@ -502,33 +559,63 @@ export default function UpdateChallengeScreen() {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setTeamModalOpen(false)}>
           <Pressable style={styles.teamModalCard} onPress={() => {}}>
-            <Text style={styles.teamModalTitle}>Teams auswählen</Text>
+            <View style={styles.modalTopRow}>
+              <Text style={styles.teamModalTitle}>Teams auswählen</Text>
+              <Pressable onPress={() => setTeamModalOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={COLORS.text} />
+              </Pressable>
+            </View>
 
-            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
-              {availableTeams.map((team) => {
-                const selected = selectedTeamIds.includes(team.id);
+            <View style={styles.searchBoxWrap}>
+              <Ionicons name="search-outline" size={18} color={COLORS.sub} />
+              <TextInput
+                value={teamSearch}
+                onChangeText={setTeamSearch}
+                placeholder="Team suchen…"
+                placeholderTextColor="#8A9590"
+                style={styles.searchInput}
+              />
+              {teamSearch.trim().length > 0 && (
+                <Pressable onPress={() => setTeamSearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color={COLORS.sub} />
+                </Pressable>
+              )}
+            </View>
 
-                return (
-                  <Pressable
-                    key={team.id}
-                    style={[styles.teamRow, selected && styles.teamRowSelected]}
-                    onPress={() => toggleTeam(team.id)}
-                  >
-                    <Text style={[styles.teamRowText, selected && styles.teamRowTextSelected]}>
-                      {team.name}
-                    </Text>
-                    <Ionicons
-                      name={selected ? 'checkbox' : 'square-outline'}
-                      size={22}
-                      color={selected ? COLORS.accent : COLORS.sub}
-                    />
-                  </Pressable>
-                );
-              })}
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {teamsLoading ? (
+                <View style={styles.modalCenterState}>
+                  <ActivityIndicator size="small" color={COLORS.accent} />
+                  <Text style={styles.stateText}>Teams werden geladen...</Text>
+                </View>
+              ) : filteredTeamResults.length === 0 ? (
+                <View style={styles.modalCenterState}>
+                  <Text style={styles.stateText}>Keine Teams gefunden.</Text>
+                </View>
+              ) : (
+                filteredTeamResults.map((team) => {
+                  const selected = selectedTeamIds.includes(team.id);
+
+                  return (
+                    <Pressable
+                      key={team.id}
+                      style={[styles.teamRow, selected && styles.teamRowSelected]}
+                      onPress={() => toggleTeam(team.id)}
+                    >
+                      <Text style={styles.teamRowText}>{team.name}</Text>
+                      <Ionicons
+                        name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={22}
+                        color={selected ? COLORS.accent : COLORS.sub}
+                      />
+                    </Pressable>
+                  );
+                })
+              )}
             </ScrollView>
 
             <Pressable style={styles.applyBtn} onPress={() => setTeamModalOpen(false)}>
-              <Text style={styles.applyBtnText}>Übernehmen</Text>
+              <Text style={styles.applyBtnText}>Fertig</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -636,7 +723,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     letterSpacing: 0.2,
     textAlign: 'center',
-    paddingHorizontal: 56,
   },
 
   formCard: {
@@ -679,19 +765,28 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: COLORS.inputBg,
     borderRadius: 18,
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 14,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  selectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
+    flex: 1,
+    paddingRight: 10,
   },
   selectorText: {
     fontSize: 15,
     color: COLORS.text,
-    fontWeight: '600',
+    fontWeight: '700',
     flexShrink: 1,
+  },
+  selectorPlaceholder: {
+    color: '#8A9590',
   },
 
   chipsWrap: {
@@ -704,20 +799,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(85,128,92,0.10)',
+    backgroundColor: COLORS.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(85,128,92,0.20)',
+    borderColor: COLORS.accentBorder,
     borderRadius: 999,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 12,
+    maxWidth: '100%',
   },
   chipText: {
     color: COLORS.text,
     fontWeight: '700',
     fontSize: 13,
+    maxWidth: 180,
   },
 
-  twoCol: { flexDirection: 'row', gap: 12 },
+  twoCol: {
+    flexDirection: 'row',
+    gap: 12,
+  },
 
   datePill: {
     borderWidth: 1,
@@ -735,11 +835,15 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 15,
     color: COLORS.text,
-    fontWeight: '600',
+    fontWeight: '700',
     flexShrink: 1,
   },
 
-  buttonRow: { flexDirection: 'row', gap: 12, marginTop: 6 },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 6,
+  },
   primaryBtn: {
     flex: 1,
     backgroundColor: COLORS.accent,
@@ -753,8 +857,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 3,
   },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15, letterSpacing: 0.2 },
-
+  primaryBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
   secondaryBtn: {
     flex: 1,
     backgroundColor: '#F9FAFB',
@@ -765,10 +873,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryBtnText: { color: COLORS.text, fontWeight: '700', fontSize: 15 },
+  secondaryBtnText: {
+    color: COLORS.text,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  loadingBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
 
-  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
-  disabled: { opacity: 0.6 },
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  disabled: {
+    opacity: 0.6,
+  },
 
   modalOverlay: {
     flex: 1,
@@ -787,15 +909,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
+  modalTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   teamModalTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: COLORS.text,
-    marginBottom: 14,
-    textAlign: 'center',
   },
+
+  searchBoxWrap: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    minHeight: 46,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.text,
+    paddingVertical: 10,
+  },
+
+  modalCenterState: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  stateText: {
+    color: COLORS.sub,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   teamRow: {
-    minHeight: 52,
+    minHeight: 56,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 16,
@@ -817,9 +975,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     flex: 1,
-  },
-  teamRowTextSelected: {
-    color: COLORS.text,
+    paddingRight: 8,
   },
 
   calendarCard: {
@@ -850,13 +1006,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calHeaderTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  calHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.text,
+  },
 
-  weekRow: { flexDirection: 'row', marginBottom: 6 },
-  weekCell: { flex: 1, textAlign: 'center', fontWeight: '800', color: COLORS.sub, fontSize: 12 },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  weekCell: {
+    flex: 1,
+    textAlign: 'center',
+    fontWeight: '800',
+    color: COLORS.sub,
+    fontSize: 12,
+  },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCellWrap: { width: '14.28%', aspectRatio: 1, padding: 4 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCellWrap: {
+    width: '14.28%',
+    aspectRatio: 1,
+    padding: 4,
+  },
   dayCellInner: {
     flex: 1,
     justifyContent: 'center',
@@ -866,12 +1042,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(15,20,17,0.06)',
   },
-  dayCellText: { fontSize: 13, color: COLORS.text, fontWeight: '800' },
-  dayOutWrap: { backgroundColor: 'rgba(15,20,17,0.02)' },
-  dayOutText: { color: 'rgba(15,20,17,0.25)' },
-  dayTodayWrap: { borderColor: 'rgba(85,128,92,0.30)', backgroundColor: 'rgba(85,128,92,0.06)' },
-  daySelectedWrap: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  daySelectedText: { color: '#fff' },
+  dayCellText: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontWeight: '800',
+  },
+  dayOutWrap: {
+    backgroundColor: 'rgba(15,20,17,0.02)',
+  },
+  dayOutText: {
+    color: 'rgba(15,20,17,0.25)',
+  },
+  dayTodayWrap: {
+    borderColor: 'rgba(85,128,92,0.30)',
+    backgroundColor: 'rgba(85,128,92,0.06)',
+  },
+  daySelectedWrap: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  daySelectedText: {
+    color: '#fff',
+  },
 
   applyBtn: {
     backgroundColor: COLORS.accent,
@@ -880,7 +1072,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 14,
   },
-  applyBtnText: { color: 'white', fontWeight: '800', fontSize: 15 },
+  applyBtnText: {
+    color: 'white',
+    fontWeight: '800',
+    fontSize: 15,
+  },
 
   cancelBtn: {
     marginTop: 10,
@@ -891,5 +1087,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  cancelBtnText: { color: COLORS.text, fontWeight: '800', fontSize: 14 },
+  cancelBtnText: {
+    color: COLORS.text,
+    fontWeight: '800',
+    fontSize: 14,
+  },
 });
