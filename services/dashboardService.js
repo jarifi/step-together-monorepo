@@ -82,25 +82,30 @@ export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
-  const logs = await getUserWeekStepLogs(
-    challengeId,
-    userId,
-    toIsoDate(weekStart),
-    toIsoDate(weekEnd)
-  );
+  try {
+    const logs = await getUserWeekStepLogs(
+      challengeId,
+      userId,
+      toIsoDate(weekStart),
+      toIsoDate(weekEnd)
+    );
 
-  return (logs ?? []).map((x) => {
-    const d = fromIsoLocal(x.date);
-    const dateOnly = toDateOnly(x.date);
+    return (logs ?? []).map((x) => {
+      const d = fromIsoLocal(x.date);
+      const dateOnly = toDateOnly(x.date);
 
-    return {
-      date: dateOnly ?? (d ? toIsoDate(d) : null),
-      dayOfWeek:
-        x.dayOfWeek || (d ? d.toLocaleDateString("en-US", { weekday: "long" }) : ""),
-      numberOfSteps: Number(x.numberOfSteps ?? 0),
-      step_log_id: getStepLogId(x),
-    };
-  });
+      return {
+        date: dateOnly ?? (d ? toIsoDate(d) : null),
+        dayOfWeek:
+          x.dayOfWeek || (d ? d.toLocaleDateString("en-US", { weekday: "long" }) : ""),
+        numberOfSteps: Number(x.numberOfSteps ?? 0),
+        step_log_id: getStepLogId(x),
+      };
+    });
+  } catch (err) {
+    console.error("Error fetching week steps:", err);
+    return [];
+  }
 };
 
 // ---------------------------------------------------------------------------

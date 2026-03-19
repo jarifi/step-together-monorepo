@@ -8,6 +8,7 @@ export const stripTime = (d) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 export const toIsoDate = (d) => {
+  if (!d) return null;
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -26,7 +27,9 @@ export const fromIsoLocal = (s) => {
 // "YYYY-MM-DD" | "YYYY-MM-DDTHH:mm:ss" -> "YYYY-MM-DDT00:00:00"
 export const toIsoDateTimeMidnight = (iso) => {
   const base = String(iso).split('T')[0];
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(base)) throw new Error(`Invalid iso date: ${iso}`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(base)) {
+    throw new Error(`Invalid iso date: ${iso}`);
+  }
   return `${base}T00:00:00`;
 };
 
@@ -38,6 +41,8 @@ export const inSameDayIso = (lhsIso, rhsIso) => {
 };
 
 export const sameDay = (a, b) =>
+  !!a &&
+  !!b &&
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
@@ -50,7 +55,7 @@ export const startOfWeek = (d) => {
 };
 
 export const firstOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
-export const lastOfMonth  = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
+export const lastOfMonth = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
 
 export const daysBetween = (a, b) =>
   Math.ceil((stripTime(b).getTime() - stripTime(a).getTime()) / MS_PER_DAY);
@@ -82,23 +87,23 @@ export const dayLabelEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday
 const normalizeDayOfWeek = (val) => {
   if (!val) return null;
   const s = String(val).toLowerCase();
+
   let idx = dayLabelEn.findIndex((d) => d.toLowerCase() === s);
   if (idx >= 0) return dayLabelDe[idx];
+
   idx = dayLabelDe.findIndex((d) => d.toLowerCase() === s);
   return idx >= 0 ? dayLabelDe[idx] : null;
 };
 
 // Woche Mo..So exakt zur Pivot-Woche
 export const parseStepsThisWeek = (raw, pivotMonday) => {
- 
   const baseMonday = startOfWeek(pivotMonday || new Date());
   const sums = new Array(7).fill(0);
-  
-  
+
   const addAtIdx = (idx, v) => {
     if (idx >= 0 && idx < 7) {
       const n = Math.floor(Number(v) || 0);
-     sums[idx] = n; // Set the value instead of adding to it
+      sums[idx] = n;
     }
   };
 
@@ -112,8 +117,8 @@ export const parseStepsThisWeek = (raw, pivotMonday) => {
 
         if (e?.date) {
           const d = fromIsoLocal(e.date);
-          if (d) {
-            if (startOfWeek(d).getTime() === baseMonday.getTime()) idx = (d.getDay() + 6) % 7;
+          if (d && startOfWeek(d).getTime() === baseMonday.getTime()) {
+            idx = (d.getDay() + 6) % 7;
           }
         }
 
@@ -127,88 +132,107 @@ export const parseStepsThisWeek = (raw, pivotMonday) => {
     }
   }
 
- 
-  const result = sums.map((n, i) => {
+  return sums.map((n, i) => {
     const d = new Date(baseMonday);
     d.setDate(baseMonday.getDate() + i);
-    return { date: toIsoDate(d), dayOfWeek: dayLabelDe[i], numberOfSteps: n };
+    return {
+      date: toIsoDate(d),
+      dayOfWeek: dayLabelDe[i],
+      numberOfSteps: n,
+    };
   });
-  
-  return result;
 };
 
 // ======================
 // Main Mapper
 // ======================
 
-export const toDate = (iso) => (iso ? new Date(iso) : null);
+export const toDate = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
 
 export const mapHomeInitToDashboard = (data, pivotMonday) => {
   if (!data) return null;
 
-  const { user = {}, team = {}, challenge: rawChallenge = {} } = data;
+  const user = data?.user ?? null;
+  const team = data?.team ?? null;
+  const rawChallenge = data?.challenge ?? null;
 
-  // optional: Backend könnte eine separate Upcoming-Challenge schicken
   const upcoming =
-    data.upcomingChallenge ||
-    data.nextChallenge ||
-    data.upcoming_challenge ||
+    data?.upcomingChallenge ||
+    data?.nextChallenge ||
+    data?.upcoming_challenge ||
     null;
 
-  // 1. bevorzugt: offene Challenge
-  let challenge = rawChallenge && rawChallenge.state === 'open'
-    ? rawChallenge
-    : null;
+  let challenge =
+    rawChallenge && rawChallenge?.state === 'open'
+      ? rawChallenge
+      : null;
 
-  // 2. Fallback: upcoming-Challenge, falls vorhanden
-  if (!challenge && upcoming && upcoming.state === 'upcoming') {
+  if (!challenge && upcoming && upcoming?.state === 'upcoming') {
     challenge = upcoming;
   }
 
-  // 3. letzter Fallback: falls Backend einfach irgendeine Challenge in "challenge" legt
-  if (!challenge && rawChallenge && (rawChallenge.id != null || rawChallenge.name)) {
+  if (!challenge && rawChallenge && (rawChallenge?.id != null || rawChallenge?.name)) {
     challenge = rawChallenge;
   }
 
-  // KEIN hartes return null mehr nur wegen Challenge!
-  const start = toDate(challenge?.startDate);
-  const end   = toDate(challenge?.endDate);
-  const now   = new Date();
+  const start = toDate(challenge?.startDate ?? challenge?.start_date);
+  const end = toDate(challenge?.endDate ?? challenge?.end_date);
+  const now = new Date();
 
   let daysLeft = 0;
   let timeProgress = 0;
+
   if (start && end && end > start) {
     const span = end.getTime() - start.getTime();
     timeProgress = clamp01((now.getTime() - start.getTime()) / span);
     daysLeft = Math.max(0, daysBetween(now, end));
   }
 
-  const distAny = challenge?.distanceKm ?? challenge?.distance;
-  const distanceKm = Number.isFinite(+distAny) ? +distAny : 0;
+  const distAny = challenge?.distanceKm ?? challenge?.distance ?? challenge?.distance_km;
+  const distanceKm = Number.isFinite(Number(distAny)) ? Number(distAny) : 0;
 
   return {
     user: {
-      id: Number.isFinite(+user.id) ? +user.id : null,
-      name: user.name || '',
-      email: user.email || '',
-      stepLength: Number.isFinite(+user.stepLength) ? +user.stepLength : 0,
+      id: Number.isFinite(Number(user?.id)) ? Number(user?.id) : null,
+      name: user?.name || '',
+      email: user?.email || '',
+      stepLength: Number.isFinite(Number(user?.stepLength ?? user?.step_length))
+        ? Number(user?.stepLength ?? user?.step_length)
+        : 0,
     },
     team: {
-      id: Number.isFinite(+team.id) ? +team.id : null,
-      name: team.name || '',
+      id: Number.isFinite(Number(team?.id)) ? Number(team?.id) : null,
+      name: team?.name || '',
     },
-    challenge: {
-      id: Number.isFinite(+(challenge?.id)) ? +challenge.id : null,
-      name: challenge?.name || '',
-      startLocation: challenge?.startLocation || '',
-      targetLocation: challenge?.targetLocation || '',
-      distanceKm,
-      startDate: start,
-      endDate: end,
-      state: challenge?.state || '',
-      daysLeft,
-      timeProgress,
-    },
-    steps_this_week: parseStepsThisWeek(data.steps_this_week, pivotMonday),
+    challenge: challenge
+      ? {
+          id: Number.isFinite(Number(challenge?.id)) ? Number(challenge?.id) : null,
+          name: challenge?.name || '',
+          startLocation: challenge?.startLocation ?? challenge?.start_location ?? '',
+          targetLocation: challenge?.targetLocation ?? challenge?.target_location ?? '',
+          distanceKm,
+          startDate: start,
+          endDate: end,
+          state: challenge?.state || '',
+          daysLeft,
+          timeProgress,
+        }
+      : {
+          id: null,
+          name: '',
+          startLocation: '',
+          targetLocation: '',
+          distanceKm: 0,
+          startDate: null,
+          endDate: null,
+          state: '',
+          daysLeft: 0,
+          timeProgress: 0,
+        },
+    steps_this_week: parseStepsThisWeek(data?.steps_this_week, pivotMonday),
   };
 };
