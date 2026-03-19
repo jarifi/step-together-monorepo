@@ -1,4 +1,4 @@
-from pydantic import Field, StringConstraints, field_validator, ValidationInfo
+from pydantic import BaseModel, Field, StringConstraints, field_validator, ValidationInfo
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Annotated
@@ -35,7 +35,6 @@ class ChallengeBase(CamelCaseBaseModel):
 
 class ChallengeCreate(ChallengeBase):
     creator_id: int
-    team_ids: Optional[list[int]] = None
 
 
 class ChallengeUpdate(CamelCaseBaseModel):
@@ -46,7 +45,6 @@ class ChallengeUpdate(CamelCaseBaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     is_deleted: Optional[bool] = None
-    team_ids: Optional[list[int]] = None
 
 
 class ChallengeResponse(ChallengeBase):
@@ -54,8 +52,7 @@ class ChallengeResponse(ChallengeBase):
     creator_id: int
     created_at: datetime
     updated_at: datetime
-    state: ChallengeState
-    team_ids: list[int] = []
+    state: ChallengeState  # 👈 computed, read-only
 
 
 class ChallengeHomeResponse(CamelCaseBaseModel):
