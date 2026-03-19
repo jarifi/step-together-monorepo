@@ -69,29 +69,3 @@ export const getTeamMembers = async (teamId) => {
     return [];
   }
 };
-
-export const getAllTeams = async (pageSize = 100) => {
-  try {
-    let skip = 0;
-    let allTeams = [];
-    let hasMore = true;
-
-    while (hasMore) {
-      const chunk = await getTeams(skip, pageSize);
-      const safeChunk = Array.isArray(chunk) ? chunk : [];
-
-      allTeams = [...allTeams, ...safeChunk];
-
-      if (safeChunk.length < pageSize) {
-        hasMore = false;
-      } else {
-        skip += safeChunk.length;
-      }
-    }
-
-    return allTeams;
-  } catch (err) {
-    console.error('Error fetching all teams:', err);
-    return [];
-  }
-};

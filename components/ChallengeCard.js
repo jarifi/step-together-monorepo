@@ -45,17 +45,11 @@ const ChallengeCard = ({
 
   const status = useMemo(() => getStatus(challenge?.state), [challenge?.state]);
 
-  const teamCount = useMemo(() => {
-    if (typeof challenge?.teamCount === 'number') return challenge.teamCount;
-    if (typeof challenge?.team_count === 'number') return challenge.team_count;
-    if (Array.isArray(challenge?.teams)) return challenge.teams.length;
-    if (Array.isArray(challenge?.challengeTeams)) return challenge.challengeTeams.length;
-    return 0;
-  }, [challenge]);
-
   return (
     <View style={styles.card}>
+      {/* LEFT */}
       <View style={styles.info}>
+        {/* Title can wrap (2 lines) */}
         <Text style={styles.title} numberOfLines={2}>
           {challenge.name}
         </Text>
@@ -73,13 +67,6 @@ const ChallengeCard = ({
         </View>
 
         <View style={styles.metaRow}>
-          <MaterialIcons name="groups" size={16} color="#6B7280" />
-          <Text style={styles.metaText}>
-            {teamCount} {teamCount === 1 ? 'Team' : 'Teams'}
-          </Text>
-        </View>
-
-        <View style={styles.metaRow}>
           <MaterialIcons name="event" size={16} color="#6B7280" />
           <Text style={styles.metaText} numberOfLines={2}>
             {formatDateTime(challenge.startDate)} – {formatDateTime(challenge.endDate)}
@@ -87,15 +74,7 @@ const ChallengeCard = ({
         </View>
 
         <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusPill,
-              {
-                borderColor: `${status.color}33`,
-                backgroundColor: `${status.color}14`,
-              },
-            ]}
-          >
+          <View style={[styles.statusPill, { borderColor: `${status.color}33`, backgroundColor: `${status.color}14` }]}>
             <MaterialIcons name={status.icon} size={16} color={status.color} />
             <Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
           </View>
@@ -117,12 +96,7 @@ const ChallengeCard = ({
           <>
             <Pressable
               onPress={onUpdate}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.updateButton,
-                styles.stackSpace,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.iconButton, styles.updateButton, styles.stackSpace, pressed && styles.pressed]}
               hitSlop={8}
             >
               <MaterialIcons name="edit" size={20} color="#fff" />
@@ -130,12 +104,7 @@ const ChallengeCard = ({
 
             <Pressable
               onPress={() => setModalVisible(true)}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.deleteButton,
-                styles.stackSpace,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.iconButton, styles.deleteButton, styles.stackSpace, pressed && styles.pressed]}
               hitSlop={8}
             >
               <MaterialIcons name="delete" size={20} color="#fff" />
@@ -144,6 +113,7 @@ const ChallengeCard = ({
         )}
       </View>
 
+      {/* DELETE MODAL */}
       <Modal
         animationType="fade"
         transparent
@@ -264,11 +234,11 @@ const styles = StyleSheet.create({
   },
 
   updateButton: {
-    backgroundColor: '#5B8EDB',
+    backgroundColor: '#5B8EDB', 
   },
 
   deleteButton: {
-    backgroundColor: '#E57373',
+    backgroundColor: '#E57373', 
   },
 
   pressed: {
