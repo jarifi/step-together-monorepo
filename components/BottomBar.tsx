@@ -32,7 +32,7 @@ export default function BottomBar({ pathname }: Props) {
 
   const tabs = useMemo(
     () => [
-      { key: 'dashboard', label: 'Übersicht', icon: 'heart', path: '/pedometer' as const },
+      { key: 'dashboard', label: 'Übersicht', icon: 'heart', path: '/dashboard' as const },
       { key: 'challenge', label: 'Meine Challenge', icon: 'people', path: '/myChallenge' as const },
     ],
     []

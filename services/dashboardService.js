@@ -53,17 +53,15 @@ export const getHomeInit = async () => {
 // STEP LOG HELPERS
 // ---------------------------------------------------------------------------
 
-export const listUserStepLogs = async (userId) => {
-  if (!userId) throw new Error("userId required");
-  return await apiGet(`/step_logs/user/${userId}`);
+export const listMyStepLogs = async () => {
+  return await apiGet(`/step_logs/user`);
 };
 
-export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) => {
+export const getMyWeekStepLogs = async (challengeId, fromISO, toISO) => {
   if (!challengeId) throw new Error("challengeId required");
-  if (!userId) throw new Error("userId required");
   if (!fromISO || !toISO) throw new Error("from/to ISO required");
 
-  const path = `/step_logs/challenge/${challengeId}/user/${userId}?from=${fromISO}&to=${toISO}`;
+  const path = `/step_logs/challenge/${challengeId}/user?from=${fromISO}&to=${toISO}`;
   return await apiGet(path);
 };
 
@@ -71,9 +69,8 @@ export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) =
 // WEEK STEPS (mapping + DTO normalization)
 // ---------------------------------------------------------------------------
 
-export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
+export const getWeekSteps = async (challengeId, weekStartISO) => {
   if (!challengeId) throw new Error("challengeId required");
-  if (!userId) throw new Error("userId required");
   if (!weekStartISO) throw new Error("weekStartISO required");
 
   const weekStart = fromIsoLocal(weekStartISO);
@@ -83,9 +80,8 @@ export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
   weekEnd.setDate(weekStart.getDate() + 6);
 
   try {
-    const logs = await getUserWeekStepLogs(
+    const logs = await getMyWeekStepLogs(
       challengeId,
-      userId,
       toIsoDate(weekStart),
       toIsoDate(weekEnd)
     );
@@ -109,18 +105,16 @@ export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
 };
 
 // ---------------------------------------------------------------------------
-// UPSERT STEP LOG (ABSOLUTE TOTAL!) + avoid iOS issues with 307/308 redirects
+// UPSERT STEP LOG
 // ---------------------------------------------------------------------------
 
 const isRedirectStatus = (status) => status === 307 || status === 308;
 
 const putNoRedirect = async (pathNoSlash, body) => {
   try {
-    // try without trailing slash
     return await apiPut(pathNoSlash, body);
   } catch (e) {
     if (isRedirectStatus(e?.status)) {
-      // retry with trailing slash
       return await apiPut(`${pathNoSlash}/`, body);
     }
     throw e;
@@ -138,23 +132,19 @@ const postNoRedirect = async (pathNoSlash, body) => {
   }
 };
 
-export const upsertStepsForDate = async (userId, dateISO, absoluteSteps, context) => {
-  if (!userId) throw new Error("userId required");
+export const upsertStepsForDate = async (dateISO, absoluteSteps, context) => {
   if (!dateISO) throw new Error("dateISO required");
 
   const numberOfSteps = toNonNegativeInt(absoluteSteps);
 
-  // Check for existing StepLog for that day
-  const all = await listUserStepLogs(userId);
+  const all = await listMyStepLogs();
   const existing = (all ?? []).find((log) => inSameDayIso(log.date, dateISO));
   const existingId = getStepLogId(existing);
 
-  // --- UPDATE ---
   if (existingId) {
     return await putNoRedirect(`/step_logs/${existingId}`, { numberOfSteps });
   }
 
-  // --- CREATE ---
   const dateUtcMidnight = toIsoUtcMidnight(dateISO) ?? toIsoDateTimeMidnight(dateISO);
 
   return await postNoRedirect(`/step_logs/`, {
