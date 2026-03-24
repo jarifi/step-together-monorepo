@@ -95,6 +95,8 @@ const toIsoUtcMidnight = (d: Date) => {
   return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
 };
 
+const isAbortError = (err: any) => err?.name === 'AbortError';
+
 const Dashboard: React.FC = () => {
   const router = useRouter();
 
@@ -121,6 +123,8 @@ const Dashboard: React.FC = () => {
 
   const subscriptionRef = useRef<any>(null);
   const isMountedRef = useRef(true);
+  const initAbortRef = useRef<AbortController | null>(null);
+  const weekAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -132,6 +136,11 @@ const Dashboard: React.FC = () => {
         subscriptionRef.current.remove();
         subscriptionRef.current = null;
       }
+
+      initAbortRef.current?.abort();
+      weekAbortRef.current?.abort();
+      initAbortRef.current = null;
+      weekAbortRef.current = null;
     };
   }, []);
 
@@ -189,6 +198,10 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const loadInitial = useCallback(async () => {
+    initAbortRef.current?.abort();
+    const controller = new AbortController();
+    initAbortRef.current = controller;
+
     setLoading(true);
     setErrorMsg(null);
 
@@ -198,18 +211,22 @@ const Dashboard: React.FC = () => {
         setIsPedometerAvailable(available);
       }
 
-      const raw = await getHomeInit();
+      const raw = await getHomeInit(controller.signal);
       if (!isMountedRef.current) return;
 
       const pivot = startOfWeek(new Date());
       const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
       initFromMapped(mapped);
     } catch (e: any) {
+      if (isAbortError(e)) return;
       if (!isMountedRef.current) return;
       setErrorMsg(e?.message ?? 'Unbekannter Fehler');
       setVm(null);
     } finally {
       if (isMountedRef.current) setLoading(false);
+      if (initAbortRef.current === controller) {
+        initAbortRef.current = null;
+      }
     }
   }, [initFromMapped]);
 
@@ -221,9 +238,13 @@ const Dashboard: React.FC = () => {
     async (weekStart: Date, pivotDay: Date) => {
       if (!vm?.user?.id || !vm?.challenge?.id) return;
 
+      weekAbortRef.current?.abort();
+      const controller = new AbortController();
+      weekAbortRef.current = controller;
+
       setWeekLoading(true);
       try {
-        const resp = await getWeekSteps(vm.challenge.id!, toISO(weekStart));
+        const resp = await getWeekSteps(vm.challenge.id!, toISO(weekStart), controller.signal);
         if (!isMountedRef.current) return;
 
         const parsed = parseStepsThisWeek(Array.isArray(resp) ? resp : [], weekStart);
@@ -234,7 +255,8 @@ const Dashboard: React.FC = () => {
 
         const idx = (pivotDay.getDay() + 6) % 7;
         setStepsToday(arr[idx] ?? 0);
-      } catch {
+      } catch (e) {
+        if (isAbortError(e)) return;
         if (!isMountedRef.current) return;
 
         const empty = [...EMPTY_WEEK];
@@ -245,6 +267,9 @@ const Dashboard: React.FC = () => {
         setStepsToday(empty[idx] ?? 0);
       } finally {
         if (isMountedRef.current) setWeekLoading(false);
+        if (weekAbortRef.current === controller) {
+          weekAbortRef.current = null;
+        }
       }
     },
     [vm?.user?.id, vm?.challenge?.id]

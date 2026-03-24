@@ -8,6 +8,9 @@ import {
   toIsoDateTimeMidnight,
 } from "./dto/dashboardDto";
 
+const isUnauthorizedError = (err) => Number(err?.status) === 401;
+const isAbortError = (err) => err?.name === "AbortError";
+
 // ---------------------------------------------------------------------------
 // SAFE HELPERS
 // ---------------------------------------------------------------------------
@@ -40,11 +43,16 @@ const toIsoUtcMidnight = (isoLike) => {
 // DASHBOARD INIT
 // ---------------------------------------------------------------------------
 
-export const getHomeInit = async () => {
+export const getHomeInit = async (signal) => {
   try {
-    return await apiGet("/users/user/dashboard/init");
+    return await apiGet("/users/user/dashboard/init", { signal });
   } catch (err) {
-    console.error("Error fetching home init:", err);
+    if (isAbortError(err)) {
+      throw err;
+    }
+    if (!isUnauthorizedError(err)) {
+      console.error("Error fetching home init:", err);
+    }
     return null;
   }
 };
@@ -57,19 +65,19 @@ export const listMyStepLogs = async () => {
   return await apiGet(`/step_logs/user`);
 };
 
-export const getMyWeekStepLogs = async (challengeId, fromISO, toISO) => {
+export const getMyWeekStepLogs = async (challengeId, fromISO, toISO, signal) => {
   if (!challengeId) throw new Error("challengeId required");
   if (!fromISO || !toISO) throw new Error("from/to ISO required");
 
   const path = `/step_logs/challenge/${challengeId}/user?from=${fromISO}&to=${toISO}`;
-  return await apiGet(path);
+  return await apiGet(path, { signal });
 };
 
 // ---------------------------------------------------------------------------
 // WEEK STEPS (mapping + DTO normalization)
 // ---------------------------------------------------------------------------
 
-export const getWeekSteps = async (challengeId, weekStartISO) => {
+export const getWeekSteps = async (challengeId, weekStartISO, signal) => {
   if (!challengeId) throw new Error("challengeId required");
   if (!weekStartISO) throw new Error("weekStartISO required");
 
@@ -83,7 +91,8 @@ export const getWeekSteps = async (challengeId, weekStartISO) => {
     const logs = await getMyWeekStepLogs(
       challengeId,
       toIsoDate(weekStart),
-      toIsoDate(weekEnd)
+      toIsoDate(weekEnd),
+      signal
     );
 
     return (logs ?? []).map((x) => {
@@ -99,7 +108,12 @@ export const getWeekSteps = async (challengeId, weekStartISO) => {
       };
     });
   } catch (err) {
-    console.error("Error fetching week steps:", err);
+    if (isAbortError(err)) {
+      throw err;
+    }
+    if (!isUnauthorizedError(err)) {
+      console.error("Error fetching week steps:", err);
+    }
     return [];
   }
 };

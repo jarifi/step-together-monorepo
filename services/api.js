@@ -1,7 +1,7 @@
 // file: services/api.js
 
 import Constants from 'expo-constants';
-import { getAccessToken, refreshAccessToken, removeTokens } from '../lib/auth';
+import { getAccessToken, getRefreshToken, refreshAccessToken, removeTokens } from '../lib/auth';
 
 const API_BASE_URL = String(Constants.expoConfig?.extra?.apiBaseUrl ?? '').replace(/\/+$/, '');
 
@@ -58,6 +58,9 @@ const logRes = (url, res) => {
   console.log(`⬅️ [API] ${res.status} ${res.statusText || ''} ${url}`);
 };
 
+const isUnauthorizedStatus = (status) => Number(status) === 401;
+const isAbortError = (err) => err?.name === 'AbortError';
+
 // --- Core fetch with auth and automatic refresh/retry ---
 const authedFetch = async (path, options = {}, retry = true) => {
   if (!API_BASE_URL) throw new Error('Missing API_BASE_URL (expo constants)');
@@ -68,9 +71,14 @@ const authedFetch = async (path, options = {}, retry = true) => {
 
   // Always load the latest token from storage
   let token = await getAccessToken();
-  if (token) {
-    options.headers.Authorization = `Bearer ${token}`;
+  if (!token) {
+    const err = new Error('Unauthorized');
+    err.status = 401;
+    err.payload = { detail: 'Missing access token' };
+    console.warn('🟠 [API] missing access token; skipping request:', url);
+    throw err;
   }
+  options.headers.Authorization = `Bearer ${token}`;
 
   // Default headers
   if (!options.headers['Content-Type'] && !(options.body instanceof FormData)) {
@@ -90,7 +98,11 @@ const authedFetch = async (path, options = {}, retry = true) => {
   try {
     res = await fetch(url, options);
   } catch (fetchErr) {
-    console.error('❌ [API] fetch() threw (network/SSL/etc):', fetchErr, 'URL:', url);
+    if (isAbortError(fetchErr)) {
+      console.warn('🟡 [API] request aborted:', url);
+    } else {
+      console.error('❌ [API] fetch() threw (network/SSL/etc):', fetchErr, 'URL:', url);
+    }
     throw fetchErr;
   }
 
@@ -99,6 +111,19 @@ const authedFetch = async (path, options = {}, retry = true) => {
 
   // If 401 and retry allowed => try refresh (single concurrent refresh)
   if (res.status === 401 && retry) {
+    const latestAccessToken = await getAccessToken();
+    const latestRefreshToken = await getRefreshToken();
+
+    // User likely logged out while request was in-flight: do not refresh.
+    if (!latestAccessToken || !latestRefreshToken) {
+      const payload = await tryParseJson(res);
+      const err = new Error('Unauthorized');
+      err.status = 401;
+      err.payload = payload;
+      console.warn('🟠 [API] 401 after logout/token-clear; skipping refresh');
+      throw err;
+    }
+
     console.warn('🟠 [API] 401 received, attempting token refresh…');
 
     if (isRefreshing) {
@@ -124,7 +149,7 @@ const authedFetch = async (path, options = {}, retry = true) => {
       try {
         await refreshPromise;
       } catch (err) {
-        console.error('🔴 [API] token refresh failed:', err);
+        console.warn('🟠 [API] token refresh failed:', err);
       }
     }
 
@@ -134,7 +159,7 @@ const authedFetch = async (path, options = {}, retry = true) => {
       const err = new Error('Unauthorized');
       err.status = 401;
       err.payload = payload;
-      console.error('🔴 [API] retry aborted: no new token', payload);
+      console.warn('🟠 [API] retry aborted: no new token', payload);
       throw err;
     }
 
@@ -151,7 +176,11 @@ const authedFetch = async (path, options = {}, retry = true) => {
     try {
       retryRes = await fetch(url, retryOptions);
     } catch (fetchErr2) {
-      console.error('❌ [API] retry fetch() threw:', fetchErr2, 'URL:', url);
+      if (isAbortError(fetchErr2)) {
+        console.warn('🟡 [API] retry request aborted:', url);
+      } else {
+        console.error('❌ [API] retry fetch() threw:', fetchErr2, 'URL:', url);
+      }
       throw fetchErr2;
     }
 
@@ -164,7 +193,11 @@ const authedFetch = async (path, options = {}, retry = true) => {
       );
       err.status = retryRes.status;
       err.payload = payload;
-      console.error('🔴 [API] retry failed:', err.status, payload);
+      if (isUnauthorizedStatus(err.status)) {
+        console.warn('🟠 [API] retry unauthorized:', err.status, payload);
+      } else {
+        console.error('🔴 [API] retry failed:', err.status, payload);
+      }
       throw err;
     }
     return payload;
@@ -180,7 +213,11 @@ const authedFetch = async (path, options = {}, retry = true) => {
     );
     err.status = res.status;
     err.payload = payload;
-    console.error('🔴 [API] request failed:', err.status, payload);
+    if (isUnauthorizedStatus(err.status)) {
+      console.warn('🟠 [API] unauthorized:', err.status, payload);
+    } else {
+      console.error('🔴 [API] request failed:', err.status, payload);
+    }
     throw err;
   }
 
@@ -188,7 +225,8 @@ const authedFetch = async (path, options = {}, retry = true) => {
 };
 
 // --- Public API helpers ---
-export const apiGet = async (path) => authedFetch(path, { method: 'GET' }, true);
+export const apiGet = async (path, options = {}) =>
+  authedFetch(path, { ...options, method: 'GET' }, true);
 
 export const apiPost = async (path, bodyObj = {}) => {
   const body = bodyObj instanceof FormData ? bodyObj : JSON.stringify(bodyObj);
@@ -215,7 +253,11 @@ export const publicGet = async (path) => {
   try {
     res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
   } catch (fetchErr) {
-    console.error('❌ [API] public fetch() threw:', fetchErr, 'URL:', url);
+    if (isAbortError(fetchErr)) {
+      console.warn('🟡 [API] public request aborted:', url);
+    } else {
+      console.error('❌ [API] public fetch() threw:', fetchErr, 'URL:', url);
+    }
     throw fetchErr;
   }
 
