@@ -1,5 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Pedometer } from 'expo-sensors';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,7 +9,6 @@ import {
   Modal,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -33,7 +33,7 @@ import styles from './styles/dashboardStyles';
 const { width: screenWidth } = Dimensions.get('window');
 
 export type StepsEntry = {
-  date: string; // YYYY-MM-DD
+  date: string;
   dayOfWeek: string;
   numberOfSteps: number;
 };
@@ -52,14 +52,13 @@ export type HomeInitDto = {
     endDate: Date | null;
     state: string;
     daysLeft?: number;
-    timeProgress?: number; // 0..1
+    timeProgress?: number;
   };
   steps_this_week?: StepsEntry[];
 };
 
 const EMPTY_WEEK = [0, 0, 0, 0, 0, 0, 0] as const;
 const FIX_STEP_LENGTH_M = 0.78;
-const MAX_STEP_DELTA = 100000;
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
   if (!entries || entries.length !== 7) return [...EMPTY_WEEK];
@@ -72,7 +71,7 @@ const buildCalendarGrid = (
   maxDate: Date | null
 ): { date: Date; inMonth: boolean; selectable: boolean }[] => {
   const first = firstOfMonth(month);
-  const firstWeekday = ((first.getDay() + 6) % 7) + 1; // 1..7, Mo=1
+  const firstWeekday = ((first.getDay() + 6) % 7) + 1;
   const start = new Date(first);
   start.setDate(first.getDate() - (firstWeekday - 1));
 
@@ -89,7 +88,6 @@ const buildCalendarGrid = (
   return cells;
 };
 
-// timezone-safe ISO at UTC midnight (prevents iPhone timezone date shifting)
 const toIsoUtcMidnight = (d: Date) => {
   const y = d.getFullYear();
   const m = d.getMonth();
@@ -97,16 +95,14 @@ const toIsoUtcMidnight = (d: Date) => {
   return new Date(Date.UTC(y, m, day, 0, 0, 0, 0)).toISOString();
 };
 
+const isAbortError = (err: any) => err?.name === 'AbortError';
+
 const Dashboard: React.FC = () => {
   const router = useRouter();
 
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const [modalVisible, setModalVisible] = useState(false);
-  const [stepInput, setStepInput] = useState('');
-  const [modalError, setModalError] = useState<string | null>(null);
 
   const [displayDate, setDisplayDate] = useState(new Date());
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date()));
@@ -120,19 +116,39 @@ const Dashboard: React.FC = () => {
 
   const [showExpiredWarning, setShowExpiredWarning] = useState(true);
 
+  const [isTracking, setIsTracking] = useState(false);
+  const [sessionSteps, setSessionSteps] = useState(0);
+  const [sessionStart, setSessionStart] = useState<number | null>(null);
+  const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
+
+  const subscriptionRef = useRef<any>(null);
   const isMountedRef = useRef(true);
+  const initAbortRef = useRef<AbortController | null>(null);
+  const weekAbortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     isMountedRef.current = true;
+
     return () => {
       isMountedRef.current = false;
+
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+        subscriptionRef.current = null;
+      }
+
+      initAbortRef.current?.abort();
+      weekAbortRef.current?.abort();
+      initAbortRef.current = null;
+      weekAbortRef.current = null;
     };
   }, []);
 
-  // ===== Challenge bounds =====
   const minDate = useMemo(
     () => (vm?.challenge?.startDate ? stripTime(vm.challenge.startDate) : null),
     [vm?.challenge?.startDate]
   );
+
   const maxDate = useMemo(
     () => (vm?.challenge?.endDate ? stripTime(vm.challenge.endDate) : null),
     [vm?.challenge?.endDate]
@@ -141,7 +157,6 @@ const Dashboard: React.FC = () => {
   const today = useMemo(() => stripTime(new Date()), []);
   const isChallengeExpired = useMemo(() => !!maxDate && today > maxDate, [maxDate, today]);
 
-  // clamp displayDate if bounds change
   useEffect(() => {
     if (!vm) return;
     setDisplayDate((d) => clampDate(d, minDate, maxDate));
@@ -160,7 +175,6 @@ const Dashboard: React.FC = () => {
   const todayClamped = useMemo(() => clampDate(new Date(), minDate, maxDate), [minDate, maxDate]);
   const isFutureSelected = useMemo(() => stripTime(displayDate) > todayClamped, [displayDate, todayClamped]);
 
-  // ========= Init =========
   const initFromMapped = useCallback((mapped: HomeInitDto | null) => {
     if (!mapped) {
       setVm(null);
@@ -184,22 +198,35 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const loadInitial = useCallback(async () => {
+    initAbortRef.current?.abort();
+    const controller = new AbortController();
+    initAbortRef.current = controller;
+
     setLoading(true);
     setErrorMsg(null);
 
     try {
-      const raw = await getHomeInit();
+      const available = await Pedometer.isAvailableAsync();
+      if (isMountedRef.current) {
+        setIsPedometerAvailable(available);
+      }
+
+      const raw = await getHomeInit(controller.signal);
       if (!isMountedRef.current) return;
 
       const pivot = startOfWeek(new Date());
       const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
       initFromMapped(mapped);
     } catch (e: any) {
+      if (isAbortError(e)) return;
       if (!isMountedRef.current) return;
       setErrorMsg(e?.message ?? 'Unbekannter Fehler');
       setVm(null);
     } finally {
       if (isMountedRef.current) setLoading(false);
+      if (initAbortRef.current === controller) {
+        initAbortRef.current = null;
+      }
     }
   }, [initFromMapped]);
 
@@ -207,14 +234,17 @@ const Dashboard: React.FC = () => {
     loadInitial();
   }, [loadInitial]);
 
-  // ========= Week fetching =========
   const fetchAndApplyWeek = useCallback(
     async (weekStart: Date, pivotDay: Date) => {
       if (!vm?.user?.id || !vm?.challenge?.id) return;
 
+      weekAbortRef.current?.abort();
+      const controller = new AbortController();
+      weekAbortRef.current = controller;
+
       setWeekLoading(true);
       try {
-        const resp = await getWeekSteps(vm.challenge.id!, vm.user.id!, toISO(weekStart));
+        const resp = await getWeekSteps(vm.challenge.id!, toISO(weekStart), controller.signal);
         if (!isMountedRef.current) return;
 
         const parsed = parseStepsThisWeek(Array.isArray(resp) ? resp : [], weekStart);
@@ -225,7 +255,8 @@ const Dashboard: React.FC = () => {
 
         const idx = (pivotDay.getDay() + 6) % 7;
         setStepsToday(arr[idx] ?? 0);
-      } catch {
+      } catch (e) {
+        if (isAbortError(e)) return;
         if (!isMountedRef.current) return;
 
         const empty = [...EMPTY_WEEK];
@@ -236,6 +267,9 @@ const Dashboard: React.FC = () => {
         setStepsToday(empty[idx] ?? 0);
       } finally {
         if (isMountedRef.current) setWeekLoading(false);
+        if (weekAbortRef.current === controller) {
+          weekAbortRef.current = null;
+        }
       }
     },
     [vm?.user?.id, vm?.challenge?.id]
@@ -276,10 +310,9 @@ const Dashboard: React.FC = () => {
     fetchAndApplyWeek,
   ]);
 
-  // ---- Save Steps ----
-  const saveAbsoluteStepsForSelectedDay = useCallback(
-    async (newValue: number) => {
-      if (!vm?.user?.id || !vm?.challenge?.id || !vm?.team?.id) return;
+  const saveTrackedSteps = useCallback(
+    async (stepsToAdd: number) => {
+      if (!vm?.challenge?.id || !vm?.team?.id) return;
 
       const dateSafe = clampDate(displayDate, minDate, maxDate);
       if (stripTime(dateSafe) > stripTime(new Date())) return;
@@ -288,14 +321,17 @@ const Dashboard: React.FC = () => {
       const dateISO = toIsoUtcMidnight(dateSafe);
 
       const prev = [...weekSteps];
+      const current = Number(prev[idx] ?? 0);
+      const nextValue = current + Math.max(0, Math.floor(stepsToAdd));
+
       const next = [...weekSteps];
-      next[idx] = Math.max(0, Math.floor(newValue));
+      next[idx] = nextValue;
 
       setWeekSteps(next);
       setStepsToday(next[idx]);
 
       try {
-        await upsertStepsForDate(vm.user.id, dateISO, next[idx], {
+        await upsertStepsForDate(dateISO, nextValue, {
           challengeId: vm.challenge.id,
           teamId: vm.team.id,
         });
@@ -303,35 +339,85 @@ const Dashboard: React.FC = () => {
       } catch (e) {
         setWeekSteps(prev);
         setStepsToday(prev[idx] ?? 0);
-        console.warn('Save steps failed:', e);
+        console.warn('Save tracked steps failed:', e);
+        setErrorMsg('Schritte konnten nicht gespeichert werden.');
       }
     },
-    [vm?.user?.id, vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
+    [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
   );
 
-  const applyStepDelta = useCallback(
-    async (delta: number) => {
-      const dateSafe = clampDate(displayDate, minDate, maxDate);
-      if (stripTime(dateSafe) > stripTime(new Date())) return;
+  const startTracking = async () => {
+    try {
+      const available = await Pedometer.isAvailableAsync();
+      setIsPedometerAvailable(available);
 
-      const idx = (dateSafe.getDay() + 6) % 7;
-      const current = weekSteps[idx] ?? 0;
-
-      if (delta > 0) {
-        const add = Math.min(delta, MAX_STEP_DELTA);
-        await saveAbsoluteStepsForSelectedDay(current + add);
+      if (!available) {
+        setErrorMsg('Pedometer ist auf diesem Gerät nicht verfügbar.');
         return;
       }
 
-      if (delta < 0) {
-        const remove = Math.min(current, Math.abs(delta));
-        await saveAbsoluteStepsForSelectedDay(current - remove);
+      if (!vm?.challenge?.id || vm?.challenge?.state !== 'open') {
+        setErrorMsg('Du kannst nur Schritte tracken, wenn eine aktive Challenge vorhanden ist.');
+        return;
       }
-    },
-    [displayDate, minDate, maxDate, weekSteps, saveAbsoluteStepsForSelectedDay]
-  );
 
-  // ========= Derived =========
+      if (isFutureSelected || isChallengeExpired) {
+        setErrorMsg('Schritte können für diesen Tag nicht getrackt werden.');
+        return;
+      }
+
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+        subscriptionRef.current = null;
+      }
+
+      setErrorMsg(null);
+      setSessionSteps(0);
+      setSessionStart(null);
+      setIsTracking(true);
+
+      subscriptionRef.current = Pedometer.watchStepCount((result) => {
+        const total = Number(result?.steps ?? 0);
+
+        setSessionStart((prev) => {
+          const base = prev ?? total;
+          const counted = total - base;
+          setSessionSteps(counted > 0 ? counted : 0);
+          return base;
+        });
+      });
+    } catch (e) {
+      console.warn('startTracking failed:', e);
+      setIsTracking(false);
+      setErrorMsg('Pedometer konnte nicht gestartet werden.');
+    }
+  };
+
+  const stopTracking = async () => {
+    try {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+        subscriptionRef.current = null;
+      }
+
+      setIsTracking(false);
+
+      if (sessionSteps > 0) {
+        await saveTrackedSteps(sessionSteps);
+      }
+    } catch (e) {
+      console.warn('stopTracking failed:', e);
+      setErrorMsg('Schritte konnten nicht gespeichert werden.');
+    } finally {
+      setSessionSteps(0);
+      setSessionStart(null);
+    }
+  };
+
+  const liveStepsToday = useMemo(() => {
+    return stepsToday + (isTracking ? sessionSteps : 0);
+  }, [stepsToday, isTracking, sessionSteps]);
+
   const weeklyMax = useMemo(() => Math.max(1, ...weekSteps), [weekSteps]);
   const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
 
@@ -341,14 +427,14 @@ const Dashboard: React.FC = () => {
   }, [vm?.user?.stepLength]);
 
   const distanceKmToday = useMemo(() => {
-    const km = (stepsToday * stepLengthMeters) / 1000;
+    const km = (liveStepsToday * stepLengthMeters) / 1000;
     return Math.round(km * 100) / 100;
-  }, [stepsToday, stepLengthMeters]);
+  }, [liveStepsToday, stepLengthMeters]);
 
   const kcal = useMemo(() => {
-    const k = stepsToday * 0.04;
+    const k = liveStepsToday * 0.04;
     return Math.round(k * 100) / 100;
-  }, [stepsToday]);
+  }, [liveStepsToday]);
 
   const challengeDistanceKm = useMemo(() => {
     const ch = vm?.challenge;
@@ -357,7 +443,6 @@ const Dashboard: React.FC = () => {
     return Number(d || 0);
   }, [vm?.challenge]);
 
-  // ===== Auto-Refresh =====
   useFocusEffect(
     useCallback(() => {
       refreshWeek();
@@ -377,8 +462,6 @@ const Dashboard: React.FC = () => {
     const id = setInterval(() => refreshWeek(), 30000);
     return () => clearInterval(id);
   }, [vm?.user?.id, vm?.challenge?.id, refreshWeek]);
-
-  // ========= UI Helpers =========
 
   const EmptyChallengeCard = () => (
     <View style={{ flex: 1, backgroundColor: '#F5F7F4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
@@ -454,7 +537,6 @@ const Dashboard: React.FC = () => {
     </View>
   );
 
-  // ========= Render Guards =========
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
@@ -466,16 +548,10 @@ const Dashboard: React.FC = () => {
 
   const hasActiveChallenge = vm?.challenge?.id != null && vm?.challenge?.state === 'open';
 
-  // ✅ unified empty state:
   if (!vm || errorMsg || !hasActiveChallenge) {
-    return (
-      <>
-        <EmptyChallengeCard />
-      </>
-    );
+    return <EmptyChallengeCard />;
   }
 
-  // ========= Calendar computed (only needed here) =========
   const calendarHeader = calendarMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
   const calendarGrid = buildCalendarGrid(calendarMonth, minDate, maxDate);
 
@@ -501,7 +577,6 @@ const Dashboard: React.FC = () => {
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
   };
 
-  // ========= Render (Active Challenge) =========
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
@@ -511,7 +586,7 @@ const Dashboard: React.FC = () => {
             <View style={styles.expiredWarningContent}>
               <Text style={[styles.font, styles.expiredWarningTitle]}>Challenge beendet</Text>
               <Text style={[styles.font, styles.expiredWarningText]}>
-                Diese Challenge ist bereits abgelaufen. Du kannst keine Schritte mehr hinzufügen oder entfernen, aber du kannst weiterhin die Statistiken
+                Diese Challenge ist bereits abgelaufen. Du kannst keine Schritte mehr hinzufügen, aber du kannst weiterhin die Statistiken
                 und das Ranking einsehen.
               </Text>
             </View>
@@ -521,7 +596,6 @@ const Dashboard: React.FC = () => {
           </View>
         )}
 
-        {/* DATE + USER + CHALLENGE */}
         <View style={styles.topSection}>
           <View style={styles.dateRow}>
             <TouchableOpacity
@@ -554,7 +628,6 @@ const Dashboard: React.FC = () => {
             <Text style={styles.challengeMeta}>({challengeDistanceKm} km)</Text>
           </Text>
 
-          {/* METRICS */}
           <View style={styles.metricsRow}>
             <View style={styles.metricSide}>
               <View style={{ alignItems: 'center' }}>
@@ -568,8 +641,8 @@ const Dashboard: React.FC = () => {
               <View style={styles.stepCircleOuter}>
                 <View style={styles.stepCircleInnerRing} />
                 <View style={styles.stepCircle}>
-                  <Text style={[styles.stepValue, styles.font]}>{weekLoading ? '…' : stepsToday}</Text>
-                  <Text style={[styles.stepLabel, styles.font]}>SCHRITTE</Text>
+                  <Text style={[styles.stepValue, styles.font]}>{weekLoading ? '…' : liveStepsToday}</Text>
+                  <Text style={[styles.stepLabel, styles.font]}>{isTracking ? 'LIVE' : 'SCHRITTE'}</Text>
                 </View>
               </View>
             </View>
@@ -583,18 +656,45 @@ const Dashboard: React.FC = () => {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.editBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
-            disabled={isFutureSelected || isChallengeExpired}
-            onPress={() => setModalVisible(true)}
-          >
-            <Text style={[styles.editBtnText, styles.font]}>
-              {isChallengeExpired
-                ? 'Challenge abgelaufen - Keine Bearbeitung möglich'
-                : isFutureSelected
-                ? 'Zukunft nicht bearbeitbar'
-                : 'Schritte bearbeiten'}
+          <View style={{ alignItems: 'center', marginTop: 12 }}>
+            <Text style={[styles.font, { color: '#6B7280' }]}>Session</Text>
+            <Text style={[styles.font, { fontSize: 22, fontWeight: '800', color: '#2F3E34' }]}>{sessionSteps}</Text>
+          </View>
+
+          {errorMsg ? (
+            <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#B91C1C' }]}>
+              {errorMsg}
             </Text>
+          ) : null}
+
+          {isPedometerAvailable === false ? (
+            <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#6B7280' }]}>
+              Pedometer ist auf diesem Gerät nicht verfügbar.
+            </Text>
+          ) : null}
+
+          <TouchableOpacity
+            style={[
+              styles.editBtn,
+              { marginTop: 14 },
+              (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired) && { opacity: 0.5 },
+            ]}
+            disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired}
+            onPress={startTracking}
+          >
+            <Text style={[styles.editBtnText, styles.font]}>Start</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.editBtn,
+              { marginTop: 10, backgroundColor: '#B91C1C' },
+              !isTracking && { opacity: 0.5 },
+            ]}
+            disabled={!isTracking}
+            onPress={stopTracking}
+          >
+            <Text style={[styles.editBtnText, styles.font, { color: '#fff' }]}>Stopp & speichern</Text>
           </TouchableOpacity>
 
           <Text style={[styles.weeklyTitle, styles.font]}>
@@ -616,115 +716,6 @@ const Dashboard: React.FC = () => {
           </View>
         </View>
 
-        {/* MODAL: Schritte verwalten */}
-        <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.stepsCard}>
-              <View style={styles.cardHeader}>
-                <Text style={[styles.font, styles.cardTitle]}>Schritte verwalten</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setModalVisible(false);
-                    setModalError(null);
-                  }}
-                  style={styles.headerX}
-                >
-                  <Ionicons name="close" size={18} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.fieldWrap}>
-                <Text style={[styles.font, styles.fieldLabel]}>Anzahl Schritte</Text>
-                <View style={styles.inputWrap}>
-                  <Ionicons name="walk-outline" size={18} style={{ marginRight: 8, opacity: 0.6 }} />
-                  <TextInput
-                    style={[styles.inputBare, styles.font]}
-                    placeholder="z. B. 1200"
-                    placeholderTextColor="#9AA7A0"
-                    keyboardType="number-pad"
-                    value={stepInput}
-                    onChangeText={setStepInput}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={[styles.primaryBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
-                  disabled={isFutureSelected || isChallengeExpired}
-                  onPress={async () => {
-                    const num = parseInt(stepInput, 10);
-                    if (!isNaN(num) && num > 0 && num <= MAX_STEP_DELTA) {
-                      setModalError(null);
-                      await applyStepDelta(num);
-                      setModalVisible(false);
-                      setStepInput('');
-                    } else if (num > MAX_STEP_DELTA) {
-                      setModalError(`Maximal ${MAX_STEP_DELTA} Schritte pro Vorgang erlaubt.`);
-                    } else {
-                      setModalError('Bitte eine gültige Schrittzahl eingeben.');
-                    }
-                  }}
-                >
-                  <Text style={[styles.font, styles.primaryBtnText]}>Hinzufügen</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.secondaryBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
-                  disabled={isFutureSelected || isChallengeExpired}
-                  onPress={async () => {
-                    const num = parseInt(stepInput, 10);
-                    const dateSafe = clampDate(displayDate, minDate, maxDate);
-                    const idx = (dateSafe.getDay() + 6) % 7;
-                    const current = Number(weekSteps[idx] ?? 0);
-
-                    if (!isNaN(num) && num > 0 && num <= current) {
-                      setModalError(null);
-                      await applyStepDelta(-num);
-                      setModalVisible(false);
-                      setStepInput('');
-                    } else if (num > current) {
-                      setModalError('Du kannst nicht mehr Schritte entfernen als vorhanden.');
-                    } else {
-                      setModalError('Bitte eine gültige Schrittzahl eingeben.');
-                    }
-                  }}
-                >
-                  <Text style={[styles.font, styles.secondaryBtnText]}>Entfernen</Text>
-                </TouchableOpacity>
-              </View>
-
-              {modalError ? (
-                <Text style={[styles.font, { color: '#B91C1C', textAlign: 'center', marginTop: 8 }]}>{modalError}</Text>
-              ) : null}
-
-              {isChallengeExpired ? (
-                <View style={styles.expiredModalWarning}>
-                  <Ionicons name="information-circle" size={18} color="#B91C1C" />
-                  <Text style={[styles.font, styles.expiredModalWarningText]}>
-                    Diese Challenge ist bereits beendet. Das Hinzufügen oder Entfernen von Schritten ist nicht mehr möglich.
-                  </Text>
-                </View>
-              ) : isFutureSelected ? (
-                <Text style={[styles.font, { color: '#6B7280', textAlign: 'center', marginTop: 8 }]}>
-                  Zukünftige Tage können nicht bearbeitet werden.
-                </Text>
-              ) : null}
-
-              <TouchableOpacity
-                style={styles.cancelGhost}
-                onPress={() => {
-                  setModalVisible(false);
-                  setModalError(null);
-                }}
-              >
-                <Text style={[styles.font, styles.cancelGhostText]}>Abbrechen</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* MODAL: Calendar */}
         <Modal animationType="fade" transparent visible={calendarOpen} onRequestClose={() => setCalendarOpen(false)}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setCalendarOpen(false)}>
             <View style={styles.calendarCard}>

@@ -8,6 +8,9 @@ import {
   toIsoDateTimeMidnight,
 } from "./dto/dashboardDto";
 
+const isUnauthorizedError = (err) => Number(err?.status) === 401;
+const isAbortError = (err) => err?.name === "AbortError";
+
 // ---------------------------------------------------------------------------
 // SAFE HELPERS
 // ---------------------------------------------------------------------------
@@ -40,11 +43,16 @@ const toIsoUtcMidnight = (isoLike) => {
 // DASHBOARD INIT
 // ---------------------------------------------------------------------------
 
-export const getHomeInit = async () => {
+export const getHomeInit = async (signal) => {
   try {
-    return await apiGet("/users/user/dashboard/init");
+    return await apiGet("/users/user/dashboard/init", { signal });
   } catch (err) {
-    console.error("Error fetching home init:", err);
+    if (isAbortError(err)) {
+      throw err;
+    }
+    if (!isUnauthorizedError(err)) {
+      console.error("Error fetching home init:", err);
+    }
     return null;
   }
 };
@@ -53,27 +61,24 @@ export const getHomeInit = async () => {
 // STEP LOG HELPERS
 // ---------------------------------------------------------------------------
 
-export const listUserStepLogs = async (userId) => {
-  if (!userId) throw new Error("userId required");
-  return await apiGet(`/step_logs/user/${userId}`);
+export const listMyStepLogs = async () => {
+  return await apiGet(`/step_logs/user`);
 };
 
-export const getUserWeekStepLogs = async (challengeId, userId, fromISO, toISO) => {
+export const getMyWeekStepLogs = async (challengeId, fromISO, toISO, signal) => {
   if (!challengeId) throw new Error("challengeId required");
-  if (!userId) throw new Error("userId required");
   if (!fromISO || !toISO) throw new Error("from/to ISO required");
 
-  const path = `/step_logs/challenge/${challengeId}/user/${userId}?from=${fromISO}&to=${toISO}`;
-  return await apiGet(path);
+  const path = `/step_logs/challenge/${challengeId}/user?from=${fromISO}&to=${toISO}`;
+  return await apiGet(path, { signal });
 };
 
 // ---------------------------------------------------------------------------
 // WEEK STEPS (mapping + DTO normalization)
 // ---------------------------------------------------------------------------
 
-export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
+export const getWeekSteps = async (challengeId, weekStartISO, signal) => {
   if (!challengeId) throw new Error("challengeId required");
-  if (!userId) throw new Error("userId required");
   if (!weekStartISO) throw new Error("weekStartISO required");
 
   const weekStart = fromIsoLocal(weekStartISO);
@@ -82,40 +87,48 @@ export const getWeekSteps = async (challengeId, userId, weekStartISO) => {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
-  const logs = await getUserWeekStepLogs(
-    challengeId,
-    userId,
-    toIsoDate(weekStart),
-    toIsoDate(weekEnd)
-  );
+  try {
+    const logs = await getMyWeekStepLogs(
+      challengeId,
+      toIsoDate(weekStart),
+      toIsoDate(weekEnd),
+      signal
+    );
 
-  return (logs ?? []).map((x) => {
-    const d = fromIsoLocal(x.date);
-    const dateOnly = toDateOnly(x.date);
+    return (logs ?? []).map((x) => {
+      const d = fromIsoLocal(x.date);
+      const dateOnly = toDateOnly(x.date);
 
-    return {
-      date: dateOnly ?? (d ? toIsoDate(d) : null),
-      dayOfWeek:
-        x.dayOfWeek || (d ? d.toLocaleDateString("en-US", { weekday: "long" }) : ""),
-      numberOfSteps: Number(x.numberOfSteps ?? 0),
-      step_log_id: getStepLogId(x),
-    };
-  });
+      return {
+        date: dateOnly ?? (d ? toIsoDate(d) : null),
+        dayOfWeek:
+          x.dayOfWeek || (d ? d.toLocaleDateString("en-US", { weekday: "long" }) : ""),
+        numberOfSteps: Number(x.numberOfSteps ?? 0),
+        step_log_id: getStepLogId(x),
+      };
+    });
+  } catch (err) {
+    if (isAbortError(err)) {
+      throw err;
+    }
+    if (!isUnauthorizedError(err)) {
+      console.error("Error fetching week steps:", err);
+    }
+    return [];
+  }
 };
 
 // ---------------------------------------------------------------------------
-// UPSERT STEP LOG (ABSOLUTE TOTAL!) + avoid iOS issues with 307/308 redirects
+// UPSERT STEP LOG
 // ---------------------------------------------------------------------------
 
 const isRedirectStatus = (status) => status === 307 || status === 308;
 
 const putNoRedirect = async (pathNoSlash, body) => {
   try {
-    // try without trailing slash
     return await apiPut(pathNoSlash, body);
   } catch (e) {
     if (isRedirectStatus(e?.status)) {
-      // retry with trailing slash
       return await apiPut(`${pathNoSlash}/`, body);
     }
     throw e;
@@ -133,23 +146,19 @@ const postNoRedirect = async (pathNoSlash, body) => {
   }
 };
 
-export const upsertStepsForDate = async (userId, dateISO, absoluteSteps, context) => {
-  if (!userId) throw new Error("userId required");
+export const upsertStepsForDate = async (dateISO, absoluteSteps, context) => {
   if (!dateISO) throw new Error("dateISO required");
 
   const numberOfSteps = toNonNegativeInt(absoluteSteps);
 
-  // Check for existing StepLog for that day
-  const all = await listUserStepLogs(userId);
+  const all = await listMyStepLogs();
   const existing = (all ?? []).find((log) => inSameDayIso(log.date, dateISO));
   const existingId = getStepLogId(existing);
 
-  // --- UPDATE ---
   if (existingId) {
     return await putNoRedirect(`/step_logs/${existingId}`, { numberOfSteps });
   }
 
-  // --- CREATE ---
   const dateUtcMidnight = toIsoUtcMidnight(dateISO) ?? toIsoDateTimeMidnight(dateISO);
 
   return await postNoRedirect(`/step_logs/`, {

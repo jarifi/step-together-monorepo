@@ -18,7 +18,7 @@ export const getTeams = async (skip = 0, limit = 10) => {
 export const updateTeam = async (id, data) => {
   if (!id) throw new Error('Team ID is required');
   try {
-    return await apiPut(`/teams/${id}/`, data);
+    return await apiPut(`/teams/${id}`, data);
   } catch (err) {
     console.error('Error updating team:', err);
     throw err;
@@ -27,7 +27,7 @@ export const updateTeam = async (id, data) => {
 
 export const createTeam = async (data) => {
   try {
-    return await apiPost(`/teams/`, data);
+    return await apiPost(`/teams`, data);
   } catch (err) {
     console.error('Error creating team:', err);
     throw err;
@@ -37,7 +37,7 @@ export const createTeam = async (data) => {
 export const deleteTeam = async (id) => {
   if (!id) throw new Error('Team ID is required');
   try {
-    await apiDelete(`/teams/${id}/`);
+    await apiDelete(`/teams/${id}`);
     return true;
   } catch (err) {
     console.error('Error deleting team:', err);
@@ -48,7 +48,7 @@ export const deleteTeam = async (id) => {
 export const getTeamRanking = async (teamId, challengeId) => {
   if (!teamId || !challengeId) throw new Error('teamId and challengeId required');
   try {
-    const path = `/teams/members/active_challenge/${teamId}/${challengeId}/`;
+    const path = `/teams/members/active_challenge/${teamId}/${challengeId}`;
     const data = await apiGet(path);
     return Array.isArray(data) ? data : [];
   } catch (err) {
@@ -61,7 +61,7 @@ export const getTeamMembers = async (teamId) => {
   if (!teamId) throw new Error('teamId is required');
 
   try {
-    const path = `/teams/${teamId}/members/`;
+    const path = `/teams/${teamId}/members`;
     const data = await apiGet(path);
     return Array.isArray(data) ? data : [];
   } catch (err) {

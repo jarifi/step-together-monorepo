@@ -25,7 +25,7 @@ export const getChallenges = async (skip = 0, limit = 10, state) => {
 export const getChallengeById = async (id) => {
   if (!id) throw new Error('Challenge ID is required');
   try {
-    return await apiGet(`/challenges/${id}/`);
+    return await apiGet(`/challenges/${id}`);
   } catch (err) {
     console.error('Error fetching challenge by id:', err);
     throw err;
@@ -35,7 +35,7 @@ export const getChallengeById = async (id) => {
 export const getChallengeTeams = async (id) => {
   if (!id) throw new Error('Challenge ID is required');
   try {
-    return await apiGet(`/challenges/${id}/teams/`);
+    return await apiGet(`/challenges/${id}/teams`);
   } catch (err) {
     console.error('Error fetching challenge teams:', err);
     throw err;
@@ -45,7 +45,7 @@ export const getChallengeTeams = async (id) => {
 export const updateChallenge = async (id, data) => {
   if (!id) throw new Error('Challenge ID is required');
   try {
-    return await apiPut(`/challenges/${id}/`, data);
+    return await apiPut(`/challenges/${id}`, data);
   } catch (err) {
     console.error('Error updating challenge:', err);
     throw err;
@@ -54,7 +54,7 @@ export const updateChallenge = async (id, data) => {
 
 export const createChallenge = async (data) => {
   try {
-    return await apiPost(`/challenges/`, data);
+    return await apiPost(`/challenges`, data);
   } catch (err) {
     console.error('Error creating challenge:', err);
 
@@ -82,7 +82,7 @@ export const createChallenge = async (data) => {
 export const deleteChallenge = async (id) => {
   if (!id) throw new Error('Challenge ID is required');
   try {
-    await apiDelete(`/challenges/${id}/`);
+    await apiDelete(`/challenges/${id}`);
     return true;
   } catch (err) {
     console.error('Error deleting challenge:', err);
@@ -92,7 +92,7 @@ export const deleteChallenge = async (id) => {
 
 export const getChallengeHistory = async () => {
   try {
-    return await apiGet(`/challenges/me/history/`);
+    return await apiGet(`/challenges/me/history`);
   } catch (err) {
     console.error('Error fetching challenge history:', err);
     return [];

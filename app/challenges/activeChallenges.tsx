@@ -218,7 +218,7 @@ export default function OpenChallengesScreen() {
         ListEmptyComponent={!loadingInitial ? Empty : null}
         renderItem={({ item }) => (
           <View style={styles.centered}>
-            <View style={styles.cardSurface}>
+            <View>
               <ChallengeCard
                 challenge={item}
                 onPress={() => goToDetails(String(item.id))}
@@ -323,15 +323,6 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '700', color: COLORS.sub },
   tabTextActive: { color: COLORS.text },
   tabHint: { marginTop: 8, fontSize: 13, color: COLORS.sub },
-
-  cardSurface: {
-    backgroundColor: COLORS.surface,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-    ...(shadow ?? {}),
-  },
 
   emptyCard: {
     marginTop: 6,

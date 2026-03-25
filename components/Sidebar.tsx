@@ -175,6 +175,7 @@ export default function Sidebar({
         <View style={styles.linkContainer}>
           {renderNavLink('/dashboard', 'Dashboard', 'dashboard', MaterialIcons)}
 
+
           <View style={styles.separator} />
 
           {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
