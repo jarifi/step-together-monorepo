@@ -386,7 +386,7 @@ export default function RegisterScreen() {
             />
 
             <View style={styles.requirementsBox}>
-              <RequirementLine ok={req.minLen} text="Mindestens 8 Zeichen" />
+              <RequirementLine ok={req.minLen} text="Mindestens 12 Zeichen" />
               <RequirementLine ok={req.upper} text="Mindestens 1 Großbuchstabe" />
               <RequirementLine ok={req.digit} text="Mindestens 1 Zahl" />
             </View>

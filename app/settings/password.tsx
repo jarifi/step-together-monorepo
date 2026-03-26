@@ -339,14 +339,14 @@ const PasswordScreen: React.FC = () => {
                       </Text>
                     </View>
 
-                    <RequirementLine ok={req.minLen} text="Mindestens 8 Zeichen" />
+                    <RequirementLine ok={req.minLen} text="Mindestens 12 Zeichen" />
                     <RequirementLine ok={req.upper} text="Mindestens 1 Großbuchstabe (A–Z)" />
                     <RequirementLine ok={req.lower} text="Mindestens 1 Kleinbuchstabe (a–z)" />
                     <RequirementLine ok={req.digit} text="Mindestens 1 Zahl (0–9)" />
                   </View>
                 ) : (
                   <Text style={styles.helperText}>
-                    Mindestens 8 Zeichen, 1 Großbuchstabe, 1 Kleinbuchstabe, 1 Zahl.
+                    Mindestens 12 Zeichen, 1 Großbuchstabe, 1 Kleinbuchstabe, 1 Zahl.
                   </Text>
                 )
               }

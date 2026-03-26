@@ -62,8 +62,8 @@ async function loginRequest(params: {
 }
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("jetonbfi@gmail.com");
-  const [password, setPassword] = useState("ChangeMe2026/");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
