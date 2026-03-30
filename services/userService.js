@@ -1,6 +1,6 @@
 // file: services/userService.js
 import Constants from 'expo-constants';
-import { apiDelete, apiGet, apiPost, apiPut } from './api';
+import { apiDelete, apiGet, apiPost, apiPut, publicPost } from './api';
 
 const API_BASE_URL = String(Constants.expoConfig?.extra?.apiBaseUrl ?? '').replace(/\/+$/, '');
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
@@ -146,7 +146,7 @@ export const updateUser = async (id, data) => {
 // ---------------------------------------------------------------------------
 export const registerUser = async (userData) => {
   try {
-    return await apiPost(`/auth/register`, userData);
+    return await publicPost(`/auth/register`, userData);
   } catch (err) {
     console.error('Error creating user:', err);
     throw err;
