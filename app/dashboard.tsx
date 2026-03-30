@@ -638,6 +638,8 @@ const Dashboard: React.FC = () => {
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
   };
 
+  const isTodaySelected = sameDay(displayDate, today);
+
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
@@ -738,9 +740,9 @@ const Dashboard: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.primaryActionBtn,
-                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired) && styles.buttonDisabled,
+                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected) && styles.buttonDisabled,
               ]}
-              disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired}
+              disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected}
               onPress={startTracking}
               activeOpacity={0.9}
             >
@@ -751,15 +753,21 @@ const Dashboard: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.dangerActionBtn,
-                !isTracking && styles.buttonDisabled,
+                (!isTracking || !isTodaySelected) && styles.buttonDisabled,
               ]}
-              disabled={!isTracking}
+              disabled={!isTracking || !isTodaySelected}
               onPress={stopTracking}
               activeOpacity={0.9}
             >
               <Ionicons name="stop" size={18} color="#fff" />
               <Text style={[styles.dangerActionBtnText, styles.font]}>Stopp & speichern</Text>
             </TouchableOpacity>
+
+            {!isTodaySelected && (
+              <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 8 }]}>
+                Tracking ist nur für den heutigen Tag verfügbar.
+              </Text>
+            )}
 
             <TouchableOpacity
               style={[
