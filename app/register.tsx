@@ -136,7 +136,7 @@ const PasswordField = ({
 };
 
 const getPwReqState = (pw: string): PasswordRequirementState => ({
-  minLen: pw.length >= 8,
+  minLen: pw.length >= 12,
   upper: /[A-Z]/.test(pw),
   digit: /\d/.test(pw),
 });
