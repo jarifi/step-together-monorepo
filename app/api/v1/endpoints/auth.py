@@ -58,7 +58,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
             f"LOGIN BLOCKED | user_id={db_user.id} | email={user.email} | reason=too_many_attempts"
         )
 
-        raise HTTPException(status_code=403, detail="Konto gesperrt wegen zu vieler fehlgeschlagener Anmeldeversuche.")
+        raise HTTPException(status_code=403, detail="Konto gesperrt wegen zu vieler fehlgeschlagener Anmeldeversuche. \n \n Kontaktieren Sie uns bitte per E-Mail unter support@step-together.at, um es wieder freizuschalten.")
     
     if not verify_password(user.password, db_user.hashed_password):
         db_user.failed_login_attempts += 1
