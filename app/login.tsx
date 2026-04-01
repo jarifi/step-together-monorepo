@@ -89,15 +89,15 @@ export default function LoginScreen() {
     if (isPending) return;
     clearError();
 
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const rawPassword = password;
 
-    if (!isValidEmail(trimmedEmail)) {
+    if (!isValidEmail(normalizedEmail)) {
       showError("Bitte gültige E-Mail eingeben");
       return;
     }
 
-    if (!trimmedPassword) {
+    if (!rawPassword) {
       showError("Bitte gültiges Passwort eingeben");
       return;
     }
@@ -107,8 +107,8 @@ export default function LoginScreen() {
     try {
       const data = await loginRequest({
         baseUrl: API_BASE_URL,
-        email: trimmedEmail,
-        password: trimmedPassword,
+        email: normalizedEmail,
+        password: rawPassword,
       });
 
       await saveTokens(data.accessToken, data.refreshToken);
@@ -121,7 +121,7 @@ export default function LoginScreen() {
 
       setUser({
         id: data.userId,
-        email: trimmedEmail,
+        email: normalizedEmail,
         role: data.role,
         teamId: data.teamId,
         activeChallengeId: data.activeChallengeId,
@@ -175,6 +175,7 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            autoCorrect={false}
             autoComplete="email"
             textContentType="emailAddress"
             keyboardType="email-address"
@@ -192,6 +193,8 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
               autoComplete="password"
               textContentType="password"
               testID="login-password"

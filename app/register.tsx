@@ -33,6 +33,8 @@ type PasswordFieldProps = {
   show: boolean;
   onToggle: () => void;
   disabled: boolean;
+  textContentType?: 'password' | 'newPassword' | 'none';
+  autoComplete?: 'password' | 'new-password' | 'off';
 };
 
 type PasswordRequirementState = {
@@ -91,6 +93,8 @@ const PasswordField = ({
   show,
   onToggle,
   disabled,
+  textContentType = 'password',
+  autoComplete = 'password',
 }: PasswordFieldProps) => {
   const hasValue = value.length > 0;
 
@@ -110,7 +114,8 @@ const PasswordField = ({
           placeholderTextColor="rgba(255,255,255,0.55)"
           autoCapitalize="none"
           autoCorrect={false}
-          textContentType="password"
+          textContentType={textContentType}
+          autoComplete={autoComplete}
         />
 
         {hasValue && (
@@ -167,9 +172,6 @@ const sanitizeStepLengthInput = (raw: string): string => {
 
   value = value.replace(',', '.');
 
-  // practical limit:
-  // examples allowed: 0.7 / 0.75 / 1 / 1.2
-  // not 3 chars, because 0.75 is already 4
   if (value.length > 4) {
     value = value.slice(0, 4);
   }
@@ -211,17 +213,19 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     const trimmedName = name.trim();
     const trimmedLastname = lastname.trim();
-    const trimmedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const rawPassword = password;
+    const rawPasswordConfirm = passwordConfirm;
     const fullName = `${trimmedName} ${trimmedLastname}`.trim();
     const stepLengthNumber = Number(stepLength);
 
     if (
       !trimmedName ||
       !trimmedLastname ||
-      !trimmedEmail ||
+      !normalizedEmail ||
       !stepLength ||
-      !password ||
-      !passwordConfirm
+      !rawPassword ||
+      !rawPasswordConfirm
     ) {
       showError('Alle Felder sind Pflichtfelder!');
       setPwTouched(true);
@@ -239,13 +243,13 @@ export default function RegisterScreen() {
     }
 
     const nameErrors = validateName(fullName);
-    const emailErrors = validateEmail(trimmedEmail);
-    const passwordErrors = validatePassword(password);
+    const emailErrors = validateEmail(normalizedEmail);
+    const passwordErrors = validatePassword(rawPassword);
 
     const allErrors = [
       ...nameErrors,
       ...emailErrors,
-      ...(password !== passwordConfirm
+      ...(rawPassword !== rawPasswordConfirm
         ? ['Passwörter stimmen nicht überein!']
         : []),
       ...passwordErrors,
@@ -265,9 +269,9 @@ export default function RegisterScreen() {
 
     try {
       await registerUser({
-        email: trimmedEmail,
-        password,
-        passwordConfirm,
+        email: normalizedEmail,
+        password: rawPassword,
+        passwordConfirm: rawPasswordConfirm,
         name: fullName,
         stepLength: stepLengthNumber,
         privacyPolicyAccepted,
@@ -355,7 +359,10 @@ export default function RegisterScreen() {
                 style={styles.input}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 editable={!loading}
+                textContentType="username"
+                autoComplete="email"
               />
             </View>
 
@@ -383,6 +390,8 @@ export default function RegisterScreen() {
               show={showPw}
               onToggle={() => setShowPw((v) => !v)}
               disabled={loading}
+              textContentType="newPassword"
+              autoComplete="new-password"
             />
 
             <View style={styles.requirementsBox}>
@@ -398,6 +407,8 @@ export default function RegisterScreen() {
               show={showPw2}
               onToggle={() => setShowPw2((v) => !v)}
               disabled={loading}
+              textContentType="newPassword"
+              autoComplete="new-password"
             />
 
             <Pressable
