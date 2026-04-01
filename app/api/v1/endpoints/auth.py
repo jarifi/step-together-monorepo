@@ -212,6 +212,27 @@ def reset_password(
      db.refresh(user)
 
      return {"message": "Passwort erfolgreich zurückgesetzt."}
+
+
+@router.post("/unlock/{user_id}")
+def unlock_user(user_id: int, current_user: Annotated[User, Depends(get_current_user)], db: Session = Depends(get_db)):
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur Administratoren können Konten entsperren."
+        )
+    
+    db_user = db.query(User).filter(User.id == user_id).first()
+
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Benutzer wurde nicht gefunden.")
+    
+    db_user.failed_login_attempts = 0
+    db.commit()
+    return {"message": "User unlocked"}
+
+
 from app.schema.token import RefreshTokenRequest, RefreshTokenResponse
 from app.crud.refresh_token import validate_refresh_token
 @router.post("/refresh", response_model=RefreshTokenResponse)
