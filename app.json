@@ -13,14 +13,18 @@
       "bundleIdentifier": "at.bfistmk.steptogether",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "This app needs access to devices on your local network.",
-        "NSBonjourServices": ["_http._tcp", "_https._tcp"],
+        "NSBonjourServices": [
+          "_http._tcp",
+          "_https._tcp"
+        ],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         },
         "NSPhotoLibraryUsageDescription": "Step-Together requests access to your photo library so you can select a profile picture or upload an image for a challenge.",
         "NSMotionUsageDescription": "This app needs access to your motion data to count your steps and track your physical activity goals."
-      }
+      },
+      "appleTeamId": "CNC8KS2RC3"
     },
     "android": {
       "icon": "./assets/images/AppIcon.png",
@@ -29,8 +33,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.steptogether",
-      "permissions": ["android.permission.ACTIVITY_RECOGNITION"]
+      "package": "at.bfistmk.steptogether",
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
+      ]
     },
     "web": {
       "bundler": "metro",
