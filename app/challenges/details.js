@@ -100,6 +100,10 @@ export default function ChallengeDetailsScreen() {
     );
   }
 
+  const stepsToKm = (steps) => {
+    return (steps * 0.0008); // 1 Schritt = ca. 0.0008 km
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -135,6 +139,9 @@ export default function ChallengeDetailsScreen() {
           <Text style={styles.subSmall}>
             {(leadingTeam.totalSteps ?? 0).toLocaleString()} Schritte gesamt
           </Text>
+          <Text style={styles.subSmall}>
+            {stepsToKm(leadingTeam.totalSteps ?? 0)} km gesamt
+          </Text>
         </View>
       )}
 
@@ -146,6 +153,9 @@ export default function ChallengeDetailsScreen() {
 
           <Text style={styles.subSmall}>
             {(leadingTeam.totalSteps ?? 0).toLocaleString()} Schritte gesamt
+          </Text>
+          <Text style={styles.subSmall}>
+            {stepsToKm(leadingTeam.totalSteps ?? 0)} km gesamt
           </Text>
         </View>
       )}
@@ -166,6 +176,8 @@ export default function ChallengeDetailsScreen() {
 
       <Text style={styles.tapHint}>
         Tippe ein Team an, um Details & Mitglieder zu sehen.
+        {"\n"}
+        Teams mit einem grünen Häkchen neben ihrem Namen haben die Challenge abgeschlossen.
       </Text>
 
       <View style={styles.card}>
@@ -174,35 +186,51 @@ export default function ChallengeDetailsScreen() {
             Es nehmen aktuell noch keine Teams teil.
           </Text>
         ) : (
-          sortedTeams.map((item, index) => (
-            <Pressable
-              key={item.id}
-              style={({ pressed }) => [
-                styles.teamRow,
-                pressed && styles.rowPressed,
-              ]}
-              onPress={() =>
-                router.push({
-                  pathname: '/teams/members',
-                  params: {
-                    id: item.id.toString(),
-                    name: item.name,
-                  },
-                })
-              }
-            >
-              <View>
-                <Text style={styles.teamName}>
-                  {index + 1}. {item.name}
-                </Text>
-                <Text style={styles.teamSteps}>
-                  {(item.totalSteps ?? 0).toLocaleString()} Schritte
-                </Text>
-              </View>
+          sortedTeams.map((item, index) => {
+            const teamKm = stepsToKm(item.totalSteps ?? 0);
+            const hasFinished = teamKm >= (challenge.distance ?? 0);
 
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </Pressable>
-          ))
+            return (
+              <Pressable
+                key={item.id}
+                style={({ pressed }) => [
+                  styles.teamRow,
+                  pressed && styles.rowPressed,
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/teams/members',
+                    params: {
+                      id: item.id.toString(),
+                      name: item.name,
+                      totalSteps: (item.totalSteps ?? 0).toString(),
+                    },
+                  })
+                }
+              >
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.teamName}>
+                      {index + 1}. {item.name}
+                    </Text>
+                    {hasFinished && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color="green"
+                        style={{ marginLeft: 10 }}
+                      />
+                    )}
+                  </View>
+                  <Text style={styles.teamSteps}>
+                    {(item.totalSteps ?? 0).toLocaleString()} Schritte · {teamKm.toFixed(2)} km
+                  </Text>
+                </View>
+
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </Pressable>
+            );
+          })
         )}
       </View>
     </ScrollView>
