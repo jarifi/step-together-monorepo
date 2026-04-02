@@ -33,6 +33,9 @@ type PasswordFieldProps = {
   show: boolean;
   onToggle: () => void;
   disabled: boolean;
+  textContentType?: 'none' | 'password' | 'newPassword';
+  autoComplete?: 'password' | 'password-new' | 'off';
+  passwordRules?: string;
 };
 
 type PasswordRequirementState = {
@@ -91,6 +94,9 @@ const PasswordField = ({
   show,
   onToggle,
   disabled,
+  textContentType,
+  autoComplete,
+  passwordRules,
 }: PasswordFieldProps) => {
   const hasValue = value.length > 0;
 
@@ -110,7 +116,10 @@ const PasswordField = ({
           placeholderTextColor="rgba(255,255,255,0.55)"
           autoCapitalize="none"
           autoCorrect={false}
-          textContentType="password"
+          // Fix for iOS Strong Password Freeze:
+          textContentType={textContentType}
+          autoComplete={autoComplete}
+          passwordRules={passwordRules}
         />
 
         {hasValue && (
@@ -136,7 +145,7 @@ const PasswordField = ({
 };
 
 const getPwReqState = (pw: string): PasswordRequirementState => ({
-  minLen: pw.length >= 8,
+  minLen: pw.length >= 12,
   upper: /[A-Z]/.test(pw),
   digit: /\d/.test(pw),
 });
@@ -157,23 +166,16 @@ const RequirementLine = ({ ok, text }: RequirementLineProps) => (
 
 const sanitizeStepLengthInput = (raw: string): string => {
   let value = String(raw ?? '').replace(/[^\d.,]/g, '');
-
   const firstSeparatorIndex = value.search(/[.,]/);
   if (firstSeparatorIndex !== -1) {
     const before = value.slice(0, firstSeparatorIndex + 1);
     const after = value.slice(firstSeparatorIndex + 1).replace(/[.,]/g, '');
     value = before + after;
   }
-
   value = value.replace(',', '.');
-
-  // practical limit:
-  // examples allowed: 0.7 / 0.75 / 1 / 1.2
-  // not 3 chars, because 0.75 is already 4
   if (value.length > 4) {
     value = value.slice(0, 4);
   }
-
   return value;
 };
 
@@ -329,6 +331,7 @@ export default function RegisterScreen() {
                   placeholderTextColor="rgba(255,255,255,0.55)"
                   style={styles.input}
                   editable={!loading}
+                  autoComplete="name-given"
                 />
               </View>
 
@@ -341,6 +344,7 @@ export default function RegisterScreen() {
                   placeholderTextColor="rgba(255,255,255,0.55)"
                   style={styles.input}
                   editable={!loading}
+                  autoComplete="name-family"
                 />
               </View>
             </View>
@@ -356,6 +360,7 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!loading}
+                autoComplete="email"
               />
             </View>
 
@@ -383,6 +388,9 @@ export default function RegisterScreen() {
               show={showPw}
               onToggle={() => setShowPw((v) => !v)}
               disabled={loading}
+              textContentType="newPassword"
+              autoComplete="password-new"
+              passwordRules="minlength: 12; required: upper; required: digit;"
             />
 
             <View style={styles.requirementsBox}>
@@ -398,6 +406,8 @@ export default function RegisterScreen() {
               show={showPw2}
               onToggle={() => setShowPw2((v) => !v)}
               disabled={loading}
+              textContentType="newPassword"
+              autoComplete="password-new"
             />
 
             <Pressable
@@ -521,15 +531,8 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-
-  container: {
-    flex: 1,
-  },
-
+  background: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -537,14 +540,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 40,
   },
-
-  logo: {
-    width: 240,
-    height: 130,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-
+  logo: { width: 240, height: 130, alignSelf: 'center', marginBottom: 20 },
   card: {
     width: '100%',
     maxWidth: 420,
@@ -555,46 +551,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
   },
-
-  title: {
-    fontSize: 28,
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '700',
-  },
-
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.sub,
-    textAlign: 'center',
-    marginBottom: 22,
-    lineHeight: 20,
-  },
-
-  nameRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-
-  halfField: {
-    flex: 1,
-  },
-
-  fieldBlock: {
-    marginBottom: 12,
-  },
-
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
-    marginLeft: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-
+  title: { fontSize: 28, color: COLORS.text, textAlign: 'center', marginBottom: 8, fontWeight: '700' },
+  subtitle: { fontSize: 14, color: COLORS.sub, textAlign: 'center', marginBottom: 22, lineHeight: 20 },
+  nameRow: { flexDirection: 'row', gap: 10 },
+  halfField: { flex: 1 },
+  fieldBlock: { marginBottom: 12 },
+  label: { fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 8, marginLeft: 2, textTransform: 'uppercase', letterSpacing: 0.6 },
   input: {
     backgroundColor: COLORS.inputBg,
     color: COLORS.text,
@@ -605,7 +567,6 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     fontSize: 16,
   },
-
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,7 +577,6 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
     paddingRight: 8,
   },
-
   rowInput: {
     flex: 1,
     color: COLORS.text,
@@ -624,215 +584,37 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     marginLeft: 10,
   },
-
-  eyeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  requirementsBox: {
-    marginTop: -2,
-    marginBottom: 12,
-    paddingHorizontal: 2,
-  },
-
-  reqLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 3,
-  },
-
-  reqText: {
-    marginLeft: 8,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.62)',
-  },
-
-  reqTextOk: {
-    color: COLORS.ok,
-  },
-
-  policyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 12,
-    paddingVertical: 6,
-  },
-
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-
-  checkboxChecked: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
-  },
-
-  policyText: {
-    color: '#fff',
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 18,
-  },
-
-  policyLink: {
-    textDecorationLine: 'underline',
-    fontWeight: '700',
-    color: '#fff',
-  },
-
-  buttonRow: {
-    flexDirection: 'row',
-    marginTop: 10,
-  },
-
-  primaryBtn: {
-    flex: 1,
-    marginLeft: 12,
-    backgroundColor: COLORS.accent,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  primaryBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-
-  secondaryBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  secondaryBtnText: {
-    fontWeight: '700',
-    color: '#fff',
-    fontSize: 15,
-  },
-
-  loginLink: {
-    marginTop: 18,
-    alignItems: 'center',
-  },
-
-  loginLinkText: {
-    color: 'rgba(255,255,255,0.82)',
-    fontSize: 14,
-  },
-
-  loginLinkBold: {
-    color: '#fff',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-
-  pressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.98 }],
-  },
-
-  disabled: {
-    opacity: 0.6,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-
-  modalCard: {
-    borderRadius: 16,
-    backgroundColor: 'rgba(94, 103, 81, 0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    overflow: 'hidden',
-    maxHeight: '80%',
-  },
-
-  modalHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
-  },
-
-  modalTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-
-  modalCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  modalBody: {
-    paddingHorizontal: 16,
-  },
-
-  modalBodyContent: {
-    paddingVertical: 14,
-  },
-
-  modalText: {
-    color: '#fff',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-
-  modalFooter: {
-    flexDirection: 'row',
-    gap: 10,
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.10)',
-  },
-
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  modalButtonPrimary: {
-    backgroundColor: COLORS.accent,
-  },
-
-  modalButtonSecondary: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-
-  modalButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
+  eyeButton: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  requirementsBox: { marginTop: -2, marginBottom: 12, paddingHorizontal: 2 },
+  reqLine: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3 },
+  reqText: { marginLeft: 8, fontSize: 12, color: 'rgba(255,255,255,0.62)' },
+  reqTextOk: { color: COLORS.ok },
+  policyRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 12, paddingVertical: 6 },
+  checkbox: { width: 20, height: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)', borderRadius: 4, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  checkboxChecked: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  policyText: { color: '#fff', flex: 1, fontSize: 14, lineHeight: 18 },
+  policyLink: { textDecorationLine: 'underline', fontWeight: '700', color: '#fff' },
+  buttonRow: { flexDirection: 'row', marginTop: 10 },
+  primaryBtn: { flex: 1, marginLeft: 12, backgroundColor: COLORS.accent, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  secondaryBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  secondaryBtnText: { fontWeight: '700', color: '#fff', fontSize: 15 },
+  loginLink: { marginTop: 18, alignItems: 'center' },
+  loginLinkText: { color: 'rgba(255,255,255,0.82)', fontSize: 14 },
+  loginLinkBold: { color: '#fff', fontWeight: '700', textDecorationLine: 'underline' },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  disabled: { opacity: 0.6 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 16 },
+  modalCard: { borderRadius: 16, backgroundColor: 'rgba(94, 103, 81, 0.96)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', maxHeight: '80%' },
+  modalHeader: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
+  modalTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  modalCloseBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  modalBody: { paddingHorizontal: 16 },
+  modalBodyContent: { paddingVertical: 14 },
+  modalText: { color: '#fff', fontSize: 14, lineHeight: 20 },
+  modalFooter: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
+  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  modalButtonPrimary: { backgroundColor: COLORS.accent },
+  modalButtonSecondary: { backgroundColor: 'rgba(255,255,255,0.12)' },
+  modalButtonText: { color: '#fff', fontWeight: '700' },
 });
