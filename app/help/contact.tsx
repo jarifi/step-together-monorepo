@@ -14,7 +14,7 @@ const EMAIL_SUPPORT = "support@step-together.at";
 
 export default function Contact() {
   const openMail = (email: string) => {
-    Linking.openURL(`mailto:${email}`).catch(() => {});
+    Linking.openURL(`mailto:${email}`).catch(() => { });
   };
 
   const CopyBlock = ({
@@ -120,7 +120,7 @@ export default function Contact() {
             color="#111"
           />
           <Text style={styles.bulletText}>
-            Einen Betreff, z. B. <Text style={styles.bold}>"Schritte Einfügen – Fehler"</Text>
+            Einen Betreff, z. B. <Text style={styles.bold}>&quot;Schritte Einfugen - Fehler&quot;</Text>
           </Text>
         </View>
 

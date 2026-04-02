@@ -16,7 +16,7 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 
 import { useUser } from "../context/UserContext";
-import { saveTokens, saveUserId, saveUserRole } from "../lib/auth";
+import { authenticateWithPasskey, getLastEmail, getPasswordSecurely, isPasskeySupported, saveLastEmail, savePasswordSecurely, saveTokens, saveUserId, saveUserRole } from "../lib/auth";
 import { isValidEmail } from "../services/authClient";
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
@@ -70,6 +70,7 @@ export default function LoginScreen() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [isPasskeyAvailable, setIsPasskeyAvailable] = useState(false);
 
   const { setUser, setToken, setUserId } = useUser();
 
@@ -111,6 +112,10 @@ export default function LoginScreen() {
         password: trimmedPassword,
       });
 
+      // Save for next login
+      await saveLastEmail(trimmedEmail);
+      await savePasswordSecurely(trimmedPassword);
+
       await saveTokens(data.accessToken, data.refreshToken);
       await saveUserId(String(data.userId));
 
@@ -142,10 +147,118 @@ export default function LoginScreen() {
   };
 
   useEffect(() => {
+    checkPasskeyAvailability();
+    loadLastEmail();
     return () => {
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
   }, []);
+
+  const loadLastEmail = async () => {
+    try {
+      const lastEmail = await getLastEmail();
+      if (lastEmail) {
+        setEmail(lastEmail);
+      }
+      const lastPassword = await getPasswordSecurely();
+      if (lastPassword) {
+        setPassword(lastPassword);
+      }
+    } catch (error) {
+      console.warn('Failed to load last email/password:', error);
+    }
+  };
+
+  const checkPasskeyAvailability = async () => {
+    try {
+      const available = await isPasskeySupported();
+      setIsPasskeyAvailable(available);
+    } catch (error) {
+      console.warn('Failed to check passkey availability:', error);
+      setIsPasskeyAvailable(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (isPending) return;
+    clearError();
+
+    const trimmedEmail = email.trim();
+
+    // Check email is filled and valid
+    if (!trimmedEmail) {
+      showError("Bitte E-Mail eingeben");
+      return;
+    }
+
+    if (!isValidEmail(trimmedEmail)) {
+      showError("Bitte gültige E-Mail eingeben");
+      return;
+    }
+
+    setIsPending(true);
+
+    try {
+      // Authenticate using biometric
+      const authenticated = await authenticateWithPasskey(
+        "Authentifiziere dich mit deinem Fingerabdruck oder Gesicht"
+      );
+
+      if (!authenticated) {
+        showError("Biometrische Authentifizierung abgebrochen");
+        setIsPending(false);
+        return;
+      }
+
+      // Save email for next login
+      await saveLastEmail(trimmedEmail);
+
+      let trimmedPassword = password.trim();
+
+      // If password field is empty, try to get stored password
+      if (!trimmedPassword) {
+        const storedPassword = await getPasswordSecurely();
+        if (storedPassword) {
+          trimmedPassword = storedPassword;
+        } else {
+          showError("Passwort erforderlich");
+          setIsPending(false);
+          return;
+        }
+      }
+
+      const data = await loginRequest({
+        baseUrl: API_BASE_URL,
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      await saveTokens(data.accessToken, data.refreshToken);
+      await saveUserId(String(data.userId));
+
+      setToken(data.accessToken);
+      setUserId(String(data.userId));
+
+      if (data.role) await saveUserRole(data.role);
+
+      setUser({
+        id: data.userId,
+        email: trimmedEmail,
+        role: data.role,
+        teamId: data.teamId,
+        activeChallengeId: data.activeChallengeId,
+      });
+
+      router.replace("/dashboard");
+    } catch (err: any) {
+      if (__DEV__) {
+        console.log("PASSKEY LOGIN ERROR:", err?.message);
+      }
+      showError(err?.message ?? "Fehler bei Passkey-Anmeldung");
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   const loginDisabled = isPending;
 
@@ -175,8 +288,9 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
-            autoComplete="email"
-            textContentType="emailAddress"
+            autoComplete="email"          // Crucial for Android
+            textContentType="emailAddress" // Crucial for iOS
+            importantForAutofill="yes"    // Tells Android to prioritize this
             keyboardType="email-address"
             testID="login-email"
           />
@@ -192,8 +306,9 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              autoComplete="password"
-              textContentType="password"
+              autoComplete="password"       // Crucial for Android
+              textContentType="password"    // Crucial for iOS
+              importantForAutofill="yes"
               testID="login-password"
             />
 
@@ -214,6 +329,27 @@ export default function LoginScreen() {
             <Text style={styles.error} testID="login-error">
               {errorMessage}
             </Text>
+          )}
+
+          {isPasskeyAvailable && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.passkeyBtn,
+                pressed && styles.pressed,
+                isPending && styles.buttonDisabled,
+                (!email.trim() || !isValidEmail(email.trim())) && styles.buttonDisabled,
+              ]}
+              onPress={handlePasskeyLogin}
+              disabled={isPending || !email.trim() || !isValidEmail(email.trim())}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isPending || !email.trim() || !isValidEmail(email.trim()) }}
+              testID="login-passkey"
+            >
+              <Ionicons name="finger-print" size={20} color="#fff" />
+              <Text style={styles.passkeyBtnText}>
+                {isPending ? "Wird authentifiziert…" : "Mit Passkey anmelden"}
+              </Text>
+            </Pressable>
           )}
 
           <View style={styles.buttonRow}>
@@ -361,6 +497,26 @@ const styles = StyleSheet.create({
     color: "#ff8d8d",
     marginBottom: 10,
     textAlign: "center",
+  },
+
+  passkeyBtn: {
+    flexDirection: "row",
+    backgroundColor: "rgba(105, 128, 89, 0.8)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+
+  passkeyBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+    marginLeft: 8,
   },
 
   buttonRow: {

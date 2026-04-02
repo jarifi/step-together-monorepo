@@ -14,8 +14,6 @@ const ChallengeCard = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
-  if (!challenge) return null;
-
   const formatDateTime = (dateString) => {
     if (!dateString) return 'Kein Datum';
     try {
@@ -29,7 +27,7 @@ const ChallengeCard = ({
           minute: '2-digit',
         });
       }
-    } catch (e) {
+    } catch (_e) {
       return 'Ungültiges Datum';
     }
     return 'Ungültiges Datum';
@@ -44,6 +42,8 @@ const ChallengeCard = ({
   };
 
   const status = useMemo(() => getStatus(challenge?.state), [challenge?.state]);
+
+  if (!challenge) return null;
 
   return (
     <View style={styles.card}>

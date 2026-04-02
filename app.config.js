@@ -5,7 +5,7 @@ export default ({ config }) => ({
 
   name: 'step-together',
   slug: 'step-together',
-  version: '1.0.3',
+  version: '1.0.4',
   scheme: 'steptogether',
 
   icon: './assets/images/AppIcon.png',

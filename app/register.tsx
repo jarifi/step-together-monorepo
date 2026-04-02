@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useMemo, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -36,17 +36,20 @@ type PasswordFieldProps = {
   textContentType?: 'none' | 'password' | 'newPassword';
   autoComplete?: 'password' | 'password-new' | 'off';
   passwordRules?: string;
+  returnKeyType?: 'next' | 'done' | 'go';
+  onSubmitEditing?: () => void;
 };
 
-type PasswordRequirementState = {
-  minLen: boolean;
-  upper: boolean;
-  digit: boolean;
-};
-
-type RequirementLineProps = {
-  ok: boolean;
-  text: string;
+const COLORS = {
+  bg: '#313633c7',
+  card: 'rgba(94, 103, 81, 0.83)',
+  cardBorder: 'rgba(255,255,255,0.12)',
+  inputBg: 'rgba(108, 118, 96, 0.65)',
+  inputBorder: 'rgba(108, 118, 96, 0.65)',
+  text: '#FFFFFF',
+  sub: 'rgba(255,255,255,0.78)',
+  accent: '#698059ff',
+  ok: '#9EE6B0',
 };
 
 const PRIVACY_POLICY_TEXT = `
@@ -71,18 +74,6 @@ Daten werden nur so lange gespeichert, wie das Benutzerkonto besteht oder gesetz
 Nutzer haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und Widerspruch gemäß DSGVO.
 `;
 
-const COLORS = {
-  bg: '#313633c7',
-  card: 'rgba(94, 103, 81, 0.83)',
-  cardBorder: 'rgba(255,255,255,0.12)',
-  inputBg: 'rgba(108, 118, 96, 0.65)',
-  inputBorder: 'rgba(108, 118, 96, 0.65)',
-  text: '#FFFFFF',
-  sub: 'rgba(255,255,255,0.78)',
-  accent: '#698059ff',
-  ok: '#9EE6B0',
-};
-
 const FieldLabel = ({ children }: FieldLabelProps) => (
   <Text style={styles.label}>{children}</Text>
 );
@@ -97,17 +88,19 @@ const PasswordField = ({
   textContentType,
   autoComplete,
   passwordRules,
+  returnKeyType,
+  onSubmitEditing,
 }: PasswordFieldProps) => {
   const hasValue = value.length > 0;
 
   return (
     <View style={styles.fieldBlock}>
       <FieldLabel>{label}</FieldLabel>
-
       <View style={styles.inputRow}>
         <Ionicons name="lock-closed-outline" size={18} color="#fff" />
-
         <TextInput
+          // FIX: Unique key forces remount on toggle, killing the iOS "Strong Password" freeze
+          key={show ? 'pw_visible' : 'pw_hidden'}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={!show}
@@ -116,12 +109,13 @@ const PasswordField = ({
           placeholderTextColor="rgba(255,255,255,0.55)"
           autoCapitalize="none"
           autoCorrect={false}
-          // Fix for iOS Strong Password Freeze:
           textContentType={textContentType}
           autoComplete={autoComplete}
           passwordRules={passwordRules}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          importantForAutofill="yes"
         />
-
         {hasValue && (
           <Pressable
             onPress={onToggle}
@@ -144,16 +138,13 @@ const PasswordField = ({
   );
 };
 
-const getPwReqState = (pw: string): PasswordRequirementState => ({
+const getPwReqState = (pw: string) => ({
   minLen: pw.length >= 12,
   upper: /[A-Z]/.test(pw),
   digit: /\d/.test(pw),
 });
 
-const allOk = (s: PasswordRequirementState): boolean =>
-  s.minLen && s.upper && s.digit;
-
-const RequirementLine = ({ ok, text }: RequirementLineProps) => (
+const RequirementLine = ({ ok, text }: { ok: boolean; text: string }) => (
   <View style={styles.reqLine}>
     <Ionicons
       name={ok ? 'checkmark-circle' : 'ellipse-outline'}
@@ -173,14 +164,16 @@ const sanitizeStepLengthInput = (raw: string): string => {
     value = before + after;
   }
   value = value.replace(',', '.');
-  if (value.length > 4) {
-    value = value.slice(0, 4);
-  }
+  if (value.length > 4) value = value.slice(0, 4);
   return value;
 };
 
 export default function RegisterScreen() {
   const router = useRouter();
+
+  const lastnameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const stepRef = useRef<TextInput>(null);
 
   const [name, setName] = useState('');
   const [lastname, setLastname] = useState('');
@@ -198,15 +191,15 @@ export default function RegisterScreen() {
   const [policyModalVisible, setPolicyModalVisible] = useState(false);
 
   const req = useMemo(() => getPwReqState(password), [password]);
-  const pwValid = useMemo(() => allOk(req), [req]);
+  const pwValid = useMemo(() => req.minLen && req.upper && req.digit, [req]);
 
   const showError = (msg: string) => {
     Toast.show({
       type: 'error',
-      text1: 'Error',
+      text1: 'Fehler',
       text2: msg,
       position: 'top',
-      topOffset: 100,
+      topOffset: 60,
     });
   };
 
@@ -217,14 +210,7 @@ export default function RegisterScreen() {
     const fullName = `${trimmedName} ${trimmedLastname}`.trim();
     const stepLengthNumber = Number(stepLength);
 
-    if (
-      !trimmedName ||
-      !trimmedLastname ||
-      !trimmedEmail ||
-      !stepLength ||
-      !password ||
-      !passwordConfirm
-    ) {
+    if (!trimmedName || !trimmedLastname || !trimmedEmail || !stepLength || !password || !passwordConfirm) {
       showError('Alle Felder sind Pflichtfelder!');
       setPwTouched(true);
       return;
@@ -247,24 +233,20 @@ export default function RegisterScreen() {
     const allErrors = [
       ...nameErrors,
       ...emailErrors,
-      ...(password !== passwordConfirm
-        ? ['Passwörter stimmen nicht überein!']
-        : []),
+      ...(password !== passwordConfirm ? ['Passwörter stimmen nicht überein!'] : []),
       ...passwordErrors,
-      ...(pwTouched && !pwValid
-        ? ['Das Passwort erfüllt die Anforderungen noch nicht.']
-        : []),
+      ...(pwTouched && !pwValid ? ['Das Passwort erfüllt die Anforderungen noch nicht.'] : []),
     ].filter(Boolean) as string[];
 
     if (allErrors.length > 0) {
+      Toast.hide();
       allErrors.forEach((err, i) => {
-        setTimeout(() => showError(err), i * 900);
+        setTimeout(() => showError(err), i * 500);
       });
       return;
     }
 
     setLoading(true);
-
     try {
       await registerUser({
         email: trimmedEmail,
@@ -279,20 +261,12 @@ export default function RegisterScreen() {
         type: 'success',
         text1: 'Erfolg',
         text2: 'Registrierung erfolgreich!',
-        position: 'top',
-        topOffset: 100,
       });
 
       router.replace('/verifyInfo');
     } catch (error: any) {
-      const apiMsg =
-        error?.response?.data?.detail ||
-        error?.response?.data?.message ||
-        error?.message ||
-        'Registrierung fehlgeschlagen!';
-
+      const apiMsg = error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Registrierung fehlgeschlagen!';
       showError(String(apiMsg));
-      console.error('Register failed:', error?.response?.data ?? error);
     } finally {
       setLoading(false);
     }
@@ -332,12 +306,16 @@ export default function RegisterScreen() {
                   style={styles.input}
                   editable={!loading}
                   autoComplete="name-given"
+                  textContentType="givenName"
+                  returnKeyType="next"
+                  onSubmitEditing={() => lastnameRef.current?.focus()}
                 />
               </View>
 
               <View style={styles.halfField}>
                 <FieldLabel>NACHNAME</FieldLabel>
                 <TextInput
+                  ref={lastnameRef}
                   value={lastname}
                   onChangeText={setLastname}
                   placeholder="Nachname"
@@ -345,6 +323,9 @@ export default function RegisterScreen() {
                   style={styles.input}
                   editable={!loading}
                   autoComplete="name-family"
+                  textContentType="familyName"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
                 />
               </View>
             </View>
@@ -352,6 +333,7 @@ export default function RegisterScreen() {
             <View style={styles.fieldBlock}>
               <FieldLabel>E-MAIL</FieldLabel>
               <TextInput
+                ref={emailRef}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="E-Mail"
@@ -359,14 +341,21 @@ export default function RegisterScreen() {
                 style={styles.input}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false} // Crucial for preventing iOS input conflict
                 editable={!loading}
                 autoComplete="email"
+                // FIX: textContentType="emailAddress" tells iOS this is the ID for the new account
+                textContentType="emailAddress"
+                returnKeyType="next"
+                onSubmitEditing={() => stepRef.current?.focus()}
+                importantForAutofill="yes"
               />
             </View>
 
             <View style={styles.fieldBlock}>
-              <FieldLabel>SCHRITTLÄNGE</FieldLabel>
+              <FieldLabel>SCHRITTLÄNGE (m)</FieldLabel>
               <TextInput
+                ref={stepRef}
                 value={stepLength}
                 onChangeText={(text) => setStepLength(sanitizeStepLengthInput(text))}
                 placeholder="z. B. 0.75"
@@ -375,6 +364,7 @@ export default function RegisterScreen() {
                 keyboardType="decimal-pad"
                 editable={!loading}
                 maxLength={4}
+                returnKeyType="next"
               />
             </View>
 
@@ -391,6 +381,7 @@ export default function RegisterScreen() {
               textContentType="newPassword"
               autoComplete="password-new"
               passwordRules="minlength: 12; required: upper; required: digit;"
+              returnKeyType="next"
             />
 
             <View style={styles.requirementsBox}>
@@ -408,31 +399,25 @@ export default function RegisterScreen() {
               disabled={loading}
               textContentType="newPassword"
               autoComplete="password-new"
+              returnKeyType="done"
+              onSubmitEditing={handleRegister}
             />
 
             <Pressable
               onPress={() => setPrivacyPolicyAccepted((prev) => !prev)}
               style={styles.policyRow}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: privacyPolicyAccepted }}
             >
-              <View
-                style={[
-                  styles.checkbox,
-                  privacyPolicyAccepted && styles.checkboxChecked,
-                ]}
-              >
-                {privacyPolicyAccepted && (
-                  <Ionicons name="checkmark" size={16} color="#fff" />
-                )}
+              <View style={[styles.checkbox, privacyPolicyAccepted && styles.checkboxChecked]}>
+                {privacyPolicyAccepted && <Ionicons name="checkmark" size={16} color="#fff" />}
               </View>
-
               <Text style={styles.policyText}>
                 Ich akzeptiere die{' '}
                 <Text
                   style={styles.policyLink}
-                  onPress={() => setPolicyModalVisible(true)}
-                  suppressHighlighting
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setPolicyModalVisible(true);
+                  }}
                 >
                   Datenschutzerklärung
                 </Text>
@@ -442,18 +427,14 @@ export default function RegisterScreen() {
             <View style={styles.buttonRow}>
               <Pressable
                 onPress={() => router.back()}
-                disabled={loading}
-                style={({ pressed }) => [
-                  styles.secondaryBtn,
-                  pressed && styles.pressed,
-                ]}
+                style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
               >
                 <Text style={styles.secondaryBtnText}>Zurück</Text>
               </Pressable>
 
               <Pressable
                 onPress={handleRegister}
-                disabled={loading || !privacyPolicyAccepted}
+                disabled={loading}
                 style={({ pressed }) => [
                   styles.primaryBtn,
                   pressed && styles.pressed,
@@ -466,10 +447,7 @@ export default function RegisterScreen() {
               </Pressable>
             </View>
 
-            <Pressable
-              onPress={() => router.push('/login')}
-              style={({ pressed }) => [styles.loginLink, pressed && styles.pressed]}
-            >
+            <Pressable onPress={() => router.push('/login')} style={styles.loginLink}>
               <Text style={styles.loginLinkText}>
                 Bereits ein Konto? <Text style={styles.loginLinkBold}>Login</Text>
               </Text>
@@ -488,37 +466,20 @@ export default function RegisterScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Datenschutzerklärung</Text>
-
-              <Pressable
-                onPress={() => setPolicyModalVisible(false)}
-                hitSlop={10}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={22} color="#fff" />
+              <Pressable onPress={() => setPolicyModalVisible(false)} hitSlop={10}>
+                <Ionicons name="close" size={24} color="#fff" />
               </Pressable>
             </View>
-
-            <ScrollView
-              style={styles.modalBody}
-              contentContainerStyle={styles.modalBodyContent}
-            >
+            <ScrollView style={styles.modalBody}>
               <Text style={styles.modalText}>{PRIVACY_POLICY_TEXT.trim()}</Text>
             </ScrollView>
-
             <View style={styles.modalFooter}>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setPolicyModalVisible(false)}
-              >
+              <Pressable style={styles.modalButtonSecondary} onPress={() => setPolicyModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Schließen</Text>
               </Pressable>
-
               <Pressable
-                style={[styles.modalButton, styles.modalButtonPrimary]}
-                onPress={() => {
-                  setPrivacyPolicyAccepted(true);
-                  setPolicyModalVisible(false);
-                }}
+                style={styles.modalButtonPrimary}
+                onPress={() => { setPrivacyPolicyAccepted(true); setPolicyModalVisible(false); }}
               >
                 <Text style={styles.modalButtonText}>Akzeptieren</Text>
               </Pressable>
@@ -533,88 +494,46 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: COLORS.bg },
   container: { flex: 1 },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 40,
-    paddingBottom: 40,
-  },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingTop: 40, paddingBottom: 40 },
   logo: { width: 240, height: 130, alignSelf: 'center', marginBottom: 20 },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    padding: 24,
-    borderRadius: 18,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
+  card: { width: '100%', maxWidth: 420, alignSelf: 'center', padding: 24, borderRadius: 18, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.cardBorder },
   title: { fontSize: 28, color: COLORS.text, textAlign: 'center', marginBottom: 8, fontWeight: '700' },
-  subtitle: { fontSize: 14, color: COLORS.sub, textAlign: 'center', marginBottom: 22, lineHeight: 20 },
+  subtitle: { fontSize: 14, color: COLORS.sub, textAlign: 'center', marginBottom: 22 },
   nameRow: { flexDirection: 'row', gap: 10 },
   halfField: { flex: 1 },
   fieldBlock: { marginBottom: 12 },
-  label: { fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 8, marginLeft: 2, textTransform: 'uppercase', letterSpacing: 0.6 },
-  input: {
-    backgroundColor: COLORS.inputBg,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-    fontSize: 16,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.inputBg,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 10,
-    paddingLeft: 14,
-    paddingRight: 8,
-  },
-  rowInput: {
-    flex: 1,
-    color: COLORS.text,
-    fontSize: 16,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-    marginLeft: 10,
-  },
-  eyeButton: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  requirementsBox: { marginTop: -2, marginBottom: 12, paddingHorizontal: 2 },
-  reqLine: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3 },
-  reqText: { marginLeft: 8, fontSize: 12, color: 'rgba(255,255,255,0.62)' },
+  label: { fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 8, textTransform: 'uppercase' },
+  input: { backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 10, paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 14 : 10, fontSize: 16, borderWidth: 1, borderColor: COLORS.inputBorder },
+  inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderRadius: 10, paddingLeft: 14, borderWidth: 1, borderColor: COLORS.inputBorder },
+  rowInput: { flex: 1, color: COLORS.text, fontSize: 16, paddingVertical: Platform.OS === 'ios' ? 14 : 10, marginLeft: 10 },
+  eyeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  requirementsBox: { marginBottom: 12 },
+  reqLine: { flexDirection: 'row', alignItems: 'center', paddingVertical: 2 },
+  reqText: { marginLeft: 8, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
   reqTextOk: { color: COLORS.ok },
-  policyRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 12, paddingVertical: 6 },
-  checkbox: { width: 20, height: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)', borderRadius: 4, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  policyRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  checkbox: { width: 20, height: 20, borderWidth: 2, borderColor: '#fff', borderRadius: 4, marginRight: 10, justifyContent: 'center', alignItems: 'center' },
   checkboxChecked: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  policyText: { color: '#fff', flex: 1, fontSize: 14, lineHeight: 18 },
-  policyLink: { textDecorationLine: 'underline', fontWeight: '700', color: '#fff' },
-  buttonRow: { flexDirection: 'row', marginTop: 10 },
-  primaryBtn: { flex: 1, marginLeft: 12, backgroundColor: COLORS.accent, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  secondaryBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  secondaryBtnText: { fontWeight: '700', color: '#fff', fontSize: 15 },
-  loginLink: { marginTop: 18, alignItems: 'center' },
-  loginLinkText: { color: 'rgba(255,255,255,0.82)', fontSize: 14 },
-  loginLinkBold: { color: '#fff', fontWeight: '700', textDecorationLine: 'underline' },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
-  disabled: { opacity: 0.6 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 16 },
-  modalCard: { borderRadius: 16, backgroundColor: 'rgba(94, 103, 81, 0.96)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', maxHeight: '80%' },
-  modalHeader: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
-  modalTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  modalCloseBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  modalBody: { paddingHorizontal: 16 },
-  modalBodyContent: { paddingVertical: 14 },
-  modalText: { color: '#fff', fontSize: 14, lineHeight: 20 },
-  modalFooter: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
-  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  modalButtonPrimary: { backgroundColor: COLORS.accent },
-  modalButtonSecondary: { backgroundColor: 'rgba(255,255,255,0.12)' },
+  policyText: { color: '#fff', fontSize: 14, flex: 1 },
+  policyLink: { fontWeight: '700', textDecorationLine: 'underline' },
+  buttonRow: { flexDirection: 'row', gap: 10 },
+  primaryBtn: { flex: 1, backgroundColor: COLORS.accent, padding: 14, borderRadius: 10, alignItems: 'center' },
+  primaryBtnText: { color: '#fff', fontWeight: '700' },
+  secondaryBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', padding: 14, borderRadius: 10, alignItems: 'center' },
+  secondaryBtnText: { color: '#fff', fontWeight: '700' },
+  loginLink: { marginTop: 20, alignItems: 'center' },
+  loginLinkText: { color: '#fff' },
+  loginLinkBold: { fontWeight: '700', textDecorationLine: 'underline' },
+  pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.5 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: '#4a5240', borderRadius: 15, maxHeight: '80%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  modalTitle: { color: '#fff', fontWeight: '700' },
+  modalBody: { padding: 15 },
+  modalText: { color: '#fff', lineHeight: 20 },
+  modalFooter: { flexDirection: 'row', gap: 10, padding: 15 },
+  modalButtonPrimary: { flex: 1, backgroundColor: COLORS.accent, padding: 12, borderRadius: 10, alignItems: 'center' },
+  modalButtonSecondary: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 10, alignItems: 'center' },
   modalButtonText: { color: '#fff', fontWeight: '700' },
 });

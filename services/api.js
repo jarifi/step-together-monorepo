@@ -289,3 +289,47 @@ export const publicGet = async (path) => {
   }
   return payload;
 };
+
+// Optional helper: call non-auth endpoint with POST (public)
+export const publicPost = async (path, bodyObj = {}) => {
+  if (!API_BASE_URL) throw new Error('Missing API_BASE_URL (expo constants)');
+  const url = path.startsWith('http') ? path : buildUrl(path);
+
+  const body = bodyObj instanceof FormData ? bodyObj : JSON.stringify(bodyObj);
+  const headers = bodyObj instanceof FormData
+    ? { Accept: 'application/json' }
+    : { 'Content-Type': 'application/json', Accept: 'application/json' };
+
+  console.log(`➡️ [API] POST (public) ${url}`);
+
+  let res;
+  try {
+    res = await fetch(url, { method: 'POST', headers, body });
+  } catch (fetchErr) {
+    if (isAbortError(fetchErr)) {
+      console.warn('🟡 [API] public POST aborted:', url);
+    } else {
+      console.error('❌ [API] public POST threw:', fetchErr, 'URL:', url);
+    }
+    throw fetchErr;
+  }
+
+  logRes(url, res);
+
+  const payload = await tryParseJson(res);
+  if (!res.ok) {
+    const detail =
+      payload?.message ??
+      (typeof payload?.detail === 'string'
+        ? payload.detail
+        : payload?.detail
+          ? JSON.stringify(payload.detail)
+          : null);
+    const err = new Error(detail ?? `HTTP ${res.status}`);
+    err.status = res.status;
+    err.payload = payload;
+    console.error('🔴 [API] public POST failed:', err.status, payload);
+    throw err;
+  }
+  return payload;
+};
