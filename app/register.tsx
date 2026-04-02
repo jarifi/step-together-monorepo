@@ -34,7 +34,7 @@ type PasswordFieldProps = {
   onToggle: () => void;
   disabled: boolean;
   textContentType?: 'none' | 'password' | 'newPassword';
-  autoComplete?: 'password' | 'password-new' | 'off';
+  autoComplete?: 'password' | 'new-password' | 'off';
   passwordRules?: string;
   returnKeyType?: 'next' | 'done' | 'go';
   onSubmitEditing?: () => void;
@@ -85,8 +85,8 @@ const PasswordField = ({
   show,
   onToggle,
   disabled,
-  textContentType,
-  autoComplete,
+  textContentType = 'password',
+  autoComplete = 'password',
   passwordRules,
   returnKeyType,
   onSubmitEditing,
@@ -206,11 +206,20 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     const trimmedName = name.trim();
     const trimmedLastname = lastname.trim();
-    const trimmedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const rawPassword = password;
+    const rawPasswordConfirm = passwordConfirm;
     const fullName = `${trimmedName} ${trimmedLastname}`.trim();
     const stepLengthNumber = Number(stepLength);
 
-    if (!trimmedName || !trimmedLastname || !trimmedEmail || !stepLength || !password || !passwordConfirm) {
+    if (
+      !trimmedName ||
+      !trimmedLastname ||
+      !normalizedEmail ||
+      !stepLength ||
+      !rawPassword ||
+      !rawPasswordConfirm
+    ) {
       showError('Alle Felder sind Pflichtfelder!');
       setPwTouched(true);
       return;
@@ -227,13 +236,15 @@ export default function RegisterScreen() {
     }
 
     const nameErrors = validateName(fullName);
-    const emailErrors = validateEmail(trimmedEmail);
-    const passwordErrors = validatePassword(password);
+    const emailErrors = validateEmail(normalizedEmail);
+    const passwordErrors = validatePassword(rawPassword);
 
     const allErrors = [
       ...nameErrors,
       ...emailErrors,
-      ...(password !== passwordConfirm ? ['Passwörter stimmen nicht überein!'] : []),
+      ...(rawPassword !== rawPasswordConfirm
+        ? ['Passwörter stimmen nicht überein!']
+        : []),
       ...passwordErrors,
       ...(pwTouched && !pwValid ? ['Das Passwort erfüllt die Anforderungen noch nicht.'] : []),
     ].filter(Boolean) as string[];
@@ -249,9 +260,9 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await registerUser({
-        email: trimmedEmail,
-        password,
-        passwordConfirm,
+        email: normalizedEmail,
+        password: rawPassword,
+        passwordConfirm: rawPasswordConfirm,
         name: fullName,
         stepLength: stepLengthNumber,
         privacyPolicyAccepted,
@@ -379,7 +390,7 @@ export default function RegisterScreen() {
               onToggle={() => setShowPw((v) => !v)}
               disabled={loading}
               textContentType="newPassword"
-              autoComplete="password-new"
+              autoComplete="new-password"
               passwordRules="minlength: 12; required: upper; required: digit;"
               returnKeyType="next"
             />
@@ -398,7 +409,7 @@ export default function RegisterScreen() {
               onToggle={() => setShowPw2((v) => !v)}
               disabled={loading}
               textContentType="newPassword"
-              autoComplete="password-new"
+              autoComplete="new-password"
               returnKeyType="done"
               onSubmitEditing={handleRegister}
             />

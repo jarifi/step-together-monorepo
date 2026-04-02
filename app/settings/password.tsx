@@ -101,7 +101,7 @@ type PwReqState = {
 };
 
 const getPwReqState = (pw: string): PwReqState => ({
-  minLen: pw.length >= 8,
+  minLen: pw.length >= 12,
   upper: /[A-Z]/.test(pw),
   lower: /[a-z]/.test(pw),
   digit: /\d/.test(pw),

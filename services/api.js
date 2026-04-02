@@ -318,6 +318,12 @@ export const publicPost = async (path, bodyObj = {}) => {
 
   const payload = await tryParseJson(res);
   if (!res.ok) {
+    const pretty =
+      payload == null
+        ? `HTTP ${res.status}`
+        : typeof payload === 'string'
+          ? payload
+          : JSON.stringify(payload);
     const detail =
       payload?.message ??
       (typeof payload?.detail === 'string'

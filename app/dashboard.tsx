@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -59,6 +60,7 @@ export type HomeInitDto = {
 
 const EMPTY_WEEK = [0, 0, 0, 0, 0, 0, 0] as const;
 const FIX_STEP_LENGTH_M = 0.78;
+const MAX_STEP_DELTA = 100000;
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
   if (!entries || entries.length !== 7) return [...EMPTY_WEEK];
@@ -103,6 +105,10 @@ const Dashboard: React.FC = () => {
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [stepInput, setStepInput] = useState('');
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const [displayDate, setDisplayDate] = useState(new Date());
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date()));
@@ -346,6 +352,61 @@ const Dashboard: React.FC = () => {
     [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
   );
 
+  const saveAbsoluteStepsForSelectedDay = useCallback(
+    async (newValue: number) => {
+      if (!vm?.challenge?.id || !vm?.team?.id) return;
+
+      const dateSafe = clampDate(displayDate, minDate, maxDate);
+      if (stripTime(dateSafe) > stripTime(new Date())) return;
+
+      const idx = (dateSafe.getDay() + 6) % 7;
+      const dateISO = toIsoUtcMidnight(dateSafe);
+
+      const prev = [...weekSteps];
+      const next = [...weekSteps];
+      next[idx] = Math.max(0, Math.floor(newValue));
+
+      setWeekSteps(next);
+      setStepsToday(next[idx]);
+
+      try {
+        await upsertStepsForDate(dateISO, next[idx], {
+          challengeId: vm.challenge.id,
+          teamId: vm.team.id,
+        });
+        await refreshWeek();
+      } catch (e) {
+        setWeekSteps(prev);
+        setStepsToday(prev[idx] ?? 0);
+        console.warn('Save steps failed:', e);
+        setErrorMsg('Schritte konnten nicht gespeichert werden.');
+      }
+    },
+    [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
+  );
+
+  const applyStepDelta = useCallback(
+    async (delta: number) => {
+      const dateSafe = clampDate(displayDate, minDate, maxDate);
+      if (stripTime(dateSafe) > stripTime(new Date())) return;
+
+      const idx = (dateSafe.getDay() + 6) % 7;
+      const current = weekSteps[idx] ?? 0;
+
+      if (delta > 0) {
+        const add = Math.min(delta, MAX_STEP_DELTA);
+        await saveAbsoluteStepsForSelectedDay(current + add);
+        return;
+      }
+
+      if (delta < 0) {
+        const remove = Math.min(current, Math.abs(delta));
+        await saveAbsoluteStepsForSelectedDay(current - remove);
+      }
+    },
+    [displayDate, minDate, maxDate, weekSteps, saveAbsoluteStepsForSelectedDay]
+  );
+
   const startTracking = async () => {
     try {
       const available = await Pedometer.isAvailableAsync();
@@ -577,6 +638,8 @@ const Dashboard: React.FC = () => {
     setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
   };
 
+  const isTodaySelected = sameDay(displayDate, today);
+
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
@@ -673,29 +736,58 @@ const Dashboard: React.FC = () => {
             </Text>
           ) : null}
 
-          <TouchableOpacity
-            style={[
-              styles.editBtn,
-              { marginTop: 14 },
-              (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired) && { opacity: 0.5 },
-            ]}
-            disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired}
-            onPress={startTracking}
-          >
-            <Text style={[styles.editBtnText, styles.font]}>Start</Text>
-          </TouchableOpacity>
+          <View style={{ marginTop: 18, gap: 12 }}>
+            <TouchableOpacity
+              style={[
+                styles.primaryActionBtn,
+                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected) && styles.buttonDisabled,
+              ]}
+              disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected}
+              onPress={startTracking}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="play" size={18} color="#fff" />
+              <Text style={[styles.primaryActionBtnText, styles.font]}>Tracking starten</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.editBtn,
-              { marginTop: 10, backgroundColor: '#B91C1C' },
-              !isTracking && { opacity: 0.5 },
-            ]}
-            disabled={!isTracking}
-            onPress={stopTracking}
-          >
-            <Text style={[styles.editBtnText, styles.font, { color: '#fff' }]}>Stopp & speichern</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.dangerActionBtn,
+                (!isTracking || !isTodaySelected) && styles.buttonDisabled,
+              ]}
+              disabled={!isTracking || !isTodaySelected}
+              onPress={stopTracking}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="stop" size={18} color="#fff" />
+              <Text style={[styles.dangerActionBtnText, styles.font]}>Stopp & speichern</Text>
+            </TouchableOpacity>
+
+            {!isTodaySelected && (
+              <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 8 }]}>
+                Tracking ist nur für den heutigen Tag verfügbar.
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.secondaryActionBtn,
+                (isFutureSelected || isChallengeExpired) && styles.buttonDisabled,
+              ]}
+              disabled={isFutureSelected || isChallengeExpired}
+              onPress={() => setModalVisible(true)}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="create-outline" size={18} color="#2F3E34" />
+              <Text style={[styles.secondaryActionBtnText, styles.font]}>
+                {isChallengeExpired
+                  ? 'Keine Bearbeitung möglich'
+                  : isFutureSelected
+                    ? 'Zukünftiger Tag'
+                    : 'Schritte bearbeiten'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <Text style={[styles.weeklyTitle, styles.font]}>
             Diese Woche: <Text style={{ color: '#5F764E' }}>{weeklyTotal} Schritte</Text>
@@ -715,6 +807,115 @@ const Dashboard: React.FC = () => {
             })}
           </View>
         </View>
+
+        <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.stepsCard}>
+              <View style={styles.cardHeader}>
+                <Text style={[styles.font, styles.cardTitle]}>Schritte verwalten</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalVisible(false);
+                    setModalError(null);
+                    setStepInput('');
+                  }}
+                  style={styles.headerX}
+                >
+                  <Ionicons name="close" size={18} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.font, styles.fieldLabel]}>Anzahl Schritte</Text>
+                <View style={styles.inputWrap}>
+                  <Ionicons name="walk-outline" size={18} style={{ marginRight: 8, opacity: 0.6 }} />
+                  <TextInput
+                    style={[styles.inputBare, styles.font]}
+                    placeholder="z. B. 1200"
+                    placeholderTextColor="#9AA7A0"
+                    keyboardType="number-pad"
+                    value={stepInput}
+                    onChangeText={setStepInput}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.primaryBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
+                  disabled={isFutureSelected || isChallengeExpired}
+                  onPress={async () => {
+                    const num = parseInt(stepInput, 10);
+                    if (!isNaN(num) && num > 0 && num <= MAX_STEP_DELTA) {
+                      setModalError(null);
+                      await applyStepDelta(num);
+                      setModalVisible(false);
+                      setStepInput('');
+                    } else if (num > MAX_STEP_DELTA) {
+                      setModalError(`Maximal ${MAX_STEP_DELTA} Schritte pro Vorgang erlaubt.`);
+                    } else {
+                      setModalError('Bitte eine gültige Schrittzahl eingeben.');
+                    }
+                  }}
+                >
+                  <Text style={[styles.font, styles.primaryBtnText]}>Hinzufügen</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.secondaryBtn, (isFutureSelected || isChallengeExpired) && { opacity: 0.5 }]}
+                  disabled={isFutureSelected || isChallengeExpired}
+                  onPress={async () => {
+                    const num = parseInt(stepInput, 10);
+                    const dateSafe = clampDate(displayDate, minDate, maxDate);
+                    const idx = (dateSafe.getDay() + 6) % 7;
+                    const current = Number(weekSteps[idx] ?? 0);
+
+                    if (!isNaN(num) && num > 0 && num <= current) {
+                      setModalError(null);
+                      await applyStepDelta(-num);
+                      setModalVisible(false);
+                      setStepInput('');
+                    } else if (num > current) {
+                      setModalError('Du kannst nicht mehr Schritte entfernen als vorhanden.');
+                    } else {
+                      setModalError('Bitte eine gültige Schrittzahl eingeben.');
+                    }
+                  }}
+                >
+                  <Text style={[styles.font, styles.secondaryBtnText]}>Entfernen</Text>
+                </TouchableOpacity>
+              </View>
+
+              {modalError ? (
+                <Text style={[styles.font, { color: '#B91C1C', textAlign: 'center', marginTop: 8 }]}>{modalError}</Text>
+              ) : null}
+
+              {isChallengeExpired ? (
+                <View style={styles.expiredModalWarning}>
+                  <Ionicons name="information-circle" size={18} color="#B91C1C" />
+                  <Text style={[styles.font, styles.expiredModalWarningText]}>
+                    Diese Challenge ist bereits beendet. Das Hinzufügen oder Entfernen von Schritten ist nicht mehr möglich.
+                  </Text>
+                </View>
+              ) : isFutureSelected ? (
+                <Text style={[styles.font, { color: '#6B7280', textAlign: 'center', marginTop: 8 }]}>
+                  Zukünftige Tage können nicht bearbeitet werden.
+                </Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.cancelGhost}
+                onPress={() => {
+                  setModalVisible(false);
+                  setModalError(null);
+                  setStepInput('');
+                }}
+              >
+                <Text style={[styles.font, styles.cancelGhostText]}>Abbrechen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <Modal animationType="fade" transparent visible={calendarOpen} onRequestClose={() => setCalendarOpen(false)}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setCalendarOpen(false)}>

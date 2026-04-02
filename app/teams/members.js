@@ -12,11 +12,14 @@ import {
 import { getTeamMembers } from '../../services/teamService';
 
 export default function TeamMembersScreen() {
-  const { id, name } = useLocalSearchParams();
+  const { id, name, totalSteps: totalStepsParam } = useLocalSearchParams();
   const router = useRouter();
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const stepsToKm = (steps) => steps * 0.0008;
+  const totalSteps = parseInt(totalStepsParam ?? '0', 10) || 0;
+  const totalKm = stepsToKm(totalSteps);
 
   useEffect(() => {
     const teamId = Array.isArray(id) ? id[0] : id;
@@ -61,6 +64,11 @@ export default function TeamMembersScreen() {
       <View style={[styles.card, styles.centered]}>
         <Text style={styles.title}>{name ?? 'Team'}</Text>
         <Text style={styles.sub}>Teammitglieder</Text>
+
+
+        <Text style={styles.subSmall}>
+          {totalSteps.toLocaleString()} Schritte · {totalKm.toFixed(2)} km
+        </Text>
       </View>
 
       {/* Mitgliederliste */}
