@@ -68,8 +68,27 @@ def create_challenge(db: Session, challenge_data: ChallengeCreate) -> ChallengeM
             detail="Challenge within this time frame already exists."
         )
 
-    db_challenge = ChallengeModel(**challenge_data.model_dump())
+    data = challenge_data.model_dump(exclude={"team_ids"})
+    team_ids = challenge_data.team_ids or []
+
+    db_challenge = ChallengeModel(**data)
     db.add(db_challenge)
+    db.flush()
+
+    if team_ids:
+        teams = db.query(Team).filter(Team.id.in_(team_ids)).all()
+
+        if len(teams) != len(set(team_ids)):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or more teams not found."
+            )
+
+        db.add_all([
+            ChallengeTeam(challenge_id=db_challenge.id, team_id=team_id)
+            for team_id in set(team_ids)
+        ])
+
     db.commit()
     db.refresh(db_challenge)
     return db_challenge
@@ -80,11 +99,33 @@ def update_challenge(db: Session, challenge_id: int, challenge_data: ChallengeUp
     if not challenge_obj:
         return None
 
-    for key, value in challenge_data.model_dump(exclude_unset=True).items():
+    update_data = challenge_data.model_dump(exclude_unset=True)
+    team_ids = update_data.pop("team_ids", None)
+
+    for key, value in update_data.items():
         setattr(challenge_obj, key, value)
 
     if challenge_data.is_deleted is not None:
         challenge_obj.is_deleted = challenge_data.is_deleted
+
+    if team_ids is not None:
+        teams = db.query(Team).filter(Team.id.in_(team_ids)).all()
+
+        if len(teams) != len(set(team_ids)):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or more teams not found."
+            )
+
+        db.query(ChallengeTeam).filter(
+            ChallengeTeam.challenge_id == challenge_id
+        ).delete()
+
+        if team_ids:
+            db.add_all([
+                ChallengeTeam(challenge_id=challenge_id, team_id=team_id)
+                for team_id in set(team_ids)
+            ])
 
     db.commit()
     db.refresh(challenge_obj)
