@@ -13,7 +13,11 @@ import {
 } from 'react-native';
 
 import ChallengeCard from '../../components/ChallengeCard';
-import { deleteChallenge, getChallenges } from '../../services/challengeService';
+import {
+  deleteChallenge,
+  getChallenges,
+  getChallengeTeams,
+} from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -49,18 +53,20 @@ export default function AllChallengesScreen() {
       const start = challenge?.startLocation?.toLowerCase?.() ?? '';
       const target = challenge?.targetLocation?.toLowerCase?.() ?? '';
       const teamId = challenge?.teamId?.toString?.() ?? '';
+      const teamCount = challenge?.teamCount?.toString?.() ?? '';
 
       return (
         name.includes(query) ||
         id.includes(query) ||
         start.includes(query) ||
         target.includes(query) ||
-        teamId.includes(query)
+        teamId.includes(query) ||
+        teamCount.includes(query)
       );
     });
   }, [searchQuery, challenges]);
 
-  const loadChallenges = async () => {
+  const loadChallenges = useCallback(async () => {
     if (loadingMore || !hasMore) return;
 
     const isInitial = challenges.length === 0;
@@ -71,7 +77,26 @@ export default function AllChallengesScreen() {
       const data = await getChallenges(skip, limit);
       const safe = Array.isArray(data) ? data : [];
 
-      setChallenges((prev) => [...prev, ...safe]);
+      const enrichedChallenges = await Promise.all(
+        safe.map(async (challenge) => {
+          try {
+            const teams = await getChallengeTeams(challenge.id);
+
+            return {
+              ...challenge,
+              teamCount: Array.isArray(teams) ? teams.length : 0,
+            };
+          } catch (err) {
+            console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
+            return {
+              ...challenge,
+              teamCount: 0,
+            };
+          }
+        })
+      );
+
+      setChallenges((prev) => [...prev, ...enrichedChallenges]);
       setSkip((prev) => prev + safe.length);
 
       if (safe.length < limit) setHasMore(false);
@@ -81,16 +106,61 @@ export default function AllChallengesScreen() {
       if (isInitial) setLoadingInitial(false);
       else setLoadingMore(false);
     }
-  };
+  }, [skip, limit, loadingMore, hasMore, challenges.length]);
 
   useFocusEffect(
     useCallback(() => {
-      setSkip(0);
-      setChallenges([]);
-      setHasMore(true);
-      setSearchQuery('');
-      loadChallenges();
-    }, [])
+      let isActive = true;
+
+      const resetAndLoad = async () => {
+        setSkip(0);
+        setChallenges([]);
+        setHasMore(true);
+        setSearchQuery('');
+
+        try {
+          setLoadingInitial(true);
+
+          const data = await getChallenges(0, limit);
+          const safe = Array.isArray(data) ? data : [];
+
+          const enrichedChallenges = await Promise.all(
+            safe.map(async (challenge) => {
+              try {
+                const teams = await getChallengeTeams(challenge.id);
+
+                return {
+                  ...challenge,
+                  teamCount: Array.isArray(teams) ? teams.length : 0,
+                };
+              } catch (err) {
+                console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
+                return {
+                  ...challenge,
+                  teamCount: 0,
+                };
+              }
+            })
+          );
+
+          if (!isActive) return;
+
+          setChallenges(enrichedChallenges);
+          setSkip(safe.length);
+          setHasMore(safe.length >= limit);
+        } catch (err) {
+          console.error('Failed to load challenges:', err);
+        } finally {
+          if (isActive) setLoadingInitial(false);
+        }
+      };
+
+      resetAndLoad();
+
+      return () => {
+        isActive = false;
+      };
+    }, [limit])
   );
 
   if (loadingInitial && challenges.length === 0) {
@@ -105,11 +175,9 @@ export default function AllChallengesScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.headerCard}>
           <Text style={styles.title}>Alle Challenges</Text>
 
-          {/* Search */}
           <View style={styles.searchWrap}>
             <TextInput
               value={searchQuery}
@@ -130,7 +198,6 @@ export default function AllChallengesScreen() {
             )}
           </View>
 
-          {/* Search Info */}
           {searchQuery.trim() ? (
             <View style={styles.searchInfoPill}>
               <Text style={styles.searchInfoText}>
@@ -140,7 +207,6 @@ export default function AllChallengesScreen() {
             </View>
           ) : null}
 
-          {/* Create Challenge Button */}
           <Pressable
             onPress={() => router.push('/challenges/create')}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
@@ -149,7 +215,6 @@ export default function AllChallengesScreen() {
           </Pressable>
         </View>
 
-        {/* List */}
         <FlatList
           data={filteredChallenges}
           keyExtractor={(item) => String(item?.id)}
@@ -386,5 +451,9 @@ const styles = StyleSheet.create({
     color: COLORS.sub,
     textAlign: 'center',
     maxWidth: 320,
+  },
+
+  cardWrap: {
+    marginBottom: 0,
   },
 });

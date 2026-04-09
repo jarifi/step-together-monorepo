@@ -48,7 +48,27 @@ export const updateChallenge = async (id, data) => {
     return await apiPut(`/challenges/${id}`, data);
   } catch (err) {
     console.error('Error updating challenge:', err);
-    throw err;
+
+    const status = err?.status || err?.response?.status;
+    const detail =
+      err?.response?.data?.detail ||
+      err?.data?.detail ||
+      err?.detail ||
+      err?.message ||
+      '';
+
+    const detailText = String(detail).toLowerCase();
+
+    if (
+      status === 409 &&
+      detailText.includes('another challenge during this time period')
+    ) {
+      throw new Error(
+        'Mindestens ein Teammitglied nimmt in diesem Zeitraum bereits an einer anderen Challenge teil.'
+      );
+    }
+
+    throw new Error(detail || 'Challenge could not be updated.');
   }
 };
 

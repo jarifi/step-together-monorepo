@@ -6,11 +6,15 @@ import { apiDelete, apiGet, apiPost, apiPut } from './api';
 // ---------------------------------------------------------------------------
 
 export const getTeams = async (skip = 0, limit = 10) => {
-  const path = `/teams/?skip=${skip}&limit=${limit}`;
+  const params = new URLSearchParams({
+    skip: String(skip),
+    limit: String(limit),
+  });
+
   try {
-    return await apiGet(path);
+    return await apiGet(`/teams/?${params.toString()}`);
   } catch (err) {
-    console.error('Error fetching teams:', err);
+    console.error('Error fetching teams:', err.status, err.payload || err.message || err);
     return [];
   }
 };
@@ -66,6 +70,32 @@ export const getTeamMembers = async (teamId) => {
     return Array.isArray(data) ? data : [];
   } catch (err) {
     console.error('Error fetching team members:', err);
+    return [];
+  }
+};
+
+export const getAllTeams = async (pageSize = 100) => {
+  try {
+    let skip = 0;
+    let allTeams = [];
+    let hasMore = true;
+
+    while (hasMore) {
+      const chunk = await getTeams(skip, pageSize);
+      const safeChunk = Array.isArray(chunk) ? chunk : [];
+
+      allTeams = [...allTeams, ...safeChunk];
+
+      if (safeChunk.length < pageSize) {
+        hasMore = false;
+      } else {
+        skip += safeChunk.length;
+      }
+    }
+
+    return allTeams;
+  } catch (err) {
+    console.error('Error fetching all teams:', err);
     return [];
   }
 };

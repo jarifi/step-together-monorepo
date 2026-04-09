@@ -47,9 +47,7 @@ const ChallengeCard = ({
 
   return (
     <View style={styles.card}>
-      {/* LEFT */}
       <View style={styles.info}>
-        {/* Title can wrap (2 lines) */}
         <Text style={styles.title} numberOfLines={2}>
           {challenge.name}
         </Text>
@@ -67,6 +65,13 @@ const ChallengeCard = ({
         </View>
 
         <View style={styles.metaRow}>
+          <MaterialIcons name="groups" size={16} color="#6B7280" />
+          <Text style={styles.metaText}>
+            {challenge.teamCount ?? challenge.teams?.length ?? 0} Teams
+          </Text>
+        </View>
+
+        <View style={styles.metaRow}>
           <MaterialIcons name="event" size={16} color="#6B7280" />
           <Text style={styles.metaText} numberOfLines={2}>
             {formatDateTime(challenge.startDate)} – {formatDateTime(challenge.endDate)}
@@ -74,9 +79,19 @@ const ChallengeCard = ({
         </View>
 
         <View style={styles.statusRow}>
-          <View style={[styles.statusPill, { borderColor: `${status.color}33`, backgroundColor: `${status.color}14` }]}>
+          <View
+            style={[
+              styles.statusPill,
+              {
+                borderColor: `${status.color}33`,
+                backgroundColor: `${status.color}14`,
+              },
+            ]}
+          >
             <MaterialIcons name={status.icon} size={16} color={status.color} />
-            <Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
+            <Text style={[styles.statusText, { color: status.color }]}>
+              {status.text}
+            </Text>
           </View>
         </View>
       </View>
@@ -85,7 +100,11 @@ const ChallengeCard = ({
         {onPress && (
           <Pressable
             onPress={() => onPress(challenge)}
-            style={({ pressed }) => [styles.iconButton, styles.infoButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              styles.infoButton,
+              pressed && styles.pressed,
+            ]}
             hitSlop={8}
           >
             <MaterialIcons name="info-outline" size={20} color="#fff" />
@@ -96,7 +115,12 @@ const ChallengeCard = ({
           <>
             <Pressable
               onPress={onUpdate}
-              style={({ pressed }) => [styles.iconButton, styles.updateButton, styles.stackSpace, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.iconButton,
+                styles.updateButton,
+                styles.stackSpace,
+                pressed && styles.pressed,
+              ]}
               hitSlop={8}
             >
               <MaterialIcons name="edit" size={20} color="#fff" />
@@ -104,7 +128,12 @@ const ChallengeCard = ({
 
             <Pressable
               onPress={() => setModalVisible(true)}
-              style={({ pressed }) => [styles.iconButton, styles.deleteButton, styles.stackSpace, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.iconButton,
+                styles.deleteButton,
+                styles.stackSpace,
+                pressed && styles.pressed,
+              ]}
               hitSlop={8}
             >
               <MaterialIcons name="delete" size={20} color="#fff" />
@@ -113,7 +142,6 @@ const ChallengeCard = ({
         )}
       </View>
 
-      {/* DELETE MODAL */}
       <Modal
         animationType="fade"
         transparent
@@ -122,7 +150,9 @@ const ChallengeCard = ({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Möchten Sie diese Challenge wirklich löschen?</Text>
+            <Text style={styles.modalTitle}>
+              Möchten Sie diese Challenge wirklich löschen?
+            </Text>
 
             <Pressable
               style={({ pressed }) => [styles.modalDanger, pressed && styles.modalPressed]}
@@ -234,11 +264,11 @@ const styles = StyleSheet.create({
   },
 
   updateButton: {
-    backgroundColor: '#5B8EDB', 
+    backgroundColor: '#5B8EDB',
   },
 
   deleteButton: {
-    backgroundColor: '#E57373', 
+    backgroundColor: '#E57373',
   },
 
   pressed: {

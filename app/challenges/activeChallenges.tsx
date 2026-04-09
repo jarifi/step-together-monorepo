@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 
 import ChallengeCard from '../../components/ChallengeCard';
-import { getChallenges } from '../../services/challengeService';
+import { getChallenges, getChallengeTeams } from '../../services/challengeService';
 
 type Challenge = {
   id: number | string;
   state?: string | null;
+  teamCount?: number;
   [key: string]: any;
 };
 
@@ -61,17 +62,17 @@ export default function OpenChallengesScreen() {
   const router = useRouter();
 
   const activeChallenges = useMemo(
-    () => challenges.filter((c) => String(c?.state ?? '') === 'open'),
+    () => challenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'open'),
     [challenges]
   );
 
   const incomingChallenges = useMemo(
-    () => challenges.filter((c) => String(c?.state ?? '') === 'incoming'),
+    () => challenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'incoming'),
     [challenges]
   );
 
   const closedChallenges = useMemo(
-    () => challenges.filter((c) => String(c?.state ?? '') === 'closed'),
+    () => challenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'closed'),
     [challenges]
   );
 
@@ -80,6 +81,26 @@ export default function OpenChallengesScreen() {
     if (tab === 'incoming') return incomingChallenges;
     return closedChallenges;
   }, [tab, activeChallenges, incomingChallenges, closedChallenges]);
+
+  const enrichChallengesWithTeamCount = useCallback(async (items: Challenge[]) => {
+    return Promise.all(
+      items.map(async (challenge) => {
+        try {
+          const teams = await getChallengeTeams(challenge.id);
+          return {
+            ...challenge,
+            teamCount: Array.isArray(teams) ? teams.length : 0,
+          };
+        } catch (err) {
+          console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
+          return {
+            ...challenge,
+            teamCount: 0,
+          };
+        }
+      })
+    );
+  }, []);
 
   const loadChallenges = useCallback(
     async (isInitial = false) => {
@@ -93,7 +114,12 @@ export default function OpenChallengesScreen() {
         const data = await getChallenges(skipRef.current, limit);
         const safe: Challenge[] = Array.isArray(data) ? data : [];
 
-        setChallenges((prev) => (isInitial ? safe : [...prev, ...safe]));
+        const enrichedChallenges = await enrichChallengesWithTeamCount(safe);
+
+        setChallenges((prev) =>
+          isInitial ? enrichedChallenges : [...prev, ...enrichedChallenges]
+        );
+
         skipRef.current += safe.length;
 
         if (safe.length < limit) hasMoreRef.current = false;
@@ -105,7 +131,7 @@ export default function OpenChallengesScreen() {
         else setLoadingMore(false);
       }
     },
-    [limit]
+    [limit, enrichChallengesWithTeamCount]
   );
 
   useFocusEffect(
