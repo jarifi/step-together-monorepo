@@ -55,6 +55,60 @@ def test_create_challenge_success(client, test_user):
     data = response.json()
     assert data["name"] == challenge_payload["name"]
 
+
+def test_create_challenge_allows_overlapping_periods(client, test_user):
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": test_user.email,
+            "password": "StrongPassword123",
+            "privacyPolicyAccepted": True,
+        },
+    )
+
+    assert login_response.status_code == 200
+    token = login_response.json()["accessToken"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=30)
+
+    first_payload = {
+        "name": "Spring Challenge",
+        "startLocation": "Berlin",
+        "targetLocation": "Leipzig",
+        "distance": 190.0,
+        "startDate": start_date.isoformat(),
+        "endDate": end_date.isoformat(),
+        "creatorId": test_user.id,
+        "teamId": 1,
+    }
+    second_payload = {
+        "name": "Parallel Challenge",
+        "startLocation": "Hamburg",
+        "targetLocation": "Bremen",
+        "distance": 125.0,
+        "startDate": (start_date + timedelta(days=5)).isoformat(),
+        "endDate": (end_date - timedelta(days=5)).isoformat(),
+        "creatorId": test_user.id,
+        "teamId": 1,
+    }
+
+    first_response = client.post(
+        "/api/v1/challenges/",
+        json=first_payload,
+        headers=headers,
+    )
+    second_response = client.post(
+        "/api/v1/challenges/",
+        json=second_payload,
+        headers=headers,
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+    assert second_response.json()["name"] == second_payload["name"]
+
 # GET / READ
 def test_get_all_challenges_success(client, db_session, test_user):
     login_response = client.post( "/api/v1/auth/login",

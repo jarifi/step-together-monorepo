@@ -52,22 +52,6 @@ def get_active_challenge(db: Session, team_id: int):
 
 
 def create_challenge(db: Session, challenge_data: ChallengeCreate) -> ChallengeModel:
-    overlapping_challenge = (
-        db.query(ChallengeModel)
-        .filter(
-            ChallengeModel.is_deleted == False,
-            ChallengeModel.start_date <= challenge_data.end_date,
-            ChallengeModel.end_date >= challenge_data.start_date,
-        )
-        .first()
-    )
-
-    if overlapping_challenge:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Challenge within this time frame already exists."
-        )
-
     data = challenge_data.model_dump(exclude={"team_ids"})
     team_ids = challenge_data.team_ids or []
 
