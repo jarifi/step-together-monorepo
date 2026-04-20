@@ -1,0 +1,113 @@
+#@baseUrl = https://api.step-together.at/api/v1
+@baseUrl = http://localhost:3000/api/v1
+
+### 0. Register New User
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "email": "new.user1@example.com",
+    "password": "StrongPassword123",
+    "passwordConfirm": "StrongPassword123",
+    "name": "New User",
+    "stepLength": 0.75,
+    "privacyPolicyAccepted": true
+}
+
+
+### Admin Login (for admin-only actions like verify)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "jetonbfi@gmail.com",
+    "password": "Kilimangjare77/"
+}
+
+
+### 1) Create Individual Challenge (uses login token above)
+# @name createIndividualChallenge
+POST {{baseUrl}}/challenges
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+    "name": "Hybrid Invite Challenge",
+    "startLocation": "Graz",
+    "targetLocation": "Vienna",
+    "distance": 180.5,
+    "startDate": "2026-05-01T08:00:00Z",
+    "endDate": "2026-05-20T20:00:00Z",
+    "mode": "individual",
+    "teamIds": []
+}
+
+
+### 2) Join Challenge as Creator (individual mode)
+# @name joinCreatedChallenge
+POST {{baseUrl}}/challenges/{{createIndividualChallenge.response.body.id}}/join
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{}
+
+
+### 3) Invite Friend to Created Challenge
+# IMPORTANT: Replace inviteeUserId with the user id you want to invite.
+# @name inviteFriend
+POST {{baseUrl}}/challenges/{{createIndividualChallenge.response.body.id}}/invites
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+    "inviteeUserId": 24
+}
+
+
+### 3b) Login as User 24 (invitee)
+# @name loginUser24
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "gocaandjelkovic2004@gmail.com",
+    "password": "Kilimangjare77/"
+}
+
+
+### 3c) Accept Invitation as User 24
+# @name acceptInvite
+POST {{baseUrl}}/challenges/{{createIndividualChallenge.response.body.id}}/invites/{{inviteFriend.response.body.id}}/accept
+Authorization: Bearer {{loginUser24.response.body.accessToken}}
+Content-Type: application/json
+
+
+### 4) Optional - Create Team Challenge with same login
+# @name createTeamChallenge
+POST {{baseUrl}}/challenges
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+    "name": "Hybrid Team Challenge",
+    "startLocation": "Linz",
+    "targetLocation": "Salzburg",
+    "distance": 120,
+    "startDate": "2026-05-02T08:00:00Z",
+    "endDate": "2026-05-22T20:00:00Z",
+    "mode": "team",
+    "teamIds": [1]
+}
+
+
+### 5) Optional - Join Team Challenge (team mode requires teamId)
+# @name joinTeamChallenge
+POST {{baseUrl}}/challenges/{{createTeamChallenge.response.body.id}}/join
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+    "teamId": 1
+}
+

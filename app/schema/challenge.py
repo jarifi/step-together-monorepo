@@ -39,7 +39,7 @@ class ChallengeBase(CamelCaseBaseModel):
 
 
 class ChallengeCreate(ChallengeBase):
-    creator_id: int
+    creator_id: Optional[int] = None
     team_ids: List[int] = Field(default_factory=list)
     mode: ChallengeMode = ChallengeMode.team
 
