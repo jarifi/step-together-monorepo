@@ -74,7 +74,7 @@ export const updateChallenge = async (id, data) => {
 
 export const createChallenge = async (data) => {
   try {
-    return await apiPost(`/challenges`, data);
+    return await apiPost(`/challenges/`, data);
   } catch (err) {
     console.error('Error creating challenge:', err);
 
