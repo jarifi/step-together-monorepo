@@ -31,7 +31,7 @@ export const updateTeam = async (id, data) => {
 
 export const createTeam = async (data) => {
   try {
-    return await apiPost(`/teams`, data);
+    return await apiPost(`/teams/`, data);
   } catch (err) {
     console.error('Error creating team:', err);
     throw err;
