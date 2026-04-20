@@ -1,5 +1,5 @@
-#@baseUrl = https://api.step-together.at/api/v1
-@baseUrl = http://localhost:3000/api/v1
+@baseUrl = https://api.step-together.at/api/v1
+#@baseUrl = http://localhost:3000/api/v1
 
 ### 0. Register New User
 POST {{baseUrl}}/auth/register
@@ -18,13 +18,23 @@ Content-Type: application/json
 
 
 ### Admin Login (for admin-only actions like verify)
-# @name adminLogin
+# @name login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
     "email": "admin@bfi.at",
     "password": "StrongPassword123"
+}
+
+### Admin Login (for admin-only actions like verify)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@step-together.at",
+    "password": ""
 }
 
 ###
@@ -70,7 +80,7 @@ Content-Type: application/json
 
 ### 1.4 User entsperren (Erfolgsfall)
 POST {{baseUrl}}/auth/unlock/79
-Authorization: Bearer {{adminLogin.response.body.accessToken}}
+Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 2. Get All Users Using Access Token
 GET {{baseUrl}}/users/?skip=0&limit=10
@@ -114,7 +124,7 @@ Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 2.6 Admin Verify User
 POST {{baseUrl}}/users/14/verify
-Authorization: Bearer {{adminLogin.response.body.accessToken}}
+Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 3. Get All Teams Using Access Token
 GET {{baseUrl}}/teams/
