@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schema.challenge import (
     ChallengeCreate,
+    ChallengeInviteCreate,
+    ChallengeInviteResponse,
+    ChallengeJoinRequest,
+    ChallengeJoinResponse,
     ChallengeResponse,
     ChallengeUpdate,
 )
@@ -149,3 +153,94 @@ def read_challenge_teams(
         )
         raise HTTPException(status_code=404, detail="Challenge not found")
     return teams
+
+
+@router.post("/{challenge_id}/join", response_model=ChallengeJoinResponse)
+def join_challenge(
+    challenge_id: int,
+    payload: ChallengeJoinRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    joined = challenge_crud.join_challenge(
+        db=db,
+        challenge_id=challenge_id,
+        user_id=current_user.id,
+        team_id=payload.team_id,
+    )
+
+    challenge_logger.info(
+        f"CHALLENGE JOINED | challenge_id={challenge_id} | user_id={current_user.id} | mode={joined['mode']}"
+    )
+
+    return joined
+
+
+@router.post("/{challenge_id}/invites", response_model=ChallengeInviteResponse)
+def create_challenge_invite(
+    challenge_id: int,
+    payload: ChallengeInviteCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = challenge_crud.create_challenge_invite(
+        db=db,
+        challenge_id=challenge_id,
+        inviter_user_id=current_user.id,
+        invitee_user_id=payload.invitee_user_id,
+        expires_at=payload.expires_at,
+    )
+
+    challenge_logger.info(
+        f"CHALLENGE INVITE CREATED | challenge_id={challenge_id} | inviter_id={current_user.id} | invitee_id={payload.invitee_user_id} | invite_id={invite.id}"
+    )
+
+    return invite
+
+
+@router.post("/{challenge_id}/invites/{invite_id}/accept", response_model=ChallengeInviteResponse)
+def accept_challenge_invite(
+    challenge_id: int,
+    invite_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = challenge_crud.respond_to_challenge_invite(
+        db=db,
+        invite_id=invite_id,
+        user_id=current_user.id,
+        accept=True,
+    )
+
+    if invite.challenge_id != challenge_id:
+        raise HTTPException(status_code=404, detail="Invite not found for this challenge")
+
+    challenge_logger.info(
+        f"CHALLENGE INVITE ACCEPTED | challenge_id={challenge_id} | invite_id={invite_id} | user_id={current_user.id}"
+    )
+
+    return invite
+
+
+@router.post("/{challenge_id}/invites/{invite_id}/decline", response_model=ChallengeInviteResponse)
+def decline_challenge_invite(
+    challenge_id: int,
+    invite_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = challenge_crud.respond_to_challenge_invite(
+        db=db,
+        invite_id=invite_id,
+        user_id=current_user.id,
+        accept=False,
+    )
+
+    if invite.challenge_id != challenge_id:
+        raise HTTPException(status_code=404, detail="Invite not found for this challenge")
+
+    challenge_logger.info(
+        f"CHALLENGE INVITE DECLINED | challenge_id={challenge_id} | invite_id={invite_id} | user_id={current_user.id}"
+    )
+
+    return invite

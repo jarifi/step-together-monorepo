@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, case, func
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Enum, case, func
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, timezone
 from app.db.base import Base
@@ -6,6 +6,9 @@ from app.db.base import Base
 
 class Challenge(Base):
     __tablename__ = "challenges"
+
+    MODE_TEAM = "team"
+    MODE_INDIVIDUAL = "individual"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
@@ -16,6 +19,11 @@ class Challenge(Base):
     end_date = Column(DateTime(timezone=True), nullable=False)
     creator_id = Column(Integer)
     team_id = Column(Integer)
+    mode = Column(
+        Enum(MODE_TEAM, MODE_INDIVIDUAL, name="challenge_mode", native_enum=False),
+        nullable=False,
+        default=MODE_TEAM,
+    )
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_deleted = Column(Boolean, default=False)

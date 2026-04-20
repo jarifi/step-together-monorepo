@@ -11,6 +11,11 @@ class ChallengeState(str, Enum):
     closed = "closed"
 
 
+class ChallengeMode(str, Enum):
+    team = "team"
+    individual = "individual"
+
+
 class ChallengeBase(CamelCaseBaseModel):
     name: Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)]
     start_location: Annotated[str, StringConstraints(min_length=3, max_length=255, strip_whitespace=True)]
@@ -35,7 +40,8 @@ class ChallengeBase(CamelCaseBaseModel):
 
 class ChallengeCreate(ChallengeBase):
     creator_id: int
-    team_ids: List[int] = []
+    team_ids: List[int] = Field(default_factory=list)
+    mode: ChallengeMode = ChallengeMode.team
 
 
 class ChallengeUpdate(CamelCaseBaseModel):
@@ -47,11 +53,13 @@ class ChallengeUpdate(CamelCaseBaseModel):
     end_date: Optional[datetime] = None
     is_deleted: Optional[bool] = None
     team_ids: Optional[List[int]] = None
+    mode: Optional[ChallengeMode] = None
 
 
 class ChallengeResponse(ChallengeBase):
     id: int
     creator_id: int
+    mode: ChallengeMode
     created_at: datetime
     updated_at: datetime
     state: ChallengeState  # 👈 computed, read-only
@@ -65,4 +73,33 @@ class ChallengeHomeResponse(CamelCaseBaseModel):
     distance: float
     start_date: datetime
     end_date: datetime
+    mode: ChallengeMode
     state: ChallengeState
+
+
+class ChallengeJoinRequest(CamelCaseBaseModel):
+    team_id: Optional[int] = None
+
+
+class ChallengeJoinResponse(CamelCaseBaseModel):
+    challenge_id: int
+    user_id: int
+    mode: ChallengeMode
+    registration: str
+    team_id: Optional[int] = None
+
+
+class ChallengeInviteCreate(CamelCaseBaseModel):
+    invitee_user_id: int
+    expires_at: Optional[datetime] = None
+
+
+class ChallengeInviteResponse(CamelCaseBaseModel):
+    id: int
+    challenge_id: int
+    inviter_user_id: int
+    invitee_user_id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    expires_at: Optional[datetime] = None

@@ -1,6 +1,7 @@
 # app/crud/challenge.py
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
@@ -8,6 +9,8 @@ from fastapi import HTTPException, status
 from app.models.challenge import Challenge as ChallengeModel
 from app.schema.challenge import ChallengeCreate, ChallengeUpdate
 from app.models.challenge_team import ChallengeTeam
+from app.models.challenge_participant import ChallengeParticipant
+from app.models.challenge_invite import ChallengeInvite
 from app.models.team import Team
 from app.models.step_log import StepLog
 from app.models.team_member import TeamMember
@@ -55,6 +58,12 @@ def create_challenge(db: Session, challenge_data: ChallengeCreate) -> ChallengeM
     data = challenge_data.model_dump(exclude={"team_ids"})
     team_ids = challenge_data.team_ids or []
 
+    if data.get("mode") == ChallengeModel.MODE_INDIVIDUAL and team_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Individual challenges cannot be assigned to teams.",
+        )
+
     db_challenge = ChallengeModel(**data)
     db.add(db_challenge)
     db.flush()
@@ -86,6 +95,13 @@ def update_challenge(db: Session, challenge_id: int, challenge_data: ChallengeUp
     update_data = challenge_data.model_dump(exclude_unset=True)
     team_ids = update_data.pop("team_ids", None)
 
+    new_mode = update_data.get("mode", challenge_obj.mode)
+    if new_mode == ChallengeModel.MODE_INDIVIDUAL and team_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Individual challenges cannot be assigned to teams.",
+        )
+
     for key, value in update_data.items():
         setattr(challenge_obj, key, value)
 
@@ -110,6 +126,10 @@ def update_challenge(db: Session, challenge_id: int, challenge_data: ChallengeUp
                 ChallengeTeam(challenge_id=challenge_id, team_id=team_id)
                 for team_id in set(team_ids)
             ])
+    elif new_mode == ChallengeModel.MODE_INDIVIDUAL:
+        db.query(ChallengeTeam).filter(
+            ChallengeTeam.challenge_id == challenge_id
+        ).delete()
 
     db.commit()
     db.refresh(challenge_obj)
@@ -190,3 +210,207 @@ def get_finished_challenges_for_user(db: Session, user_id: int):
         .order_by(ChallengeModel.end_date.desc())
         .all()
     )
+
+
+def join_challenge(
+    db: Session,
+    challenge_id: int,
+    user_id: int,
+    team_id: Optional[int] = None,
+):
+    challenge = get_challenge(db, challenge_id)
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    if challenge.computed_state == "closed":
+        raise HTTPException(status_code=400, detail="Closed challenges cannot be joined")
+
+    if challenge.mode == ChallengeModel.MODE_TEAM:
+        if team_id is None:
+            team_id = (
+                db.query(TeamMember.team_id)
+                .join(ChallengeTeam, ChallengeTeam.team_id == TeamMember.team_id)
+                .filter(
+                    TeamMember.user_id == user_id,
+                    ChallengeTeam.challenge_id == challenge_id,
+                )
+                .scalar()
+            )
+
+        if team_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="team_id is required for team challenges",
+            )
+
+        team_is_linked = (
+            db.query(ChallengeTeam)
+            .filter(
+                ChallengeTeam.challenge_id == challenge_id,
+                ChallengeTeam.team_id == team_id,
+            )
+            .first()
+        )
+        if not team_is_linked:
+            raise HTTPException(
+                status_code=400,
+                detail="Team is not part of this challenge",
+            )
+
+        existing_member = (
+            db.query(TeamMember)
+            .filter(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
+            .first()
+        )
+
+        if not existing_member:
+            try:
+                db.add(TeamMember(user_id=user_id, team_id=team_id))
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+                # If another request inserted in parallel, this remains idempotent.
+
+        return {
+            "challenge_id": challenge_id,
+            "user_id": user_id,
+            "mode": ChallengeModel.MODE_TEAM,
+            "registration": "team",
+            "team_id": team_id,
+        }
+
+    participant = (
+        db.query(ChallengeParticipant)
+        .filter(
+            ChallengeParticipant.challenge_id == challenge_id,
+            ChallengeParticipant.user_id == user_id,
+        )
+        .first()
+    )
+
+    if not participant:
+        participant = ChallengeParticipant(challenge_id=challenge_id, user_id=user_id)
+        db.add(participant)
+        db.commit()
+
+    return {
+        "challenge_id": challenge_id,
+        "user_id": user_id,
+        "mode": ChallengeModel.MODE_INDIVIDUAL,
+        "registration": "individual",
+        "team_id": None,
+    }
+
+
+def create_challenge_invite(
+    db: Session,
+    challenge_id: int,
+    inviter_user_id: int,
+    invitee_user_id: int,
+    expires_at: Optional[datetime] = None,
+):
+    challenge = get_challenge(db, challenge_id)
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    if challenge.mode != ChallengeModel.MODE_INDIVIDUAL:
+        raise HTTPException(
+            status_code=400,
+            detail="Invites are only supported for individual challenges",
+        )
+
+    if challenge.creator_id != inviter_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the challenge creator can send invites",
+        )
+
+    if inviter_user_id == invitee_user_id:
+        raise HTTPException(status_code=400, detail="You cannot invite yourself")
+
+    invitee_is_participant = (
+        db.query(ChallengeParticipant)
+        .filter(
+            ChallengeParticipant.challenge_id == challenge_id,
+            ChallengeParticipant.user_id == invitee_user_id,
+        )
+        .first()
+    )
+    if invitee_is_participant:
+        raise HTTPException(status_code=400, detail="User already joined this challenge")
+
+    existing_pending_invite = (
+        db.query(ChallengeInvite)
+        .filter(
+            ChallengeInvite.challenge_id == challenge_id,
+            ChallengeInvite.invitee_user_id == invitee_user_id,
+            ChallengeInvite.status == ChallengeInvite.STATUS_PENDING,
+        )
+        .first()
+    )
+    if existing_pending_invite:
+        return existing_pending_invite
+
+    invite = ChallengeInvite(
+        challenge_id=challenge_id,
+        inviter_user_id=inviter_user_id,
+        invitee_user_id=invitee_user_id,
+        expires_at=expires_at,
+    )
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+    return invite
+
+
+def respond_to_challenge_invite(
+    db: Session,
+    invite_id: int,
+    user_id: int,
+    accept: bool,
+):
+    invite = db.query(ChallengeInvite).filter(ChallengeInvite.id == invite_id).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+
+    if invite.invitee_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not allowed to respond to this invite")
+
+    if invite.status != ChallengeInvite.STATUS_PENDING:
+        return invite
+
+    if invite.expires_at:
+        now_utc = datetime.now(timezone.utc)
+        expires_at = invite.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if now_utc > expires_at:
+            invite.status = ChallengeInvite.STATUS_CANCELLED
+            db.commit()
+            db.refresh(invite)
+            raise HTTPException(status_code=400, detail="Invite has expired")
+
+    invite.status = (
+        ChallengeInvite.STATUS_ACCEPTED if accept else ChallengeInvite.STATUS_DECLINED
+    )
+
+    if accept:
+        participant = (
+            db.query(ChallengeParticipant)
+            .filter(
+                ChallengeParticipant.challenge_id == invite.challenge_id,
+                ChallengeParticipant.user_id == user_id,
+            )
+            .first()
+        )
+        if not participant:
+            db.add(
+                ChallengeParticipant(
+                    challenge_id=invite.challenge_id,
+                    user_id=user_id,
+                )
+            )
+
+    db.commit()
+    db.refresh(invite)
+    return invite
