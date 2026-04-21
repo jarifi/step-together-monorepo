@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+from app.schema.challenge import ActiveChallengeInfo
 
 # --- Response returned after login or refresh ---
 class Token(BaseModel):
@@ -9,6 +10,7 @@ class Token(BaseModel):
     user_id: int
     team_id: Optional[int] = None
     active_challenge_id: Optional[int] = None
+    active_challenges: List[ActiveChallengeInfo] = []
     role: str
 
     model_config = {

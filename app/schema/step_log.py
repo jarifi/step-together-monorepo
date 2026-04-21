@@ -6,7 +6,7 @@ from app.models.base import CamelCaseBaseModel
 
 class StepLogCreate(CamelCaseBaseModel):
     challenge_id: int
-    team_id: int
+    team_id: Optional[int] = None
     date: datetime
     number_of_steps: int
 
@@ -14,7 +14,7 @@ class StepLogResponse(CamelCaseBaseModel):
     id: int
     user_id: int
     challenge_id: int
-    team_id: int
+    team_id: Optional[int]
     date: datetime
     number_of_steps: int
 

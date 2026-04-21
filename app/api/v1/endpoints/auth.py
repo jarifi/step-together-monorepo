@@ -11,7 +11,8 @@ from app.crud.user import get_user_by_email
 from app.crud import user as user_crud
 
 from app.crud.team import get_team_by_user_id
-from app.crud.challenge import get_active_challenge
+from app.crud.challenge import get_active_challenge, get_active_challenges_for_user
+from app.schema.challenge import ActiveChallengeInfo
 
 from app.models.user import User
 from app.schema.user import PasswordChange, PasswordResetConfirm, PasswordResetRequest
@@ -93,6 +94,18 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         active_challenge = get_active_challenge(db, team_id)
         challenge_id = active_challenge.id if active_challenge else None
 
+    active_challenges = [
+        ActiveChallengeInfo(
+            id=c.id,
+            name=c.name,
+            mode=c.mode,
+            state=c.state,
+            start_date=c.start_date,
+            end_date=c.end_date,
+        )
+        for c in get_active_challenges_for_user(db, db_user.id)
+    ]
+
     auth_logger.info(
         f"LOGIN SUCCESS | user_id={db_user.id} | email={user.email} | team_id={team_id}"
     )
@@ -119,6 +132,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "user_id": db_user.id,
         "team_id": team_id,
         "active_challenge_id": challenge_id,
+        "active_challenges": active_challenges,
         "role": db_user.role,
     }
 

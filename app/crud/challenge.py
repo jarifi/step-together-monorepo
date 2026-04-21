@@ -197,6 +197,43 @@ def get_teams_for_challenge(
     ]
 
 
+def get_active_challenges_for_user(db: Session, user_id: int) -> List[ChallengeModel]:
+    """Return all non-deleted, non-closed challenges the user participates in
+    (individual via ChallengeParticipant, team via TeamMember → ChallengeTeam)."""
+    now = datetime.now(timezone.utc)
+
+    individual_qs = (
+        db.query(ChallengeModel)
+        .join(ChallengeParticipant, ChallengeParticipant.challenge_id == ChallengeModel.id)
+        .filter(
+            ChallengeParticipant.user_id == user_id,
+            ChallengeParticipant.status == ChallengeParticipant.STATUS_ACTIVE,
+            ChallengeModel.is_deleted == False,
+            ChallengeModel.end_date >= now,
+        )
+    )
+
+    team_qs = (
+        db.query(ChallengeModel)
+        .join(ChallengeTeam, ChallengeTeam.challenge_id == ChallengeModel.id)
+        .join(TeamMember, TeamMember.team_id == ChallengeTeam.team_id)
+        .filter(
+            TeamMember.user_id == user_id,
+            ChallengeModel.is_deleted == False,
+            ChallengeModel.end_date >= now,
+        )
+    )
+
+    seen_ids: set[int] = set()
+    results: List[ChallengeModel] = []
+    for challenge in individual_qs.all() + team_qs.all():
+        if challenge.id not in seen_ids and challenge.computed_state == "open":
+            seen_ids.add(challenge.id)
+            results.append(challenge)
+
+    return results
+
+
 def get_finished_challenges_for_user(db: Session, user_id: int):
     return (
         db.query(ChallengeModel)

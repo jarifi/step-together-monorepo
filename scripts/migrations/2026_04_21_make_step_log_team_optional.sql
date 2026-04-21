@@ -1,0 +1,2 @@
+ALTER TABLE step_logs
+MODIFY COLUMN team_id INT NULL;

@@ -77,6 +77,15 @@ class ChallengeHomeResponse(CamelCaseBaseModel):
     state: ChallengeState
 
 
+class ActiveChallengeInfo(CamelCaseBaseModel):
+    id: int
+    name: str
+    mode: ChallengeMode
+    state: ChallengeState
+    start_date: datetime
+    end_date: datetime
+
+
 class ChallengeJoinRequest(CamelCaseBaseModel):
     team_id: Optional[int] = None
 
