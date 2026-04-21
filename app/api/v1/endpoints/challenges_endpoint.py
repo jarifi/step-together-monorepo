@@ -2,8 +2,10 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.db.session import get_db
+from app.models.challenge_participant import ChallengeParticipant
 from app.schema.challenge import (
     ChallengeCreate,
     ChallengeInviteCreate,
@@ -244,3 +246,23 @@ def decline_challenge_invite(
     )
 
     return invite
+
+@router.get("/challenge_participants/count-active")
+def get_active_counts(db: Session = Depends(get_db)):
+    results = (
+        db.query(
+            ChallengeParticipant.challenge_id,
+            func.count(ChallengeParticipant.id).label("active_participants")
+        )
+        .filter(ChallengeParticipant.status == "active")
+        .group_by(ChallengeParticipant.challenge_id)
+        .all()
+    )
+
+    return [
+        {
+            "challenge_id": r.challenge_id,
+            "active_participants": r.active_participants
+        }
+        for r in results
+    ]

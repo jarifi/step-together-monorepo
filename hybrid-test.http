@@ -111,3 +111,7 @@ Content-Type: application/json
     "teamId": 1
 }
 
+### 6) Optional - Get All Active Participants Counts
+# @name getAllActiveParticipantsCounts
+GET {{baseUrl}}/challenges/challenge_participants/count-active
+Authorization: Bearer {{login.response.body.accessToken}}
