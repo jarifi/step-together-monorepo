@@ -14,7 +14,7 @@ import {
 
 import ChallengeCard from '../../components/ChallengeCard';
 import { useUser } from '../../context/UserContext';
-import { deleteChallenge, getChallenges } from '../../services/challengeService';
+import { deleteChallenge, getActiveParticipantsCounts, getChallenges } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -81,7 +81,20 @@ export default function AllChallengesScreen() {
       const data = await getChallenges(skip, limit);
       const safe = Array.isArray(data) ? data : [];
 
-      setChallenges((prev) => [...prev, ...safe]);
+      const count = await getActiveParticipantsCounts();
+
+      const countMap = {};
+      count.forEach((c) => {
+        countMap[c.challenge_id] = c.active_participants;
+      });
+
+      const enriched = safe.map((challenge) => ({
+        ...challenge,
+        activeParticipants: countMap[challenge.id] ?? 0,
+      }));
+
+      setChallenges((prev) => [...prev, ...enriched]);
+
       setSkip((prev) => prev + safe.length);
 
       if (safe.length < limit) setHasMore(false);

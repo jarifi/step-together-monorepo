@@ -118,3 +118,12 @@ export const getChallengeHistory = async () => {
     return [];
   }
 };
+
+export const getActiveParticipantsCounts = async () => {
+  try {
+    return await apiGet(`/challenges/challenge_participants/count-active`);
+  } catch (err) {
+    console.error('Error fetching active participants:', err);
+    return [];
+  }
+};
