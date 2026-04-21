@@ -180,6 +180,7 @@ export default function Sidebar({
 
           {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
           {renderNavLink('/challenges/activeChallenges', 'Challenges', 'flag', MaterialIcons)}
+          {renderNavLink('/CreateHybridChallenge', 'Challenge erstellen', 'add-circle', MaterialIcons)}
 
           <View style={styles.separator} />
 

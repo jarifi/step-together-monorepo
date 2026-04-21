@@ -192,6 +192,8 @@ export default function RootLayout() {
               <Stack.Screen name="help/terms" options={{ headerShown: false }} />
               <Stack.Screen name="teams/update" options={{ headerShown: false }} />
               <Stack.Screen name="verifyInfo" options={{ headerShown: false }} />
+              <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} />
+              
             </Stack>
 
             {showPill && <BottomBar pathname={pathname} />}
