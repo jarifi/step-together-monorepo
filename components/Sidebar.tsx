@@ -181,6 +181,7 @@ export default function Sidebar({
           {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
           {renderNavLink('/challenges/activeChallenges', 'Challenges', 'flag', MaterialIcons)}
           {renderNavLink('/CreateHybridChallenge', 'Challenge erstellen', 'add-circle', MaterialIcons)}
+          {renderNavLink('/challenges/hybrid_index', 'Meine Challenges', 'person', MaterialIcons)}
 
           <View style={styles.separator} />
 

@@ -67,7 +67,9 @@ const ChallengeCard = ({
         <View style={styles.metaRow}>
           <MaterialIcons name="groups" size={16} color="#6B7280" />
           <Text style={styles.metaText}>
-            {challenge.teamCount ?? challenge.teams?.length ?? 0} Teams
+            {challenge.mode === 'individual'
+              ? `${challenge.activeParticipants ?? 0} Teilnehmer`
+              : `${challenge.teamCount ?? challenge.teams?.length ?? 0} Teams`}
           </Text>
         </View>
 
