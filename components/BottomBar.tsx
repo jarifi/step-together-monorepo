@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const BOTTOMBAR_HEIGHT = 54; 
-export const BOTTOMBAR_AIR = 14;    
+export const BOTTOMBAR_HEIGHT = 54;
+export const BOTTOMBAR_AIR = 14;
 
 const COLORS = {
   pill: 'rgba(255,255,255,0.92)',
@@ -25,17 +25,30 @@ const shadow = Platform.select({
   android: { elevation: 6 },
 });
 
-type Props = { pathname: string };
+type Props = {
+  pathname: string;
+  overviewPath?: string;
+};
 
-export default function BottomBar({ pathname }: Props) {
+let rememberedOverviewPath = '/challenges/challengesDashboard';
+
+export default function BottomBar({ pathname, overviewPath }: Props) {
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (overviewPath) {
+      rememberedOverviewPath = overviewPath;
+    }
+  }, [overviewPath]);
+
+  const effectiveOverviewPath = overviewPath ?? rememberedOverviewPath;
 
   const tabs = useMemo(
     () => [
-      { key: 'dashboard', label: 'Übersicht', icon: 'heart', path: '/dashboard' as const },
+      { key: 'dashboard', label: 'Übersicht', icon: 'heart', path: effectiveOverviewPath },
       { key: 'challenge', label: 'Meine Challenge', icon: 'people', path: '/myChallenge' as const },
     ],
-    []
+    [effectiveOverviewPath]
   );
 
   const isActive = (path: string) => {
@@ -55,7 +68,7 @@ export default function BottomBar({ pathname }: Props) {
           return (
             <Pressable
               key={t.key}
-              onPress={() => router.push(t.path)}
+              onPress={() => router.push(t.path as any)}
               style={({ pressed }) => [
                 styles.pillItem,
                 idx === 0 ? { marginRight: 6 } : null,
