@@ -154,6 +154,62 @@ def delete_challenge(db: Session, challenge_id: int) -> Optional[ChallengeModel]
     return challenge_obj
 
 
+def get_participants_for_challenge(db: Session, challenge_id: int):
+    """Return all active participants of an individual challenge with their total steps,
+    sorted descending by total_steps (leaderboard order)."""
+    from app.models.user import User as UserModel
+    from app.schema.challenge import ChallengeParticipantWithSteps
+
+    challenge = (
+        db.query(ChallengeModel)
+        .filter(
+            ChallengeModel.id == challenge_id,
+            ChallengeModel.is_deleted == False,
+        )
+        .first()
+    )
+    if not challenge:
+        return None
+
+    if challenge.mode != ChallengeModel.MODE_INDIVIDUAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This endpoint is only for individual challenges. Use /teams for team challenges.",
+        )
+
+    rows = (
+        db.query(
+            UserModel.id.label("user_id"),
+            UserModel.name.label("name"),
+            func.coalesce(func.sum(StepLog.number_of_steps), 0).label("total_steps"),
+        )
+        .join(ChallengeParticipant, ChallengeParticipant.user_id == UserModel.id)
+        .outerjoin(
+            StepLog,
+            and_(
+                StepLog.user_id == UserModel.id,
+                StepLog.challenge_id == challenge_id,
+            ),
+        )
+        .filter(
+            ChallengeParticipant.challenge_id == challenge_id,
+            ChallengeParticipant.status == ChallengeParticipant.STATUS_ACTIVE,
+        )
+        .group_by(UserModel.id, UserModel.name)
+        .order_by(func.sum(StepLog.number_of_steps).desc())
+        .all()
+    )
+
+    return [
+        ChallengeParticipantWithSteps(
+            user_id=row.user_id,
+            name=row.name,
+            total_steps=row.total_steps,
+        )
+        for row in rows
+    ]
+
+
 def get_teams_for_challenge(
     db: Session, challenge_id: int
 ) -> Optional[List[ChallengeTeamWithSteps]]:

@@ -77,6 +77,12 @@ class ChallengeHomeResponse(CamelCaseBaseModel):
     state: ChallengeState
 
 
+class ChallengeParticipantWithSteps(CamelCaseBaseModel):
+    user_id: int
+    name: str
+    total_steps: int
+
+
 class ActiveChallengeInfo(CamelCaseBaseModel):
     id: int
     name: str

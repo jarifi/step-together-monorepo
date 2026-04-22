@@ -12,6 +12,7 @@ from app.schema.challenge import (
     ChallengeInviteResponse,
     ChallengeJoinRequest,
     ChallengeJoinResponse,
+    ChallengeParticipantWithSteps,
     ChallengeResponse,
     ChallengeUpdate,
 )
@@ -246,6 +247,19 @@ def decline_challenge_invite(
     )
 
     return invite
+
+
+@router.get("/{challenge_id}/participants", response_model=List[ChallengeParticipantWithSteps])
+def read_challenge_participants(
+    challenge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = challenge_crud.get_participants_for_challenge(db, challenge_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    return result
+
 
 @router.get("/challenge_participants/count-active")
 def get_active_counts(db: Session = Depends(get_db)):
