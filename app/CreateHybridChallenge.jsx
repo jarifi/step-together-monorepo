@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -15,7 +16,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createChallenge } from '../services/challengeService';
 import { getAllTeams } from '../services/teamService';
 import { getDisplayAvatarUri, getUsers, searchUsers } from '../services/userService';
@@ -661,7 +661,7 @@ export default function CreateHybridChallenge({ navigation }) {
         setTimeout(() => reject(new Error('Zeitüberschreitung. Bitte Verbindung prüfen und erneut versuchen.')), 10000)
       );
       await Promise.race([createChallenge(payload), timeout]);
-      showToast('success', 'Challenge erstellt! Hier klicken um sie zu sehen.', () => router.push('/challenges/hybrid_index'));
+      showToast('success', 'Challenge erstellt! Hier klicken um sie zu sehen.', () => router.push('/challenges/hybridIndex'));
     } catch (err) {
       showToast('error', extractErrorMessage(err));
     } finally {

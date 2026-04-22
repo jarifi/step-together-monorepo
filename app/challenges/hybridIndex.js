@@ -44,7 +44,8 @@ export default function AllChallengesScreen() {
   const filteredChallenges = useMemo(() => {
     const baseFiltered = challenges.filter((challenge) => {
       const creatorId = challenge?.creatorId ?? challenge?.creator_id;
-      return creatorId === user?.id;
+      const mode = challenge?.mode;
+      return (mode === 'individual' || mode === 'team') && creatorId === user?.id;
     });
 
     if (!searchQuery.trim()) return baseFiltered;

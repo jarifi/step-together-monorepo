@@ -44,10 +44,15 @@ export default function AllChallengesScreen() {
   const router = useRouter();
 
   const filteredChallenges = useMemo(() => {
-    if (!searchQuery.trim()) return challenges;
+    const nonHybrid = challenges.filter((challenge) => {
+      const mode = challenge?.mode;
+      return mode !== 'individual' && mode !== 'team';
+    });
+
+    if (!searchQuery.trim()) return nonHybrid;
 
     const query = searchQuery.toLowerCase().trim();
-    return challenges.filter((challenge) => {
+    return nonHybrid.filter((challenge) => {
       const name = challenge?.name?.toLowerCase?.() ?? '';
       const id = challenge?.id?.toString?.() ?? '';
       const start = challenge?.startLocation?.toLowerCase?.() ?? '';
