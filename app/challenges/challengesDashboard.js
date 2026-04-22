@@ -20,6 +20,7 @@ import { getChallenges } from '../../services/challengeService';
 const { height: screenHeight } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
 const CARD_RADIUS = 26;
+const DETAILS_PATH = '/challenges/details';
 
 const COLORS = {
   bg: '#F5F7F4',
@@ -237,6 +238,16 @@ export default function AllChallengesScreen() {
                 showActions={false}
                 actionIcon="check"
                 onPress={() => {
+                  const state = String(item?.state ?? '').toLowerCase();
+
+                  if (state === 'incoming' || state === 'closed') {
+                    router.push({
+                      pathname: DETAILS_PATH,
+                      params: { id: String(item.id) },
+                    });
+                    return;
+                  }
+
                   const mode = String(item?.mode ?? '').toLowerCase();
 
                   if (mode === 'team' || mode === 'hybrid') {
