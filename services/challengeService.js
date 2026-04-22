@@ -42,6 +42,17 @@ export const getChallengeTeams = async (id) => {
   }
 };
 
+export const getChallengeParticipants = async (id) => {
+  if (!id) throw new Error('Challenge ID is required');
+  try {
+    const data = await apiGet(`/challenges/${id}/participants`);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('Error fetching challenge participants:', err);
+    throw err;
+  }
+};
+
 export const updateChallenge = async (id, data) => {
   if (!id) throw new Error('Challenge ID is required');
   try {

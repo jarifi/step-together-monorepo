@@ -1092,7 +1092,11 @@ const Dashboard: React.FC = () => {
           </TouchableOpacity>
         </Modal>
       </ScrollView>
-      <BottomBar pathname={pathname} overviewPath="/challenges/challengeTeamDashboard" />
+      <BottomBar
+        pathname={pathname}
+        overviewPath="/challenges/challengeTeamDashboard"
+        challengePath="/challenges/challengeTeamDashboardDetails"
+      />
     </View>
   );
 };

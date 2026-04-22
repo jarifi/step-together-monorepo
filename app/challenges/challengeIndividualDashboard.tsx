@@ -767,7 +767,7 @@ const IndividualDashboard: React.FC = () => {
 
                     {vm.user?.name && (
                         <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 8 }]}>
-                            Willkommen, <Text style={{ color: '#2F3E34', fontWeight: '700' }}>{vm.user.name}</Text>
+                            WillkommenICD, <Text style={{ color: '#2F3E34', fontWeight: '700' }}>{vm.user.name}</Text>
                             <Text style={{ color: '#7FA58C', fontWeight: '600' }}>{' · '}Individual Challenge</Text>
                         </Text>
                     )}
@@ -1092,7 +1092,15 @@ const IndividualDashboard: React.FC = () => {
                     </TouchableOpacity>
                 </Modal>
             </ScrollView>
-            <BottomBar pathname={pathname} overviewPath="/challenges/challengeIndividualDashboard" />
+            <BottomBar
+                pathname={pathname}
+                overviewPath="/challenges/challengeIndividualDashboard"
+                challengePath={
+                    vm?.challenge?.id
+                        ? `/challenges/challengeIndividualDashboardDetails?id=${vm.challenge.id}`
+                        : '/challenges/challengeIndividualDashboardDetails'
+                }
+            />
         </>
     );
 };

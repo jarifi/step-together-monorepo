@@ -71,7 +71,7 @@ const buildRankings = (
   }));
 };
 
-const MyChallenge: React.FC = () => {
+const challengeTeamDashboardDetailsScreen: React.FC = () => {
   const router = useRouter();
   const [vm, setVm] = useState<any>(null);
   const [rankings, setRankings] = useState<any[]>([]);
@@ -381,7 +381,7 @@ const MyChallenge: React.FC = () => {
               },
             ]}
           >
-            Team{' '}
+            Team Challenge{' '}
             <Text style={{ color: '#6e865cff', fontWeight: '800' }}>{vm?.team?.name}</Text>
           </Text>
 
@@ -502,4 +502,4 @@ const MyChallenge: React.FC = () => {
   );
 };
 
-export default MyChallenge;
+export default challengeTeamDashboardDetailsScreen;

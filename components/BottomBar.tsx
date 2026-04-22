@@ -28,27 +28,33 @@ const shadow = Platform.select({
 type Props = {
   pathname: string;
   overviewPath?: string;
+  challengePath?: string;
 };
 
 let rememberedOverviewPath = '/challenges/challengesDashboard';
+let rememberedChallengePath = '/challenges/challengeTeamDashboardDetails';
 
-export default function BottomBar({ pathname, overviewPath }: Props) {
+export default function BottomBar({ pathname, overviewPath, challengePath }: Props) {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (overviewPath) {
       rememberedOverviewPath = overviewPath;
     }
-  }, [overviewPath]);
+    if (challengePath) {
+      rememberedChallengePath = challengePath;
+    }
+  }, [challengePath, overviewPath]);
 
   const effectiveOverviewPath = overviewPath ?? rememberedOverviewPath;
+  const effectiveChallengePath = challengePath ?? rememberedChallengePath;
 
   const tabs = useMemo(
     () => [
       { key: 'dashboard', label: 'Übersicht', icon: 'heart', path: effectiveOverviewPath },
-      { key: 'challenge', label: 'Meine Challenge', icon: 'people', path: '/challenges/challengeTeamDashboardDetails' as const },
+      { key: 'challenge', label: 'Details', icon: 'people', path: effectiveChallengePath },
     ],
-    [effectiveOverviewPath]
+    [effectiveChallengePath, effectiveOverviewPath]
   );
 
   const isActive = (path: string) => {
