@@ -43,10 +43,9 @@ export default function AllChallengesScreen() {
 
   const filteredChallenges = useMemo(() => {
     const baseFiltered = challenges.filter((challenge) => {
-      return (
-        challenge?.mode === 'individual' &&
-        challenge?.creatorId === user?.id
-      );
+      const creatorId = challenge?.creatorId ?? challenge?.creator_id;
+      const mode = challenge?.mode;
+      return (mode === 'individual' || mode === 'team') && creatorId === user?.id;
     });
 
     if (!searchQuery.trim()) return baseFiltered;
@@ -56,8 +55,8 @@ export default function AllChallengesScreen() {
     return baseFiltered.filter((challenge) => {
       const name = challenge?.name?.toLowerCase?.() ?? '';
       const id = challenge?.id?.toString?.() ?? '';
-      const start = challenge?.startLocation?.toLowerCase?.() ?? '';
-      const target = challenge?.targetLocation?.toLowerCase?.() ?? '';
+      const start = (challenge?.startLocation ?? challenge?.start_location ?? '').toLowerCase();
+      const target = (challenge?.targetLocation ?? challenge?.target_location ?? '').toLowerCase();
       const teamId = challenge?.teamId?.toString?.() ?? '';
 
       return (
@@ -70,21 +69,19 @@ export default function AllChallengesScreen() {
     });
   }, [searchQuery, challenges, user]);
 
-  const loadChallenges = async () => {
-    if (loadingMore || !hasMore) return;
+  const loadChallenges = async (currentSkip = 0, append = false) => {
+    if (append && loadingMore) return;
 
-    const isInitial = challenges.length === 0;
-    if (isInitial) setLoadingInitial(true);
-    else setLoadingMore(true);
+    if (append) setLoadingMore(true);
+    else setLoadingInitial(true);
 
     try {
-      const data = await getChallenges(skip, limit);
+      const data = await getChallenges(currentSkip, limit);
       const safe = Array.isArray(data) ? data : [];
 
       const count = await getActiveParticipantsCounts();
-
       const countMap = {};
-      count.forEach((c) => {
+      (Array.isArray(count) ? count : []).forEach((c) => {
         countMap[c.challenge_id] = c.active_participants;
       });
 
@@ -93,26 +90,26 @@ export default function AllChallengesScreen() {
         activeParticipants: countMap[challenge.id] ?? 0,
       }));
 
-      setChallenges((prev) => [...prev, ...enriched]);
+      if (append) setChallenges((prev) => [...prev, ...enriched]);
+      else setChallenges(enriched);
 
-      setSkip((prev) => prev + safe.length);
-
-      if (safe.length < limit) setHasMore(false);
+      setSkip(currentSkip + safe.length);
+      setHasMore(safe.length === limit);
     } catch (err) {
       console.error('Failed to load challenges:', err);
     } finally {
-      if (isInitial) setLoadingInitial(false);
-      else setLoadingMore(false);
+      if (append) setLoadingMore(false);
+      else setLoadingInitial(false);
     }
   };
 
   useFocusEffect(
     useCallback(() => {
-      setSkip(0);
       setChallenges([]);
+      setSkip(0);
       setHasMore(true);
       setSearchQuery('');
-      loadChallenges();
+      loadChallenges(0, false);
     }, [])
   );
 
@@ -165,7 +162,7 @@ export default function AllChallengesScreen() {
 
           {/* Create Challenge Button */}
           <Pressable
-            onPress={() => router.push('/challenges/create')}
+            onPress={() => router.push('/CreateHybridChallenge')}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
           >
             <Text style={styles.primaryBtnText}>+ Neue Challenge</Text>
@@ -189,7 +186,7 @@ export default function AllChallengesScreen() {
                 }
                 onUpdate={() =>
                   router.push({
-                    pathname: '/challenges/update',
+                    pathname: '/hybridUpdate',
                     params: {
                       id: item.id,
                       name: item.name,
@@ -214,7 +211,7 @@ export default function AllChallengesScreen() {
               />
             </View>
           )}
-          onEndReached={searchQuery.trim() ? undefined : loadChallenges}
+          onEndReached={!searchQuery.trim() && hasMore ? () => loadChallenges(skip, true) : undefined}
           onEndReachedThreshold={0.5}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           showsVerticalScrollIndicator={false}
