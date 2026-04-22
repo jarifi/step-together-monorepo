@@ -177,6 +177,8 @@ export default function RootLayout() {
               <Stack.Screen name="challenges/create" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/update" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
               <Stack.Screen name="dashboard" options={{ headerShown: false }} />
               <Stack.Screen name="userHistory" options={{ headerShown: false }} />
@@ -195,7 +197,7 @@ export default function RootLayout() {
               <Stack.Screen name="teams/update" options={{ headerShown: false }} />
               <Stack.Screen name="verifyInfo" options={{ headerShown: false }} />
               <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} />
-              
+
             </Stack>
 
             {showPill && <BottomBar pathname={pathname} />}

@@ -1,8 +1,11 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -12,8 +15,11 @@ import {
 
 import ChallengeCard from '../../components/ChallengeCard';
 import { useUser } from '../../context/UserContext';
+import { getChallenges } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
+const IS_WEB = Platform.OS === 'web';
+const CARD_RADIUS = 26;
 
 const COLORS = {
   bg: '#F5F7F4',
@@ -30,6 +36,7 @@ export default function AllChallengesScreen() {
   const { user } = useUser();
 
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [tab, setTab] = useState('active');
 
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
@@ -57,11 +64,94 @@ export default function AllChallengesScreen() {
     });
   }, [searchQuery, challenges]);
 
+  const openChallenges = useMemo(
+    () =>
+      filteredChallenges.filter(
+        (challenge) => String(challenge?.state ?? '').toLowerCase() === 'open'
+      ),
+    [filteredChallenges]
+  );
+
+  const incomingChallenges = useMemo(
+    () =>
+      filteredChallenges.filter(
+        (challenge) => String(challenge?.state ?? '').toLowerCase() === 'incoming'
+      ),
+    [filteredChallenges]
+  );
+
+  const closedChallenges = useMemo(
+    () =>
+      filteredChallenges.filter(
+        (challenge) => String(challenge?.state ?? '').toLowerCase() === 'closed'
+      ),
+    [filteredChallenges]
+  );
+
+  const visibleChallenges = useMemo(
+    () => {
+      if (tab === 'active') return openChallenges;
+      if (tab === 'incoming') return incomingChallenges;
+      return closedChallenges;
+    },
+    [tab, openChallenges, incomingChallenges, closedChallenges]
+  );
+
   useEffect(() => {
     if (user?.activeChallenges) {
       setChallenges(user.activeChallenges);
     }
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      const loadChallenges = async () => {
+        setLoadingInitial(true);
+
+        try {
+          if (Array.isArray(user?.activeChallenges) && user.activeChallenges.length > 0) {
+            if (mounted) setChallenges(user.activeChallenges);
+            return;
+          }
+
+          const data = await getChallenges(0, 50);
+          if (!mounted) return;
+
+          setChallenges(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error('Failed to load challenges dashboard list:', err);
+          if (mounted) setChallenges([]);
+        } finally {
+          if (mounted) setLoadingInitial(false);
+        }
+      };
+
+      loadChallenges();
+
+      return () => {
+        mounted = false;
+      };
+    }, [user?.activeChallenges])
+  );
+
+  if (loadingInitial) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Lade Challenges...</Text>
+      </View>
+    );
+  }
+
+  const emptyMap = {
+    active: ['Keine aktiven Challenges', 'Momentan sind keine aktiven Challenges verfügbar.'],
+    incoming: ['Keine kommenden Challenges', 'Momentan sind keine kommenden Challenges verfügbar.'],
+    closed: ['Keine geschlossenen Challenges', 'Momentan sind keine geschlossenen Challenges verfügbar.'],
+  };
+
+  const [emptyTitle, emptyText] = emptyMap[tab] ?? emptyMap.active;
 
 
   return (
@@ -69,6 +159,43 @@ export default function AllChallengesScreen() {
       <View style={styles.container}>
         <View style={styles.headerCard}>
           <Text style={styles.title}>Meine Challenges</Text>
+
+          <View style={styles.tabsWrap}>
+            <View style={styles.tabsPill}>
+              <Pressable
+                onPress={() => setTab('active')}
+                style={[styles.tabBtn, tab === 'active' && styles.tabBtnActive]}
+              >
+                <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>
+                  Aktiv
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setTab('incoming')}
+                style={[styles.tabBtn, tab === 'incoming' && styles.tabBtnActive]}
+              >
+                <Text style={[styles.tabText, tab === 'incoming' && styles.tabTextActive]}>
+                  Kommend
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setTab('closed')}
+                style={[styles.tabBtn, tab === 'closed' && styles.tabBtnActive]}
+              >
+                <Text style={[styles.tabText, tab === 'closed' && styles.tabTextActive]}>
+                  Geschlossen
+                </Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.tabHint}>
+              {tab === 'active' && 'Alle aktuell laufenden Challenges.'}
+              {tab === 'incoming' && 'Alle Challenges, die bald starten.'}
+              {tab === 'closed' && 'Alle geschlossenen Challenges.'}
+            </Text>
+          </View>
 
           <View style={styles.searchWrap}>
             <TextInput
@@ -101,7 +228,7 @@ export default function AllChallengesScreen() {
         </View>
 
         <FlatList
-          data={filteredChallenges}
+          data={visibleChallenges}
           keyExtractor={(item) => String(item?.id)}
           renderItem={({ item }) => (
             <View style={styles.cardWrap}>
@@ -109,12 +236,45 @@ export default function AllChallengesScreen() {
                 challenge={item}
                 showActions={false}
                 actionIcon="check"
-                onPress={() =>
-                  router.push({
-                    pathname: '/dashboard',
-                    params: { id: String(item.id) },
-                  })
-                }
+                onPress={() => {
+                  const mode = String(item?.mode ?? '').toLowerCase();
+
+                  if (mode === 'team' || mode === 'hybrid') {
+                    router.push({
+                      pathname: '/challenges/challengeTeamDashboard',
+                      params: {
+                        id: String(item.id),
+                        name: item?.name ?? '',
+                        startLocation: item?.startLocation ?? '',
+                        targetLocation: item?.targetLocation ?? '',
+                        distance: String(item?.distance ?? 0),
+                        startDate: item?.startDate ?? '',
+                        endDate: item?.endDate ?? '',
+                        state: item?.state ?? '',
+                      },
+                    });
+                    return;
+                  }
+
+                  if (mode === 'individual') {
+                    router.push({
+                      pathname: '/challenges/challengeIndividualDashboard',
+                      params: {
+                        id: String(item.id),
+                        name: item?.name ?? '',
+                        startLocation: item?.startLocation ?? '',
+                        targetLocation: item?.targetLocation ?? '',
+                        distance: String(item?.distance ?? 0),
+                        startDate: item?.startDate ?? '',
+                        endDate: item?.endDate ?? '',
+                        state: item?.state ?? '',
+                      },
+                    });
+                    return;
+                  }
+
+                  router.push('/myChallenge');
+                }}
               />
             </View>
           )}
@@ -123,13 +283,11 @@ export default function AllChallengesScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>
-                {searchQuery.trim() ? 'Keine Treffer' : 'Keine Challenges'}
-              </Text>
+              <Text style={styles.emptyTitle}>{searchQuery.trim() ? 'Keine Treffer' : emptyTitle}</Text>
               <Text style={styles.emptyText}>
                 {searchQuery.trim()
                   ? `Für „${searchQuery.trim()}“ wurde nichts gefunden.`
-                  : 'Erstell deine erste Challenge und leg los.'}
+                  : emptyText}
               </Text>
 
               {!searchQuery.trim() && (
@@ -145,7 +303,7 @@ export default function AllChallengesScreen() {
           contentContainerStyle={{
             paddingBottom: 28,
             flexGrow: 1,
-            minHeight: screenHeight - 180,
+            minHeight: screenHeight - 220,
           }}
         />
       </View>
@@ -196,6 +354,45 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: 0.2,
+  },
+
+  tabsWrap: {
+    marginTop: 12,
+    marginBottom: 2,
+  },
+  tabsPill: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(15,20,17,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(15,20,17,0.08)',
+    borderRadius: 999,
+    padding: 4,
+    gap: 6,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.sub,
+  },
+  tabTextActive: {
+    color: COLORS.text,
+  },
+  tabHint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: COLORS.sub,
   },
   searchWrap: {
     marginTop: 14,

@@ -1,5 +1,5 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pedometer } from 'expo-sensors';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -26,10 +26,11 @@ import {
   startOfWeek,
   stripTime,
   toIsoDate as toISO,
-} from '../services/dto/dashboardDto';
+} from '../../services/dto/dashboardDto';
 
-import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../services/dashboardService';
-import styles from './styles/dashboardStyles';
+import { getChallengeById } from '../../services/challengeService';
+import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../services/dashboardService';
+import styles from '../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -99,8 +100,28 @@ const toIsoUtcMidnight = (d: Date) => {
 
 const isAbortError = (err: any) => err?.name === 'AbortError';
 
+const firstParam = (value: string | string[] | undefined): string =>
+  Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '');
+
+const toMaybeNumber = (value: string | string[] | undefined): number | null => {
+  const raw = firstParam(value).trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+};
+
 const Dashboard: React.FC = () => {
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  const selectedChallengeId = useMemo(() => toMaybeNumber(params?.id as string | string[] | undefined), [params?.id]);
+  const selectedChallengeName = firstParam(params?.name as string | string[] | undefined);
+  const selectedStartLocation = firstParam(params?.startLocation as string | string[] | undefined);
+  const selectedTargetLocation = firstParam(params?.targetLocation as string | string[] | undefined);
+  const selectedDistance = toMaybeNumber(params?.distance as string | string[] | undefined) ?? 0;
+  const selectedStartDate = firstParam(params?.startDate as string | string[] | undefined);
+  const selectedEndDate = firstParam(params?.endDate as string | string[] | undefined);
+  const selectedState = firstParam(params?.state as string | string[] | undefined);
 
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,7 +243,53 @@ const Dashboard: React.FC = () => {
 
       const pivot = startOfWeek(new Date());
       const mapped = mapHomeInitToDashboard(raw, pivot) as HomeInitDto | null;
-      initFromMapped(mapped);
+
+      if (!mapped) {
+        initFromMapped(mapped);
+        return;
+      }
+
+      if (!selectedChallengeId) {
+        initFromMapped(mapped);
+        return;
+      }
+
+      let selected = null;
+      try {
+        selected = await getChallengeById(selectedChallengeId);
+      } catch (e) {
+        console.warn('Failed to load selected challenge by id, fallback to route params:', e);
+      }
+
+      const selectedStart = selected?.startDate ?? selected?.start_date ?? selectedStartDate;
+      const selectedEnd = selected?.endDate ?? selected?.end_date ?? selectedEndDate;
+
+      const merged: HomeInitDto = {
+        ...mapped,
+        challenge: {
+          id: selectedChallengeId,
+          name: selected?.name ?? selectedChallengeName ?? mapped.challenge.name,
+          startLocation:
+            selected?.startLocation ??
+            selected?.start_location ??
+            selectedStartLocation ??
+            mapped.challenge.startLocation,
+          targetLocation:
+            selected?.targetLocation ??
+            selected?.target_location ??
+            selectedTargetLocation ??
+            mapped.challenge.targetLocation,
+          distanceKm:
+            Number(selected?.distanceKm ?? selected?.distance ?? selectedDistance ?? mapped.challenge.distanceKm) || 0,
+          distance:
+            Number(selected?.distanceKm ?? selected?.distance ?? selectedDistance ?? mapped.challenge.distanceKm) || 0,
+          startDate: selectedStart ? new Date(selectedStart) : mapped.challenge.startDate,
+          endDate: selectedEnd ? new Date(selectedEnd) : mapped.challenge.endDate,
+          state: String(selected?.state ?? selectedState ?? mapped.challenge.state ?? ''),
+        },
+      };
+
+      initFromMapped(merged);
     } catch (e: any) {
       if (isAbortError(e)) return;
       if (!isMountedRef.current) return;
@@ -234,7 +301,17 @@ const Dashboard: React.FC = () => {
         initAbortRef.current = null;
       }
     }
-  }, [initFromMapped]);
+  }, [
+    initFromMapped,
+    selectedChallengeId,
+    selectedChallengeName,
+    selectedStartLocation,
+    selectedTargetLocation,
+    selectedDistance,
+    selectedStartDate,
+    selectedEndDate,
+    selectedState,
+  ]);
 
   useEffect(() => {
     loadInitial();
@@ -608,8 +685,10 @@ const Dashboard: React.FC = () => {
   }
 
   const hasActiveChallenge = vm?.challenge?.id != null && vm?.challenge?.state === 'open';
+  const hasSelectedChallenge = selectedChallengeId != null;
+  const canShowChallenge = hasSelectedChallenge ? vm?.challenge?.id != null : hasActiveChallenge;
 
-  if (!vm || errorMsg || !hasActiveChallenge) {
+  if (!vm || errorMsg || !canShowChallenge) {
     return <EmptyChallengeCard />;
   }
 

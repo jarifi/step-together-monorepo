@@ -173,7 +173,7 @@ export default function Sidebar({
         )}
 
         <View style={styles.linkContainer}>
-          {renderNavLink('/dashboard', 'Dashboard', 'dashboard', MaterialIcons)}
+          {renderNavLink('/challenges/challengesDashboard', 'Dashboard', 'dashboard', MaterialIcons)}
 
 
           <View style={styles.separator} />
