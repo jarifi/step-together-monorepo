@@ -15,7 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { apiPost } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createChallenge } from '../services/challengeService';
 import { getAllTeams } from '../services/teamService';
 import { getDisplayAvatarUri, getUsers, searchUsers } from '../services/userService';
 
@@ -644,20 +645,22 @@ export default function CreateHybridChallenge({ navigation }) {
     if (!validate()) return;
     setSubmitting(true);
     try {
+      const storedUserId = await AsyncStorage.getItem('userId');
       const payload = {
-        name:          name.trim(),
-        startLocation: startLoc.trim(),
-        targetLocation:targetLoc.trim(),
-        distance:      parseFloat(distance),
-        startDate:     startDate.toISOString(),
-        endDate:       endDate.toISOString(),
-        mode:          teamModus === 'individual' ? 'individual' : 'team',
-        teamIds:       teamModus === 'individual' ? [] : selectedIds,
+        name:            name.trim(),
+        start_location:  startLoc.trim(),
+        target_location: targetLoc.trim(),
+        distance:        parseFloat(distance),
+        start_date:      startDate.toISOString(),
+        end_date:        endDate.toISOString(),
+        mode:            teamModus === 'individual' ? 'individual' : 'team',
+        team_ids:        teamModus === 'individual' ? [] : selectedIds,
+        creator_id:      parseInt(storedUserId || '0', 10),
       };
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Zeitüberschreitung. Bitte Verbindung prüfen und erneut versuchen.')), 10000)
       );
-      await Promise.race([apiPost('/challenges', payload), timeout]);
+      await Promise.race([createChallenge(payload), timeout]);
       showToast('success', 'Challenge erstellt! Hier klicken um sie zu sehen.', () => router.push('/challenges/hybrid_index'));
     } catch (err) {
       showToast('error', extractErrorMessage(err));
