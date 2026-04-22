@@ -2,15 +2,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View
 } from 'react-native';
 
 import ChallengeCard from '../../components/ChallengeCard';
@@ -315,7 +315,7 @@ export default function AllChallengesScreen() {
                     return;
                   }
 
-                  router.push('/myChallenge');
+                  router.push('/challenges/challengeTeamDashboardDetails');
                 }}
               />
             </View>

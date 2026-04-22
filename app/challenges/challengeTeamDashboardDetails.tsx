@@ -2,12 +2,12 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import Avatar from '../components/Avatar';
-import { LeafletOSMMap } from '../components/LeafletOSMMap';
-import { getHomeInit } from '../services/dashboardService';
-import { mapHomeInitToDashboard } from '../services/dto/dashboardDto';
-import { getTeamRanking } from '../services/teamService';
-import styles from './styles/dashboardStyles';
+import Avatar from '../../components/Avatar';
+import { LeafletOSMMap } from '../../components/LeafletOSMMap';
+import { getHomeInit } from '../../services/dashboardService';
+import { mapHomeInitToDashboard } from '../../services/dto/dashboardDto';
+import { getTeamRanking } from '../../services/teamService';
+import styles from '../styles/dashboardStyles';
 
 const FIX_STEP_LENGTH_M = 0.78;
 

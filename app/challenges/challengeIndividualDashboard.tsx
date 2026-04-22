@@ -1,5 +1,5 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Pedometer } from 'expo-sensors';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -28,6 +28,7 @@ import {
     toIsoDate as toISO,
 } from '../../services/dto/dashboardDto';
 
+import BottomBar from '../../components/BottomBar';
 import { getChallengeById } from '../../services/challengeService';
 import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../services/dashboardService';
 import styles from '../styles/dashboardStyles';
@@ -112,6 +113,7 @@ const toMaybeNumber = (value: string | string[] | undefined): number | null => {
 
 const IndividualDashboard: React.FC = () => {
     const router = useRouter();
+    const pathname = usePathname();
     const params = useLocalSearchParams();
 
     const selectedChallengeId = useMemo(() => toMaybeNumber(params?.id as string | string[] | undefined), [params?.id]);
@@ -677,10 +679,13 @@ const IndividualDashboard: React.FC = () => {
 
     if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
-                <ActivityIndicator size="large" />
-                <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
-            </View>
+            <>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
+                    <ActivityIndicator size="large" />
+                    <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
+                </View>
+                <BottomBar pathname={pathname} overviewPath="/challenges/challengeIndividualDashboard" />
+            </>
         );
     }
 
@@ -689,7 +694,12 @@ const IndividualDashboard: React.FC = () => {
     const canShowChallenge = hasSelectedChallenge ? vm?.challenge?.id != null : hasActiveChallenge;
 
     if (!vm || errorMsg || !canShowChallenge) {
-        return <EmptyChallengeCard />;
+        return (
+            <>
+                <EmptyChallengeCard />
+                <BottomBar pathname={pathname} overviewPath="/challenges/challengeIndividualDashboard" />
+            </>
+        );
     }
 
     const calendarHeader = calendarMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
@@ -1082,6 +1092,7 @@ const IndividualDashboard: React.FC = () => {
                     </TouchableOpacity>
                 </Modal>
             </ScrollView>
+            <BottomBar pathname={pathname} overviewPath="/challenges/challengeIndividualDashboard" />
         </>
     );
 };

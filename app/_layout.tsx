@@ -113,7 +113,7 @@ export default function RootLayout() {
   const showPill = useMemo(() => {
     if (!showSidebar) return false;
     const onDashboard = pathname === '/dashboard' || pathname.startsWith('/dashboard/');
-    const onMyChallenge = pathname === '/myChallenge' || pathname.startsWith('/myChallenge/');
+    const onMyChallenge = pathname === '/challenges/challengeTeamDashboardDetails' || pathname.startsWith('/challenges/challengeTeamDashboardDetails/');
     return onDashboard || onMyChallenge;
   }, [showSidebar, pathname]);
 
@@ -170,7 +170,7 @@ export default function RootLayout() {
               <Stack.Screen name="teams/create" options={{ headerShown: false }} />
               <Stack.Screen name="teams/members" options={{ headerShown: false }} />
               <Stack.Screen name="users/index" options={{ headerShown: false }} />
-              <Stack.Screen name="myChallenge" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/challengeTeamDashboardDetails" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/index" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/hybridIndex" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/challengesDashboard" options={{ headerShown: false }} />
@@ -180,7 +180,6 @@ export default function RootLayout() {
               <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} />
               <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
-              <Stack.Screen name="dashboard" options={{ headerShown: false }} />
               <Stack.Screen name="userHistory" options={{ headerShown: false }} />
               <Stack.Screen name="profileInfo" options={{ headerShown: false }} />
               <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
