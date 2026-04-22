@@ -162,7 +162,7 @@ export default function AllChallengesScreen() {
 
           {/* Create Challenge Button */}
           <Pressable
-            onPress={() => router.push('/challenges/create')}
+            onPress={() => router.push('/CreateHybridChallenge')}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
           >
             <Text style={styles.primaryBtnText}>+ Neue Challenge</Text>
@@ -186,7 +186,7 @@ export default function AllChallengesScreen() {
                 }
                 onUpdate={() =>
                   router.push({
-                    pathname: '/challenges/update',
+                    pathname: '/hybridUpdate',
                     params: {
                       id: item.id,
                       name: item.name,
