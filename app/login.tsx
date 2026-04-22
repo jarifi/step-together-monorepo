@@ -130,9 +130,10 @@ export default function LoginScreen() {
         role: data.role,
         teamId: data.teamId,
         activeChallengeId: data.activeChallengeId,
+        activeChallenges: data.activeChallenges,
       });
 
-      router.replace("/dashboard");
+      router.replace("/challenges/challengesDashboard");
     } catch (err: any) {
       if (__DEV__) {
         console.log("LOGIN ERROR status:", err?.status);
@@ -247,9 +248,10 @@ export default function LoginScreen() {
         role: data.role,
         teamId: data.teamId,
         activeChallengeId: data.activeChallengeId,
+        activeChallenges: data.activeChallenges,
       });
 
-      router.replace("/dashboard");
+      router.replace("/challenges/challengesDashboard");
     } catch (err: any) {
       if (__DEV__) {
         console.log("PASSKEY LOGIN ERROR:", err?.message);

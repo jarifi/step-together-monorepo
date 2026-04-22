@@ -11,6 +11,7 @@ const ChallengeCard = ({
   onDelete,
   onPress,
   showActions = false,
+  actionIcon = "info-outline",   
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -109,7 +110,7 @@ const ChallengeCard = ({
             ]}
             hitSlop={8}
           >
-            <MaterialIcons name="info-outline" size={20} color="#fff" />
+            <MaterialIcons name={actionIcon} size={20} color="#fff" />
           </Pressable>
         )}
 

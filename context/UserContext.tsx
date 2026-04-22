@@ -64,7 +64,12 @@ export const UserProvider = ({ children }: { children: any }) => {
 
         if (res.ok) {
           const data = await res.json();
-          setUser(data);
+          // Preserve activeChallenges from existing user if not in response
+          const currentActiveChallenges = user?.activeChallenges;
+          setUser({
+            ...data,
+            activeChallenges: data.activeChallenges ?? currentActiveChallenges,
+          });
           setUserId(String(data.id));
         }
       } catch (err) {
