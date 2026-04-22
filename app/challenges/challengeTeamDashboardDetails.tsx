@@ -1,9 +1,10 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import Avatar from '../../components/Avatar';
 import { LeafletOSMMap } from '../../components/LeafletOSMMap';
+import { getChallengeById } from '../../services/challengeService';
 import { getHomeInit } from '../../services/dashboardService';
 import { mapHomeInitToDashboard } from '../../services/dto/dashboardDto';
 import { getTeamRanking } from '../../services/teamService';
@@ -32,6 +33,16 @@ const formatTimeLeftDe = (msLeft: number) => {
   parts.push(`${minutes} Min`);
 
   return parts.join(' ');
+};
+
+const firstParam = (value: string | string[] | undefined): string =>
+  Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '');
+
+const toMaybeNumber = (value: string | string[] | undefined): number | null => {
+  const raw = firstParam(value).trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 };
 
 const buildRankings = (
@@ -73,6 +84,11 @@ const buildRankings = (
 
 const challengeTeamDashboardDetailsScreen: React.FC = () => {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const selectedChallengeId = useMemo(
+    () => toMaybeNumber(params?.id as string | string[] | undefined),
+    [params?.id]
+  );
   const [vm, setVm] = useState<any>(null);
   const [rankings, setRankings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,23 +147,60 @@ const challengeTeamDashboardDetailsScreen: React.FC = () => {
         return;
       }
 
-      setVm(mapped);
+      let vmToUse = mapped;
+      if (selectedChallengeId != null) {
+        try {
+          const selected = await getChallengeById(selectedChallengeId);
+          const selectedStart = selected?.startDate ?? selected?.start_date ?? null;
+          const selectedEnd = selected?.endDate ?? selected?.end_date ?? null;
 
-      if (mapped?.team?.id != null && mapped?.challenge?.id != null) {
+          vmToUse = {
+            ...mapped,
+            challenge: {
+              ...mapped?.challenge,
+              id: selectedChallengeId,
+              name: selected?.name ?? mapped?.challenge?.name,
+              startLocation:
+                selected?.startLocation ??
+                selected?.start_location ??
+                mapped?.challenge?.startLocation,
+              targetLocation:
+                selected?.targetLocation ??
+                selected?.target_location ??
+                mapped?.challenge?.targetLocation,
+              distanceKm: Number(selected?.distanceKm ?? selected?.distance ?? mapped?.challenge?.distanceKm ?? 0),
+              distance: Number(selected?.distanceKm ?? selected?.distance ?? mapped?.challenge?.distanceKm ?? 0),
+              startDate: selectedStart ? new Date(selectedStart) : mapped?.challenge?.startDate,
+              endDate: selectedEnd ? new Date(selectedEnd) : mapped?.challenge?.endDate,
+              state: String(selected?.state ?? mapped?.challenge?.state ?? ''),
+            },
+            team: {
+              ...mapped?.team,
+              id: Number.isFinite(Number(selected?.teamId)) ? Number(selected?.teamId) : mapped?.team?.id,
+            },
+          };
+        } catch (err) {
+          console.warn('Failed to load selected challenge in team details, fallback to mapped challenge:', err);
+        }
+      }
+
+      setVm(vmToUse);
+
+      if (vmToUse?.team?.id != null && vmToUse?.challenge?.id != null) {
         setRankingLoading(true);
         try {
-          const rawRank = await getTeamRanking(mapped.team.id, mapped.challenge.id);
+          const rawRank = await getTeamRanking(vmToUse.team.id, vmToUse.challenge.id);
 
           const fallbackRaw =
-            mapped?.user?.stepLength ??
-            mapped?.user?.step_length ??
-            mapped?.user_step_length ??
+            vmToUse?.user?.stepLength ??
+            vmToUse?.user?.step_length ??
+            vmToUse?.user_step_length ??
             null;
 
           const fallbackN = Number(fallbackRaw);
           const fallbackStepLength = Number.isFinite(fallbackN) && fallbackN > 0 ? fallbackN : null;
 
-          setRankings(buildRankings(rawRank, mapped.user?.id, fallbackStepLength));
+          setRankings(buildRankings(rawRank, vmToUse.user?.id, fallbackStepLength));
         } catch (err: any) {
           console.error('TeamRanking error', err);
           setRankingError(err?.message ?? 'Fehler beim Laden des Team-Rankings.');
@@ -179,7 +232,7 @@ const challengeTeamDashboardDetailsScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedChallengeId]);
 
   useFocusEffect(
     useCallback(() => {

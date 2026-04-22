@@ -1095,7 +1095,11 @@ const Dashboard: React.FC = () => {
       <BottomBar
         pathname={pathname}
         overviewPath="/challenges/challengeTeamDashboard"
-        challengePath="/challenges/challengeTeamDashboardDetails"
+        challengePath={
+          vm?.challenge?.id
+            ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}`
+            : '/challenges/challengeTeamDashboardDetails'
+        }
       />
     </View>
   );
