@@ -1,17 +1,10 @@
-/**
- * CreateHybridChallenge.jsx
- *
- * Single-page form — no step wizard.
- * Uses getAllTeams() from your existing teamService.
- * Custom modern calendar picker (no browser native datetime-local).
- * Designed for React Native Web + mobile.
- */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,9 +15,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
 import { apiPost } from '../services/api';
 import { getAllTeams } from '../services/teamService';
+import { getDisplayAvatarUri, getUsers, searchUsers } from '../services/userService';
 
 function extractErrorMessage(err) {
   // Unpack a FastAPI / structured payload first
@@ -56,7 +49,7 @@ const T = {
   white:        '#FFFFFF',
   bg:           '#F2F5F3',
   surfaceAlt:   '#F7FAF8',
-  primary:      '#1E5C3A',
+  primary:      '#58896e81',
   primaryMid:   '#2D7A50',
   primaryLight: '#5f8568ff',
   primarySoft:  '#D6EAE0',
@@ -75,7 +68,7 @@ const T = {
   shadow:       'rgba(15,31,23,0.09)',
   calHeader:    '#1E5C3A',
   calToday:     '#EBF5EF',
-  calSelected:  '#1E5C3A',
+  calSelected:  '#7ac89dff',
   calRange:     '#D6EAE0',
 };
 
@@ -498,8 +491,8 @@ function TeamRow({ team, selected, onToggle }) {
       onPress={() => onToggle(team.id)}
       activeOpacity={0.65}
     >
-      <View style={[s.avatar, selected && s.avatarSel]}>
-        <Text style={[s.avatarText, selected && s.avatarTextSel]}>{ini}</Text>
+      <View style={s.avatar}>
+        <Text style={s.avatarText}>{ini}</Text>
       </View>
       <View style={s.teamBody}>
         <Text style={[s.teamName, selected && s.teamNameSel]} numberOfLines={1}>
@@ -507,6 +500,43 @@ function TeamRow({ team, selected, onToggle }) {
         </Text>
         {team.memberCount != null && (
           <Text style={s.teamMeta}>{team.memberCount} Mitglieder</Text>
+        )}
+      </View>
+      <View style={[s.checkbox, selected && s.checkboxOn]}>
+        {selected && <Text style={s.checkTick}>✓</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── User row ─────────────────────────────────────────────────────────────────
+function UserRow({ user, selected, onToggle }) {
+  const avatarUri = getDisplayAvatarUri(user);
+  const [imgErr, setImgErr] = useState(false);
+  const ini = initials(user.username || user.email || '?');
+  return (
+    <TouchableOpacity
+      style={[s.userRow, selected && s.userRowSel]}
+      onPress={() => onToggle(user.id)}
+      activeOpacity={0.65}
+    >
+      {avatarUri && !imgErr ? (
+        <Image
+          source={{ uri: avatarUri }}
+          style={s.userAvatarImg}
+          onError={() => setImgErr(true)}
+        />
+      ) : (
+        <View style={[s.avatar, s.userAvatarFallback]}>
+          <Text style={s.avatarText}>{ini}</Text>
+        </View>
+      )}
+      <View style={s.teamBody}>
+        <Text style={[s.teamName, selected && s.teamNameSel]} numberOfLines={1}>
+          {user.username || user.email || 'Unbekannt'}
+        </Text>
+        {user.email && user.username && (
+          <Text style={s.teamMeta} numberOfLines={1}>{user.email}</Text>
         )}
       </View>
       <View style={[s.checkbox, selected && s.checkboxOn]}>
@@ -533,8 +563,16 @@ export default function CreateHybridChallenge({ navigation }) {
   const [search,       setSearch]       = useState('');
   const [selectedIds,  setSelectedIds]  = useState([]);
 
+  // Users
+  const [users,          setUsers]          = useState([]);
+  const [query,          setQuery]          = useState('');
+  const [loadingUsers,   setLoadingUsers]   = useState(false);
+  const [visibleUsers,   setVisibleUsers]   = useState(4);
+  const [visibleTeams,   setVisibleTeams]   = useState(4);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+
+
   // Form
-  const [showAllTeams, setShowAllTeams] = useState(false);
   const [errors,     setErrors]     = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [teamModus, setTeamModus] = useState(null);
@@ -545,6 +583,10 @@ export default function CreateHybridChallenge({ navigation }) {
   const toastTimer = useRef(null);
 
   useEffect(() => { loadTeams(); }, []);
+
+  useEffect(() => {
+    if (teamModus === 'individual') loadUsers('');
+  }, [teamModus]);
 
   const loadTeams = async () => {
     setTeamsLoading(true);
@@ -560,8 +602,22 @@ export default function CreateHybridChallenge({ navigation }) {
     }
   };
 
+  const loadUsers = async (q = query) => {
+    setLoadingUsers(true);
+    const data = q.trim()
+      ? await searchUsers(q, 0, 15)
+      : await getUsers(0, 15);
+    setUsers(data || []);
+    setVisibleUsers(4);
+    setLoadingUsers(false);
+  };
+
   const toggleTeam = useCallback((id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }, []);
+
+  const toggleUser = useCallback((id) => {
+    setSelectedUserIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   }, []);
 
   const filteredTeams = teams.filter(t =>
@@ -602,7 +658,7 @@ export default function CreateHybridChallenge({ navigation }) {
         setTimeout(() => reject(new Error('Zeitüberschreitung. Bitte Verbindung prüfen und erneut versuchen.')), 10000)
       );
       await Promise.race([apiPost('/challenges', payload), timeout]);
-      showToast('success', 'Challenge wurde Erfolgreich Erstellt. Klicke hier um zu sehen', () => navigation?.goBack());
+      showToast('success', 'Challenge erstellt! Hier klicken um sie zu sehen.', () => router.push('/challenges/hybrid_index'));
     } catch (err) {
       showToast('error', extractErrorMessage(err));
     } finally {
@@ -790,106 +846,124 @@ export default function CreateHybridChallenge({ navigation }) {
           </View>
         </Card>
 
-        {/* ── 4. Teams ───────────────────────────────────────────────────── */}
-        <SectionHead
-          title="Teams"
-          subtitle={
-            teamsLoading
-              ? 'Wird geladen…'
-              : `${selectedIds.length} von ${teams.length} Teams ausgewählt`
-          }
-        />
+        {/* ── 4. Auswahl Widget ────────────────────────────────────────── */}
+        <Card style={s.modeWidget}>
 
-        {/* Search */}
-        <View style={s.searchBox}>
-          <Text style={s.searchIcon}>⌕</Text>
-          <TextInput
-            style={s.searchInput}
-            placeholder="Teams durchsuchen…"
-            placeholderTextColor={T.textLight}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={s.searchClear}>×</Text>
-            </TouchableOpacity>
+          {/* Empty placeholder */}
+          {teamModus == null && (
+            <View style={s.widgetEmpty}>
+              <Text style={s.widgetEmptyIcon}>⊙</Text>
+              <Text style={s.widgetEmptyTitle}>Suche deinen Modus-Typ aus</Text>
+              <Text style={s.widgetEmptySub}>
+                Wähle oben «Individual» oder «Gruppe» aus
+              </Text>
+            </View>
           )}
-        </View>
 
-        {/* Selected pills */}
-        {selectedIds.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={s.pillsScroll}
-            contentContainerStyle={s.pillsContent}
-          >
-            {selectedIds.map(id => {
-              const t = teams.find(x => x.id === id);
-              return t ? (
-                <TouchableOpacity key={id} style={s.pill} onPress={() => toggleTeam(id)}>
-                  <Text style={s.pillText}>{t.name}</Text>
-                  <Text style={s.pillX}>×</Text>
-                </TouchableOpacity>
-              ) : null;
-            })}
-          </ScrollView>
-        )}
-
-        {/* Team list */}
-        <Card style={s.teamCard}>
-          {teamsLoading ? (
-            <View style={s.teamsCenter}>
-              <ActivityIndicator color={T.primary} size="large" />
-              <Text style={s.teamsCenterText}>Teams werden geladen…</Text>
-            </View>
-          ) : teamsError ? (
-            <View style={s.teamsCenter}>
-              <Text style={s.teamsErrorText}>{teamsError}</Text>
-              <TouchableOpacity style={s.retryBtn} onPress={loadTeams}>
-                <Text style={s.retryText}>Erneut versuchen</Text>
-              </TouchableOpacity>
-            </View>
-          ) : filteredTeams.length === 0 ? (
-            <Text style={s.emptyText}>Keine Teams gefunden</Text>
-          ) : (
-            <>
-              {filteredTeams.slice(0, showAllTeams ? filteredTeams.length : 5).map((team, i, arr) => (
-                <View key={team.id}>
-                  <TeamRow
-                    team={team}
-                    selected={selectedIds.includes(team.id)}
-                    onToggle={toggleTeam}
+          {/* ── USERS (Individual) ── */}
+          {teamModus === 'individual' && (
+            <View>
+              <View style={s.widgetSearchWrap}>
+                <View style={s.searchBox}>
+                  <Text style={s.searchIcon}>⌕</Text>
+                  <TextInput
+                    style={s.searchInput}
+                    placeholder="User suchen…"
+                    placeholderTextColor={T.textMuted}
+                    value={query}
+                    onChangeText={(text) => { setQuery(text); loadUsers(text); }}
                   />
-                  {i < arr.length - 1 && <View style={s.teamDivider} />}
                 </View>
-              ))}
-              {filteredTeams.length > 5 && (
+              </View>
+
+              {loadingUsers ? (
+                <View style={s.widgetCenter}>
+                  <ActivityIndicator color={T.primary} />
+                </View>
+              ) : users.length === 0 ? (
+                <View style={s.widgetCenter}>
+                  <Text style={s.emptyText}>Keine User gefunden</Text>
+                </View>
+              ) : (
                 <>
-                  {!showAllTeams && <View style={s.teamDivider} />}
-                  <TouchableOpacity
-                    style={s.showMoreBtn}
-                    onPress={() => setShowAllTeams(v => !v)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={s.showMoreText}>
-                      {showAllTeams
-                        ? 'Weniger anzeigen'
-                        : `${filteredTeams.length - 5} weitere Teams anzeigen`}
-                    </Text>
-                    <Text style={s.showMoreChevron}>{showAllTeams ? '↑' : '↓'}</Text>
-                  </TouchableOpacity>
+                  {users.slice(0, visibleUsers).map((user, i, arr) => (
+                    <View key={user.id}>
+                      <UserRow
+                        user={user}
+                        selected={selectedUserIds.includes(user.id)}
+                        onToggle={toggleUser}
+                      />
+                      {i < arr.length - 1 && <View style={s.teamDivider} />}
+                    </View>
+                  ))}
+                  {visibleUsers < Math.min(users.length, 15) && (
+                    <TouchableOpacity
+                      style={s.showMoreBtn}
+                      onPress={() => setVisibleUsers(v => Math.min(v + 5, 15))}
+                    >
+                      <Text style={s.showMoreText}>
+                        Mehr anzeigen ({Math.min(users.length, 15) - visibleUsers} weitere)
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               )}
-            </>
+            </View>
           )}
+
+          {/* ── TEAMS (Gruppe) ── */}
+          {teamModus === 'gruppe' && (
+            <View>
+              <View style={s.widgetSearchWrap}>
+                <View style={s.searchBox}>
+                  <Text style={s.searchIcon}>⌕</Text>
+                  <TextInput
+                    style={s.searchInput}
+                    placeholder="Teams durchsuchen…"
+                    placeholderTextColor={T.textMuted}
+                    value={search}
+                    onChangeText={(text) => { setSearch(text); setVisibleTeams(4); }}
+                  />
+                </View>
+              </View>
+
+              {teamsLoading ? (
+                <View style={s.widgetCenter}>
+                  <ActivityIndicator color={T.primary} />
+                </View>
+              ) : filteredTeams.length === 0 ? (
+                <View style={s.widgetCenter}>
+                  <Text style={s.emptyText}>Keine Teams gefunden</Text>
+                </View>
+              ) : (
+                <>
+                  {filteredTeams.slice(0, visibleTeams).map((team, i, arr) => (
+                    <View key={team.id}>
+                      <TeamRow
+                        team={team}
+                        selected={selectedIds.includes(team.id)}
+                        onToggle={toggleTeam}
+                      />
+                      {i < arr.length - 1 && <View style={s.teamDivider} />}
+                    </View>
+                  ))}
+                  {visibleTeams < Math.min(filteredTeams.length, 15) && (
+                    <TouchableOpacity
+                      style={s.showMoreBtn}
+                      onPress={() => setVisibleTeams(v => Math.min(v + 5, 15))}
+                    >
+                      <Text style={s.showMoreText}>
+                        Mehr anzeigen ({Math.min(filteredTeams.length, 15) - visibleTeams} weitere)
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
+          )}
+
         </Card>
-        {errors.teams && (
-          <View style={s.teamsErrorWrap}>
-            <Text style={s.teamsErrorMsg}>{errors.teams}</Text>
-          </View>
-        )}
+
 
         {/* ── Submit ─────────────────────────────────────────────────────── */}
         <TouchableOpacity
@@ -918,7 +992,7 @@ export default function CreateHybridChallenge({ navigation }) {
           <TouchableOpacity
             style={[ts.inner, toast.type === 'success' ? ts.success : ts.error]}
             onPress={() => { toast.onPress?.(); dismissToast(); }}
-            activeOpacity={0.88}
+            activeOpacity={1}
             pointerEvents="auto"
           >
             <View style={ts.iconWrap}>
@@ -1093,8 +1167,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 13, gap: 12,
     backgroundColor: T.white,
+    borderLeftWidth: 3, borderLeftColor: 'transparent',
   },
-  teamRowSel:  { backgroundColor: T.primarySofter },
+  teamRowSel: { borderLeftColor: T.primary },
   teamDivider: { height: StyleSheet.hairlineWidth, backgroundColor: T.border, marginLeft: 70 },
   avatar: {
     width: 42, height: 42, borderRadius: 11,
@@ -1130,19 +1205,16 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 13,
+    paddingVertical: 12,
     gap: 6,
-    backgroundColor: T.primarySofter,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: T.border,
+    backgroundColor: T.white,
   },
   showMoreText: {
     fontSize: 14,
     fontWeight: '600',
     color: T.primary,
-  },
-  showMoreChevron: {
-    fontSize: 14,
-    color: T.primaryLight,
-    fontWeight: '700',
   },
 
   // Team Modus
@@ -1170,8 +1242,8 @@ const s = StyleSheet.create({
   },
   teamModusBtnActive: {
     borderColor: T.primary,
-    backgroundColor: T.primarySofter,
-    ...(IS_WEB ? { boxShadow: '0 2px 12px rgba(30,92,58,0.15)' } : {}),
+    backgroundColor: T.primarySoft,
+    ...(IS_WEB ? { boxShadow: '0 2px 14px rgba(30,92,58,0.18)' } : {}),
   },
   teamModusBtnLabel: {
     fontSize: 18,
@@ -1180,7 +1252,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.2,
   },
   teamModusBtnLabelActive: {
-    color: T.primary,
+    color: T.text,
   },
   teamModusBtnSub: {
     fontSize: 12,
@@ -1188,7 +1260,77 @@ const s = StyleSheet.create({
     color: T.textMuted,
   },
   teamModusBtnSubActive: {
-    color: T.primaryLight,
+    color: T.textSec,
+  },
+
+  // Mode Widget
+  modeWidget: {
+    padding: 0,
+    marginBottom: 4,
+  },
+  widgetSearchWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  widgetCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+  },
+  widgetEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 28,
+  },
+  widgetEmptyIcon: {
+    fontSize: 38,
+    color: T.textLight,
+    marginBottom: 14,
+  },
+  widgetEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: T.textSec,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  widgetEmptySub: {
+    fontSize: 13,
+    color: T.textMuted,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+
+  // User row
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+    backgroundColor: 'transparent',
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+  },
+  userRowSel: {
+    borderLeftColor: T.primary,
+  },
+  userAvatarImg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    flexShrink: 0,
+  },
+  userAvatarFallback: {
+    backgroundColor: T.primarySofter,
+    borderColor: T.accentLight,
+  },
+  userAvatarFallbackSel: {
+    backgroundColor: T.primaryLight,
+    borderColor: T.primaryLight,
   },
 
   // Submit
@@ -1225,12 +1367,13 @@ const ts = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     gap: 12,
+    opacity: 1,
     ...(IS_WEB
-      ? { boxShadow: '0 6px 24px rgba(10,25,18,0.25)' }
-      : { shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 10 }),
+      ? { boxShadow: '0 6px 24px rgba(10,25,18,0.35)' }
+      : { shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 12 }),
   },
-  success: { backgroundColor: T.primary },
-  error:   { backgroundColor: T.danger },
+  success: { backgroundColor: '#1E5C3A' },
+  error:   { backgroundColor: '#B83232' },
   iconWrap: {
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: 'rgba(255,255,255,0.22)',
