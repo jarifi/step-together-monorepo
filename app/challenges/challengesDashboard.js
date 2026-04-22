@@ -15,7 +15,7 @@ import {
 
 import ChallengeCard from '../../components/ChallengeCard';
 import { useUser } from '../../context/UserContext';
-import { getChallenges } from '../../services/challengeService';
+import { getActiveParticipantsCounts, getChallengeTeams, getChallenges } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
@@ -120,7 +120,38 @@ export default function AllChallengesScreen() {
           const data = await getChallenges(0, 50);
           if (!mounted) return;
 
-          setChallenges(Array.isArray(data) ? data : []);
+          const safe = Array.isArray(data) ? data : [];
+
+          // Get active participants count for individual challenges
+          const count = await getActiveParticipantsCounts();
+
+          const countMap = {};
+          count.forEach((c) => {
+            countMap[c.challenge_id] = c.active_participants;
+          });
+
+          // Get team counts for team/hybrid challenges
+          const enrichedChallenges = await Promise.all(
+            safe.map(async (challenge) => {
+              try {
+                const teams = await getChallengeTeams(challenge.id);
+                return {
+                  ...challenge,
+                  activeParticipants: countMap[challenge.id] ?? 0,
+                  teamCount: Array.isArray(teams) ? teams.length : 0,
+                };
+              } catch (err) {
+                console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
+                return {
+                  ...challenge,
+                  activeParticipants: countMap[challenge.id] ?? 0,
+                  teamCount: 0,
+                };
+              }
+            })
+          );
+
+          setChallenges(enrichedChallenges);
         } catch (err) {
           console.error('Failed to load challenges dashboard list:', err);
           if (mounted) setChallenges([]);
