@@ -289,6 +289,10 @@ const Dashboard: React.FC = () => {
           endDate: selectedEnd ? new Date(selectedEnd) : mapped.challenge.endDate,
           state: String(selected?.state ?? selectedState ?? mapped.challenge.state ?? ''),
         },
+        team: {
+          ...mapped.team,
+          id: Number.isFinite(Number(selected?.teamId)) ? Number(selected?.teamId) : mapped.team.id,
+        },
       };
 
       initFromMapped(merged);
