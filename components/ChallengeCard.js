@@ -69,7 +69,7 @@ const ChallengeCard = ({
           <MaterialIcons name="groups" size={16} color="#6B7280" />
           <Text style={styles.metaText}>
             {challenge.mode === 'individual'
-              ? `${challenge.activeParticipants ?? 0} Teilnehmer`
+              ? `${challenge.inviteCount ?? challenge.activeParticipants ?? 0} Eingeladen`
               : `${challenge.teamCount ?? challenge.teams?.length ?? 0} Teams`}
           </Text>
         </View>
