@@ -14,7 +14,13 @@ import {
 
 import ChallengeCard from '../../components/ChallengeCard';
 import { useUser } from '../../context/UserContext';
-import { deleteChallenge, getActiveParticipantsCounts, getChallenges } from '../../services/challengeService';
+import {
+  deleteChallenge,
+  getActiveParticipantsCounts,
+  getChallengeInvites,
+  getChallenges,
+  getChallengeTeams,
+} from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -85,10 +91,34 @@ export default function AllChallengesScreen() {
         countMap[c.challenge_id] = c.active_participants;
       });
 
-      const enriched = safe.map((challenge) => ({
-        ...challenge,
-        activeParticipants: countMap[challenge.id] ?? 0,
-      }));
+      const enriched = await Promise.all(
+        safe.map(async (challenge) => {
+          const base = {
+            ...challenge,
+            activeParticipants: countMap[challenge.id] ?? 0,
+          };
+
+          if (challenge.mode === 'team') {
+            try {
+              const teams = await getChallengeTeams(challenge.id);
+              return { ...base, teamCount: Array.isArray(teams) ? teams.length : 0 };
+            } catch {
+              return { ...base, teamCount: 0 };
+            }
+          }
+
+          if (challenge.mode === 'individual') {
+            try {
+              const invites = await getChallengeInvites(challenge.id);
+              return { ...base, inviteCount: Array.isArray(invites) ? invites.length : 0 };
+            } catch {
+              return { ...base, inviteCount: 0 };
+            }
+          }
+
+          return base;
+        })
+      );
 
       if (append) setChallenges((prev) => [...prev, ...enriched]);
       else setChallenges(enriched);
