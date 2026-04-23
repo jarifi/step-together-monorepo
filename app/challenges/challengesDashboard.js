@@ -2,20 +2,20 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from 'react-native';
 
 import ChallengeCard from '../../components/ChallengeCard';
 import { useUser } from '../../context/UserContext';
-import { getActiveParticipantsCounts, getChallengeTeams, getChallenges } from '../../services/challengeService';
+import { acceptChallengeInvite, getActiveParticipantsCounts, getChallengeTeams, getChallenges, getMyInvites, declineChallengeInvite } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
@@ -104,68 +104,72 @@ export default function AllChallengesScreen() {
     }
   }, [user]);
 
+  const loadChallenges = useCallback(async () => {
+    setLoadingInitial(true);
+
+    try {
+      const data = await getChallenges(0, 50);
+      const safe = Array.isArray(data) ? data : [];
+
+      // Get active participants count for individual challenges
+      const [count, userInvites] = await Promise.all([
+        getActiveParticipantsCounts(),
+        getMyInvites()
+      ]);
+
+      const countMap = {};
+      count.forEach((c) => {
+        countMap[c.challenge_id] = c.active_participants;
+      });
+
+      // Get team counts for team/hybrid challenges
+      const enrichedChallenges = await Promise.all(
+        safe.map(async (challenge) => {
+
+          const invite = userInvites.find((inv) => inv.challengeId === challenge.id);
+
+          try {
+            const teams = await getChallengeTeams(challenge.id);
+            return {
+              ...challenge,
+              activeParticipants: countMap[challenge.id] ?? 0,
+              teamCount: Array.isArray(teams) ? teams.length : 0,
+              inviteStatus: invite ? invite.status : null,
+              inviteId: invite ? invite.id : null,
+            };
+          } catch (err) {
+            console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
+            return {
+              ...challenge,
+              activeParticipants: countMap[challenge.id] ?? 0,
+              teamCount: 0,
+              inviteStatus: invite ? invite.status : null,
+            };
+          }
+        })
+      );
+
+      const visibleOnly = enrichedChallenges.filter((challenge) => {
+        if (challenge.inviteStatus === 'declined') {
+          return false;
+        }
+        return true;
+      });
+
+      setChallenges(visibleOnly);
+    } catch (err) {
+      console.error('Failed to load challenges dashboard list:', err);
+    } finally {
+      setLoadingInitial(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      let mounted = true;
-
-      const loadChallenges = async () => {
-        setLoadingInitial(true);
-
-        try {
-          if (Array.isArray(user?.activeChallenges) && user.activeChallenges.length > 0) {
-            if (mounted) setChallenges(user.activeChallenges);
-            return;
-          }
-
-          const data = await getChallenges(0, 50);
-          if (!mounted) return;
-
-          const safe = Array.isArray(data) ? data : [];
-
-          // Get active participants count for individual challenges
-          const count = await getActiveParticipantsCounts();
-
-          const countMap = {};
-          count.forEach((c) => {
-            countMap[c.challenge_id] = c.active_participants;
-          });
-
-          // Get team counts for team/hybrid challenges
-          const enrichedChallenges = await Promise.all(
-            safe.map(async (challenge) => {
-              try {
-                const teams = await getChallengeTeams(challenge.id);
-                return {
-                  ...challenge,
-                  activeParticipants: countMap[challenge.id] ?? 0,
-                  teamCount: Array.isArray(teams) ? teams.length : 0,
-                };
-              } catch (err) {
-                console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
-                return {
-                  ...challenge,
-                  activeParticipants: countMap[challenge.id] ?? 0,
-                  teamCount: 0,
-                };
-              }
-            })
-          );
-
-          setChallenges(enrichedChallenges);
-        } catch (err) {
-          console.error('Failed to load challenges dashboard list:', err);
-          if (mounted) setChallenges([]);
-        } finally {
-          if (mounted) setLoadingInitial(false);
-        }
-      };
-
       loadChallenges();
 
-      return () => {
-        mounted = false;
-      };
-    }, [user?.activeChallenges])
+      return () => { };
+    }, [loadChallenges])
   );
 
   if (loadingInitial) {
@@ -185,6 +189,23 @@ export default function AllChallengesScreen() {
 
   const [emptyTitle, emptyText] = emptyMap[tab] ?? emptyMap.active;
 
+  const handleAccept = async (challengeId, inviteId) => {
+    try {
+      await acceptChallengeInvite(challengeId, inviteId);
+      loadChallenges();
+    } catch (err) {
+      console.error('Error accepting invite:', err);
+    }
+  };
+
+  const handleDecline = async (challengeId, inviteId) => {
+    try {
+      await declineChallengeInvite(challengeId, inviteId);
+      loadChallenges();
+    } catch (err) {
+      console.error('Error declining invite:', err);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -262,64 +283,73 @@ export default function AllChallengesScreen() {
         <FlatList
           data={visibleChallenges}
           keyExtractor={(item) => String(item?.id)}
-          renderItem={({ item }) => (
-            <View style={styles.cardWrap}>
-              <ChallengeCard
-                challenge={item}
-                showActions={false}
-                actionIcon="check"
-                onPress={() => {
-                  const state = String(item?.state ?? '').toLowerCase();
+          renderItem={({ item }) => {
+            const isIndividual = String(item?.mode ?? '').toLowerCase() === 'individual';
+            const isPending = isIndividual && item?.inviteStatus === 'pending';
 
-                  if (state === 'incoming' || state === 'closed') {
-                    router.push({
-                      pathname: DETAILS_PATH,
-                      params: { id: String(item.id) },
-                    });
-                    return;
-                  }
+            return (
+              <View style={styles.cardWrap}>
+                <View>
+                  <ChallengeCard
+                    challenge={item}
+                    isPending={isPending}
+                    onAccept={() => handleAccept(item.id, item.inviteId)}
+                    onDecline={() => handleDecline(item.id, item.inviteId)}
+                    showActions={false}
+                    actionIcon="arrow-forward"
+                    onPress={() => {
+                      if (isPending) return;
 
-                  const mode = String(item?.mode ?? '').toLowerCase();
+                      const state = String(item?.state ?? '').toLowerCase();
 
-                  if (mode === 'team' || mode === 'hybrid') {
-                    router.push({
-                      pathname: '/challenges/challengeTeamDashboard',
-                      params: {
-                        id: String(item.id),
-                        name: item?.name ?? '',
-                        startLocation: item?.startLocation ?? '',
-                        targetLocation: item?.targetLocation ?? '',
-                        distance: String(item?.distance ?? 0),
-                        startDate: item?.startDate ?? '',
-                        endDate: item?.endDate ?? '',
-                        state: item?.state ?? '',
-                      },
-                    });
-                    return;
-                  }
+                      if (state === 'incoming' || state === 'closed') {
+                        router.push({
+                          pathname: DETAILS_PATH,
+                          params: { id: String(item.id) },
+                        });
+                        return;
+                      }
 
-                  if (mode === 'individual') {
-                    router.push({
-                      pathname: '/challenges/challengeIndividualDashboard',
-                      params: {
-                        id: String(item.id),
-                        name: item?.name ?? '',
-                        startLocation: item?.startLocation ?? '',
-                        targetLocation: item?.targetLocation ?? '',
-                        distance: String(item?.distance ?? 0),
-                        startDate: item?.startDate ?? '',
-                        endDate: item?.endDate ?? '',
-                        state: item?.state ?? '',
-                      },
-                    });
-                    return;
-                  }
+                      const mode = String(item?.mode ?? '').toLowerCase();
 
-                  router.push('/challenges/challengeTeamDashboardDetails');
-                }}
-              />
-            </View>
-          )}
+                      if (mode === 'team' || mode === 'hybrid') {
+                        router.push({
+                          pathname: '/challenges/challengeTeamDashboard',
+                          params: {
+                            id: String(item.id),
+                            name: item?.name ?? '',
+                            startLocation: item?.startLocation ?? '',
+                            targetLocation: item?.targetLocation ?? '',
+                            distance: String(item?.distance ?? 0),
+                            startDate: item?.startDate ?? '',
+                            endDate: item?.endDate ?? '',
+                            state: item?.state ?? '',
+                          },
+                        });
+                        return;
+                      }
+
+                      if (mode === 'individual') {
+                        router.push({
+                          pathname: '/challenges/challengeIndividualDashboard',
+                          params: {
+                            id: String(item.id),
+                            name: item?.name ?? '',
+                            startLocation: item?.startLocation ?? '',
+                            targetLocation: item?.targetLocation ?? '',
+                            distance: String(item?.distance ?? 0),
+                            startDate: item?.startDate ?? '',
+                            endDate: item?.endDate ?? '',
+                            state: item?.state ?? '',
+                          },
+                        });
+                      }
+                    }}
+                  />
+                </View>
+              </View>
+            );
+          }}
           onEndReachedThreshold={0.5}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           showsVerticalScrollIndicator={false}
@@ -551,4 +581,5 @@ const styles = StyleSheet.create({
   cardWrap: {
     marginBottom: 0,
   },
+
 });

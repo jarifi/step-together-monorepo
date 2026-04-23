@@ -11,7 +11,10 @@ const ChallengeCard = ({
   onDelete,
   onPress,
   showActions = false,
-  actionIcon = "info-outline",   
+  actionIcon = "info-outline",
+  onAccept,
+  onDecline,
+  isPending
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -100,21 +103,50 @@ const ChallengeCard = ({
       </View>
 
       <View style={styles.buttonStack}>
-        {onPress && (
-          <Pressable
-            onPress={() => onPress(challenge)}
-            style={({ pressed }) => [
-              styles.iconButton,
-              styles.infoButton,
-              pressed && styles.pressed,
-            ]}
-            hitSlop={8}
-          >
-            <MaterialIcons name={actionIcon} size={20} color="#fff" />
-          </Pressable>
+        {isPending ? (
+          <>
+            <Pressable
+              onPress={onAccept}
+              style={({ pressed }) => [
+                styles.iconButton,
+                { backgroundColor: '#4CAF50' },
+                pressed && styles.pressed,
+              ]}
+              hitSlop={8}
+            >
+              <MaterialIcons name="person-add" size={20} color="#fff" />
+            </Pressable>
+
+            <Pressable
+              onPress={onDecline}
+              style={({ pressed }) => [
+                styles.iconButton,
+                { backgroundColor: '#C62828', marginTop: 8 },
+                pressed && styles.pressed,
+              ]}
+              hitSlop={8}
+            >
+              <MaterialIcons name="close" size={20} color="#fff" />
+            </Pressable>
+          </>
+        ) : (
+          /* 2. THE NORMAL DASHBOARD BUTTON (For everything else) */
+          onPress && (
+            <Pressable
+              onPress={() => onPress(challenge)}
+              style={({ pressed }) => [
+                styles.iconButton,
+                styles.infoButton,
+                pressed && styles.pressed,
+              ]}
+              hitSlop={8}
+            >
+              <MaterialIcons name={actionIcon || "chevron-right"} size={20} color="#fff" />
+            </Pressable>
+          )
         )}
 
-        {showActions && (
+        {showActions && !isPending && (
           <>
             <Pressable
               onPress={onUpdate}

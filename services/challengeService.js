@@ -138,3 +138,34 @@ export const getActiveParticipantsCounts = async () => {
     return [];
   }
 };
+
+export const getMyInvites = async () => {
+  try {
+    const data = await apiGet(`/challenges/me/invites`);
+
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('Error fetching my invites:', err);
+    return [];
+  }
+};
+
+export const acceptChallengeInvite = async (challengeId, inviteId) => {
+  if (!challengeId || !inviteId) throw new Error('Missing IDs');
+  try {
+    return await apiPost(`/challenges/${challengeId}/invites/${inviteId}/accept`, {});
+  } catch (err) {
+    console.error('Error accepting challenge invite:', err);
+    throw err;
+  }
+};
+
+export const declineChallengeInvite = async (challengeId, inviteId) => {
+  if (!challengeId || !inviteId) throw new Error('Missing IDs');
+  try {
+    return await apiPost(`/challenges/${challengeId}/invites/${inviteId}/decline`, {});
+  } catch (err) {
+    console.error('Error declining challenge invite:', err);
+    throw err;
+  }
+};
