@@ -30,6 +30,12 @@ const toDateOnly = (isoLike) => {
 const getStepLogId = (obj) =>
   obj?.id ?? obj?.step_log_id ?? obj?.stepLogId ?? obj?.stepLogID ?? null;
 
+const getChallengeIdFromLog = (obj) =>
+  obj?.challengeId ?? obj?.challenge_id ?? obj?.challenge?.id ?? null;
+
+const getTeamIdFromLog = (obj) =>
+  obj?.teamId ?? obj?.team_id ?? obj?.team?.id ?? null;
+
 const toIsoUtcMidnight = (isoLike) => {
   const d = fromIsoLocal(isoLike);
   if (!d) return null;
@@ -150,21 +156,71 @@ export const upsertStepsForDate = async (dateISO, absoluteSteps, context) => {
   if (!dateISO) throw new Error("dateISO required");
 
   const numberOfSteps = toNonNegativeInt(absoluteSteps);
+  const ctxChallengeId = context?.challengeId != null ? Number(context.challengeId) : null;
+  const ctxTeamId = context?.teamId != null ? Number(context.teamId) : null;
 
   const all = await listMyStepLogs();
-  const existing = (all ?? []).find((log) => inSameDayIso(log.date, dateISO));
+  const existing = (all ?? []).find((log) => {
+    if (!inSameDayIso(log.date, dateISO)) return false;
+
+    const logChallengeIdRaw = getChallengeIdFromLog(log);
+    const logChallengeId = logChallengeIdRaw != null ? Number(logChallengeIdRaw) : null;
+    if (ctxChallengeId != null && logChallengeId !== ctxChallengeId) return false;
+
+    const logTeamIdRaw = getTeamIdFromLog(log);
+    const logTeamId = logTeamIdRaw != null ? Number(logTeamIdRaw) : null;
+    if (ctxTeamId != null && logTeamId !== ctxTeamId) return false;
+    if (ctxTeamId == null && logTeamId != null) return false;
+
+    return true;
+  });
   const existingId = getStepLogId(existing);
+  const existingTeamIdRaw = getTeamIdFromLog(existing);
+  const existingTeamId = existingTeamIdRaw != null ? Number(existingTeamIdRaw) : null;
+
+  const buildPayload = ({ includeDate = false }) => {
+    const payload = {
+      numberOfSteps,
+    };
+
+    if (ctxChallengeId != null) {
+      payload.challengeId = ctxChallengeId;
+    }
+
+    // For team challenges, prefer explicit context teamId and fallback to existing log teamId on update.
+    const resolvedTeamId = ctxTeamId ?? existingTeamId;
+    if (resolvedTeamId != null) {
+      payload.teamId = resolvedTeamId;
+    }
+
+    if (includeDate) {
+      payload.date = toIsoUtcMidnight(dateISO) ?? toIsoDateTimeMidnight(dateISO);
+    }
+
+    return payload;
+  };
 
   if (existingId) {
-    return await putNoRedirect(`/step_logs/${existingId}`, { numberOfSteps });
+    const payload = buildPayload({ includeDate: false });
+
+    console.log("upsertStepsForDate: PUT", {
+      stepLogId: existingId,
+      challengeId: payload.challengeId ?? null,
+      teamId: payload.teamId ?? null,
+      dateISO,
+      numberOfSteps,
+    });
+    return await putNoRedirect(`/step_logs/${existingId}`, payload);
   }
 
-  const dateUtcMidnight = toIsoUtcMidnight(dateISO) ?? toIsoDateTimeMidnight(dateISO);
+  const payload = buildPayload({ includeDate: true });
 
-  return await postNoRedirect(`/step_logs/`, {
-    challengeId: context?.challengeId,
-    teamId: context?.teamId,
-    date: dateUtcMidnight,
+  console.log("upsertStepsForDate: POST", {
+    challengeId: payload.challengeId ?? null,
+    teamId: payload.teamId ?? null,
+    date: payload.date,
     numberOfSteps,
   });
+
+  return await postNoRedirect(`/step_logs/`, payload);
 };
