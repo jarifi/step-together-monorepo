@@ -224,3 +224,52 @@ def test_individual_challenge_bulk_invites_mixed_results(client, db_session):
     assert body["invalidUsers"] == [999999]
     assert body["skippedSelf"] == [creator_id]
     assert body["errors"] == []
+
+
+def test_individual_challenge_creation_auto_registers_creator(client, db_session):
+    creator = _create_user(db_session, "Auto Creator", "autocreator@example.com")
+    creator_id = creator.id
+    creator_email = creator.email
+
+    creator_token = _login(client, creator_email)
+
+    create_response = client.post(
+        "/api/v1/challenges/",
+        json={
+            "name": "Creator Auto Join",
+            "startLocation": "Graz",
+            "targetLocation": "Vienna",
+            "distance": 42.0,
+            "startDate": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+            "endDate": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+            "mode": "individual",
+            "teamIds": [],
+        },
+        headers={"Authorization": f"Bearer {creator_token}"},
+    )
+
+    assert create_response.status_code == 201
+    challenge_id = create_response.json()["id"]
+
+    participant = (
+        db_session.query(ChallengeParticipant)
+        .filter(
+            ChallengeParticipant.challenge_id == challenge_id,
+            ChallengeParticipant.user_id == creator_id,
+        )
+        .first()
+    )
+    assert participant is not None
+    assert participant.status == ChallengeParticipant.STATUS_ACTIVE
+
+    accepted_invite = (
+        db_session.query(ChallengeInvite)
+        .filter(
+            ChallengeInvite.challenge_id == challenge_id,
+            ChallengeInvite.inviter_user_id == creator_id,
+            ChallengeInvite.invitee_user_id == creator_id,
+        )
+        .first()
+    )
+    assert accepted_invite is not None
+    assert accepted_invite.status == ChallengeInvite.STATUS_ACCEPTED

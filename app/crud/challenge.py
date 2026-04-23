@@ -69,6 +69,23 @@ def create_challenge(db: Session, challenge_data: ChallengeCreate) -> ChallengeM
     db.add(db_challenge)
     db.flush()
 
+    if db_challenge.mode == ChallengeModel.MODE_INDIVIDUAL:
+        db.add(
+            ChallengeParticipant(
+                challenge_id=db_challenge.id,
+                user_id=db_challenge.creator_id,
+                status=ChallengeParticipant.STATUS_ACTIVE,
+            )
+        )
+        db.add(
+            ChallengeInvite(
+                challenge_id=db_challenge.id,
+                inviter_user_id=db_challenge.creator_id,
+                invitee_user_id=db_challenge.creator_id,
+                status=ChallengeInvite.STATUS_ACCEPTED,
+            )
+        )
+
     if team_ids:
         teams = db.query(Team).filter(Team.id.in_(team_ids)).all()
 
