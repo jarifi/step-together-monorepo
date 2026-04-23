@@ -396,6 +396,28 @@ def join_challenge(
     }
 
 
+def get_challenge_invites(
+    db: Session,
+    challenge_id: int,
+    requester_user_id: int,
+    status: Optional[str] = None,
+):
+    challenge = get_challenge(db, challenge_id)
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    if challenge.creator_id != requester_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the challenge creator can view invites",
+        )
+
+    query = db.query(ChallengeInvite).filter(ChallengeInvite.challenge_id == challenge_id)
+    if status:
+        query = query.filter(ChallengeInvite.status == status)
+    return query.all()
+
+
 def create_challenge_invite(
     db: Session,
     challenge_id: int,

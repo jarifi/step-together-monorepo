@@ -181,6 +181,21 @@ def join_challenge(
     return joined
 
 
+@router.get("/{challenge_id}/invites", response_model=List[ChallengeInviteResponse])
+def read_challenge_invites(
+    challenge_id: int,
+    status: str = Query(None, description="Filter by status: pending, accepted, declined, cancelled"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return challenge_crud.get_challenge_invites(
+        db=db,
+        challenge_id=challenge_id,
+        requester_user_id=current_user.id,
+        status=status,
+    )
+
+
 @router.post("/{challenge_id}/invites", response_model=ChallengeInviteResponse)
 def create_challenge_invite(
     challenge_id: int,
