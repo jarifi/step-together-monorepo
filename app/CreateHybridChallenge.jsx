@@ -1219,6 +1219,7 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: T.border,
     backgroundColor: T.white,
+    borderRadius: 15,
   },
   showMoreText: {
     fontSize: 14,
