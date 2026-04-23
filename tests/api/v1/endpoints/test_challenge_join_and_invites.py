@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.core.security import get_password_hash
 from app.models.challenge import Challenge
+from app.models.challenge_invite import ChallengeInvite
 from app.models.challenge_participant import ChallengeParticipant
 from app.models.challenge_team import ChallengeTeam
 from app.models.team import Team
@@ -144,3 +145,82 @@ def test_team_challenge_join_keeps_team_based_registration(client, db_session):
         .first()
     )
     assert team_member is not None
+
+
+def test_individual_challenge_bulk_invites_mixed_results(client, db_session):
+    creator = _create_user(db_session, "Bulk Creator", "bulkcreator@example.com")
+    friend_a = _create_user(db_session, "Friend A", "frienda@example.com")
+    friend_b = _create_user(db_session, "Friend B", "friendb@example.com")
+    friend_c = _create_user(db_session, "Friend C", "friendc@example.com")
+
+    creator_id = creator.id
+    creator_email = creator.email
+    friend_a_id = friend_a.id
+    friend_b_id = friend_b.id
+    friend_c_id = friend_c.id
+
+    challenge = Challenge(
+        name="Bulk Invites Sprint",
+        start_location="Graz",
+        target_location="Vienna",
+        distance=100.0,
+        start_date=datetime.now(timezone.utc) - timedelta(days=1),
+        end_date=datetime.now(timezone.utc) + timedelta(days=7),
+        creator_id=creator_id,
+        mode=Challenge.MODE_INDIVIDUAL,
+    )
+    db_session.add(challenge)
+    db_session.commit()
+    db_session.refresh(challenge)
+    challenge_id = challenge.id
+
+    # friend_b is already a participant.
+    db_session.add(
+        ChallengeParticipant(
+            challenge_id=challenge_id,
+            user_id=friend_b_id,
+            status=ChallengeParticipant.STATUS_ACTIVE,
+        )
+    )
+
+    # friend_c already has a pending invite.
+    db_session.add(
+        ChallengeInvite(
+            challenge_id=challenge_id,
+            inviter_user_id=creator_id,
+            invitee_user_id=friend_c_id,
+            status=ChallengeInvite.STATUS_PENDING,
+        )
+    )
+    db_session.commit()
+
+    creator_token = _login(client, creator_email)
+
+    response = client.post(
+        f"/api/v1/challenges/{challenge_id}/invites/bulk",
+        json={
+            "inviteeUserIds": [
+                friend_a_id,
+                friend_b_id,
+                friend_c_id,
+                creator_id,
+                999999,
+            ]
+        },
+        headers={"Authorization": f"Bearer {creator_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["challengeId"] == challenge_id
+    assert len(body["created"]) == 1
+    assert body["created"][0]["inviteeUserId"] == friend_a_id
+
+    assert len(body["alreadyPending"]) == 1
+    assert body["alreadyPending"][0]["inviteeUserId"] == friend_c_id
+
+    assert body["alreadyParticipant"] == [friend_b_id]
+    assert body["invalidUsers"] == [999999]
+    assert body["skippedSelf"] == [creator_id]
+    assert body["errors"] == []

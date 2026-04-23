@@ -33,7 +33,7 @@ Authorization: Bearer {{login.response.body.accessToken}}
 Content-Type: application/json
 
 {
-    "name": "Hybrid Invite Challenge",
+    "name": "Hybrid Invite Challenge1",
     "startLocation": "Graz",
     "targetLocation": "Vienna",
     "distance": 180.5,
@@ -62,6 +62,18 @@ Content-Type: application/json
 
 {
     "inviteeUserId": 24
+}
+
+
+### 3a) Bulk Invite Multiple Users
+# IMPORTANT: Replace inviteeUserIds with the users you want to invite.
+# @name bulkInviteFriends
+POST {{baseUrl}}/challenges/{{createIndividualChallenge.response.body.id}}/invites/bulk
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+    "inviteeUserIds": [24, 25, 26]
 }
 
 

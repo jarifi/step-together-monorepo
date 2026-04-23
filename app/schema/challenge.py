@@ -118,3 +118,23 @@ class ChallengeInviteResponse(CamelCaseBaseModel):
     created_at: datetime
     updated_at: datetime
     expires_at: Optional[datetime] = None
+
+
+class ChallengeBulkInviteCreate(CamelCaseBaseModel):
+    invitee_user_ids: List[int] = Field(min_length=1)
+    expires_at: Optional[datetime] = None
+
+
+class ChallengeBulkInviteError(CamelCaseBaseModel):
+    user_id: int
+    reason: str
+
+
+class ChallengeBulkInviteResponse(CamelCaseBaseModel):
+    challenge_id: int
+    created: List[ChallengeInviteResponse]
+    already_pending: List[ChallengeInviteResponse]
+    already_participant: List[int]
+    invalid_users: List[int]
+    skipped_self: List[int]
+    errors: List[ChallengeBulkInviteError]

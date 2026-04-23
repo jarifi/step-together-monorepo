@@ -14,6 +14,7 @@ from app.models.challenge_invite import ChallengeInvite
 from app.models.team import Team
 from app.models.step_log import StepLog
 from app.models.team_member import TeamMember
+from app.models.user import User as UserModel
 
 from app.schema.team import TeamSchema, ChallengeTeamWithSteps
 
@@ -454,6 +455,128 @@ def create_challenge_invite(
     db.commit()
     db.refresh(invite)
     return invite
+
+
+def create_challenge_invites(
+    db: Session,
+    challenge_id: int,
+    inviter_user_id: int,
+    invitee_user_ids: List[int],
+    expires_at: Optional[datetime] = None,
+):
+    """Create invites for many users and return per-user outcomes."""
+    challenge = get_challenge(db, challenge_id)
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    if challenge.mode != ChallengeModel.MODE_INDIVIDUAL:
+        raise HTTPException(
+            status_code=400,
+            detail="Invites are only supported for individual challenges",
+        )
+
+    if challenge.creator_id != inviter_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the challenge creator can send invites",
+        )
+
+    # Preserve input order while avoiding duplicated processing.
+    unique_user_ids: List[int] = []
+    seen_user_ids: set[int] = set()
+    for user_id in invitee_user_ids:
+        if user_id not in seen_user_ids:
+            seen_user_ids.add(user_id)
+            unique_user_ids.append(user_id)
+
+    existing_user_ids = {
+        row[0]
+        for row in db.query(UserModel.id)
+        .filter(UserModel.id.in_(unique_user_ids))
+        .all()
+    }
+
+    existing_participants = {
+        row[0]
+        for row in db.query(ChallengeParticipant.user_id)
+        .filter(
+            ChallengeParticipant.challenge_id == challenge_id,
+            ChallengeParticipant.user_id.in_(unique_user_ids),
+        )
+        .all()
+    }
+
+    pending_invites = (
+        db.query(ChallengeInvite)
+        .filter(
+            ChallengeInvite.challenge_id == challenge_id,
+            ChallengeInvite.invitee_user_id.in_(unique_user_ids),
+            ChallengeInvite.status == ChallengeInvite.STATUS_PENDING,
+        )
+        .all()
+    )
+    pending_by_user_id = {invite.invitee_user_id: invite for invite in pending_invites}
+
+    created_invites: List[ChallengeInvite] = []
+    already_pending: List[ChallengeInvite] = []
+    already_participant: List[int] = []
+    invalid_users: List[int] = []
+    skipped_self: List[int] = []
+    errors = []
+
+    for user_id in unique_user_ids:
+        if user_id == inviter_user_id:
+            skipped_self.append(user_id)
+            continue
+
+        if user_id not in existing_user_ids:
+            invalid_users.append(user_id)
+            continue
+
+        if user_id in existing_participants:
+            already_participant.append(user_id)
+            continue
+
+        pending = pending_by_user_id.get(user_id)
+        if pending is not None:
+            already_pending.append(pending)
+            continue
+
+        created_invites.append(
+            ChallengeInvite(
+                challenge_id=challenge_id,
+                inviter_user_id=inviter_user_id,
+                invitee_user_id=user_id,
+                expires_at=expires_at,
+            )
+        )
+
+    if created_invites:
+        try:
+            db.add_all(created_invites)
+            db.commit()
+            for invite in created_invites:
+                db.refresh(invite)
+        except IntegrityError:
+            db.rollback()
+            for invite in created_invites:
+                errors.append(
+                    {
+                        "user_id": invite.invitee_user_id,
+                        "reason": "could_not_create_invite",
+                    }
+                )
+            created_invites = []
+
+    return {
+        "challenge_id": challenge_id,
+        "created": created_invites,
+        "already_pending": already_pending,
+        "already_participant": already_participant,
+        "invalid_users": invalid_users,
+        "skipped_self": skipped_self,
+        "errors": errors,
+    }
 
 
 def respond_to_challenge_invite(

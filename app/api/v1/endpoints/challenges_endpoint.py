@@ -7,6 +7,8 @@ from sqlalchemy import func
 from app.db.session import get_db
 from app.models.challenge_participant import ChallengeParticipant
 from app.schema.challenge import (
+    ChallengeBulkInviteCreate,
+    ChallengeBulkInviteResponse,
     ChallengeCreate,
     ChallengeInviteCreate,
     ChallengeInviteResponse,
@@ -199,6 +201,28 @@ def create_challenge_invite(
     )
 
     return invite
+
+
+@router.post("/{challenge_id}/invites/bulk", response_model=ChallengeBulkInviteResponse)
+def create_challenge_invites_bulk(
+    challenge_id: int,
+    payload: ChallengeBulkInviteCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = challenge_crud.create_challenge_invites(
+        db=db,
+        challenge_id=challenge_id,
+        inviter_user_id=current_user.id,
+        invitee_user_ids=payload.invitee_user_ids,
+        expires_at=payload.expires_at,
+    )
+
+    challenge_logger.info(
+        f"CHALLENGE BULK INVITES PROCESSED | challenge_id={challenge_id} | inviter_id={current_user.id} | requested={len(payload.invitee_user_ids)} | created={len(result['created'])}"
+    )
+
+    return result
 
 
 @router.post("/{challenge_id}/invites/{invite_id}/accept", response_model=ChallengeInviteResponse)
