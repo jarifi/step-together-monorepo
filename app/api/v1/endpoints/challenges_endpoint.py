@@ -180,6 +180,15 @@ def join_challenge(
 
     return joined
 
+@router.get("/me/invites", response_model=List[ChallengeInviteResponse])
+def get_my_invites(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invites = challenge_crud.get_invites_for_user(db, user_id=current_user.id)
+    return invites
+
+
 
 @router.get("/{challenge_id}/invites", response_model=List[ChallengeInviteResponse])
 def read_challenge_invites(

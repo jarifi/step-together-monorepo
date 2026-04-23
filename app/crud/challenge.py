@@ -669,3 +669,13 @@ def respond_to_challenge_invite(
     db.commit()
     db.refresh(invite)
     return invite
+
+def get_invites_for_user(db: Session, user_id: int):
+    """
+    Fetches all invites received by a specific user.
+    """
+    return (
+        db.query(ChallengeInvite)
+        .filter(ChallengeInvite.invitee_user_id == user_id)
+        .all()
+    )

@@ -21,7 +21,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "jetonbfi@gmail.com",
+    "email": "gocaandjelkovic2004@gmail.com",
     "password": "ChangeMe2026/"
 }
 
@@ -132,3 +132,9 @@ Authorization: Bearer {{login.response.body.accessToken}}
 # @name getAllActiveParticipantsCounts
 GET {{baseUrl}}/challenges/17/participants
 Authorization: Bearer {{login.response.body.accessToken}}
+
+### 8) This tests GET /challenges/me/invites
+# @name getMyInvites
+GET {{baseUrl}}/challenges/me/invites
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
