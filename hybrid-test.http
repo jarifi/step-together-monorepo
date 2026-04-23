@@ -15,7 +15,7 @@ Content-Type: application/json
 }
 
 
-### Admin Login (for admin-only actions like verify)
+### 1.1 Admin Login (for admin-only actions like verify)
 # @name login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -26,7 +26,7 @@ Content-Type: application/json
 }
 
 
-### 1) Create Individual Challenge (uses login token above)
+### 1.2  Create Individual Challenge (uses login token above)
 # @name createIndividualChallenge
 POST {{baseUrl}}/challenges
 Authorization: Bearer {{login.response.body.accessToken}}
@@ -65,7 +65,7 @@ Content-Type: application/json
 }
 
 
-### 3a) Bulk Invite Multiple Users
+### 1.3  Bulk Invite Multiple Users
 # IMPORTANT: Replace inviteeUserIds with the users you want to invite.
 # @name bulkInviteFriends
 POST {{baseUrl}}/challenges/{{createIndividualChallenge.response.body.id}}/invites/bulk
