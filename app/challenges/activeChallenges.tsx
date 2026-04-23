@@ -22,6 +22,7 @@ type Challenge = {
 };
 
 type TabKey = 'active' | 'incoming' | 'closed';
+type ModeTab = 'all' | 'team' | 'individual';
 
 const IS_WEB = Platform.OS === 'web';
 const CARD_RADIUS = 26;
@@ -53,6 +54,7 @@ export default function OpenChallengesScreen() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [tab, setTab] = useState<TabKey>('active');
+  const [modeTab, setModeTab] = useState<ModeTab>('all');
 
   const skipRef = useRef(0);
   const hasMoreRef = useRef(true);
@@ -61,19 +63,25 @@ export default function OpenChallengesScreen() {
   const limit = 10;
   const router = useRouter();
 
+  const modeFilteredChallenges = useMemo(() => {
+    if (modeTab === 'team') return challenges.filter((c) => c?.mode === 'team');
+    if (modeTab === 'individual') return challenges.filter((c) => c?.mode === 'individual');
+    return challenges;
+  }, [challenges, modeTab]);
+
   const activeChallenges = useMemo(
-    () => challenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'open'),
-    [challenges]
+    () => modeFilteredChallenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'open'),
+    [modeFilteredChallenges]
   );
 
   const incomingChallenges = useMemo(
-    () => challenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'incoming'),
-    [challenges]
+    () => modeFilteredChallenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'incoming'),
+    [modeFilteredChallenges]
   );
 
   const closedChallenges = useMemo(
-    () => challenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'closed'),
-    [challenges]
+    () => modeFilteredChallenges.filter((c) => String(c?.state ?? '').toLowerCase() === 'closed'),
+    [modeFilteredChallenges]
   );
 
   const visibleChallenges = useMemo(() => {
@@ -182,9 +190,23 @@ export default function OpenChallengesScreen() {
           {tab === 'incoming' && 'Alle Challenges, die bald starten.'}
           {tab === 'closed' && 'Alle geschlossenen Challenges.'}
         </Text>
+
+        <View style={styles.modeRow}>
+          {(['all', 'team', 'individual'] as ModeTab[]).map((key) => (
+            <Pressable
+              key={key}
+              onPress={() => setModeTab(key)}
+              style={[styles.modeBtn, modeTab === key && styles.modeBtnActive]}
+            >
+              <Text style={[styles.modeBtnText, modeTab === key && styles.modeBtnTextActive]}>
+                {key === 'all' ? 'Alle' : key === 'team' ? 'Team' : 'Individuell'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
     );
-  }, [tab, activeChallenges.length, incomingChallenges.length, closedChallenges.length]);
+  }, [tab, modeTab, activeChallenges.length, incomingChallenges.length, closedChallenges.length]);
 
   const ListHeader = useMemo(() => {
     return (
@@ -349,6 +371,34 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '700', color: COLORS.sub },
   tabTextActive: { color: COLORS.text },
   tabHint: { marginTop: 8, fontSize: 13, color: COLORS.sub },
+
+  modeRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 14,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: '#F0F2F0',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modeBtnActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  modeBtnText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: COLORS.sub,
+  },
+  modeBtnTextActive: {
+    color: '#fff',
+  },
 
   emptyCard: {
     marginTop: 6,

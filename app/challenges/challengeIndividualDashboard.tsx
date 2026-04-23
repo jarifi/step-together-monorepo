@@ -418,7 +418,6 @@ const IndividualDashboard: React.FC = () => {
             try {
                 await upsertStepsForDate(dateISO, nextValue, {
                     challengeId: vm.challenge.id,
-                    ...(vm?.team?.id ? { teamId: vm.team.id } : {}),
                 });
                 await refreshWeek();
             } catch (e) {
@@ -451,7 +450,6 @@ const IndividualDashboard: React.FC = () => {
             try {
                 await upsertStepsForDate(dateISO, next[idx], {
                     challengeId: vm.challenge.id,
-                    ...(vm?.team?.id ? { teamId: vm.team.id } : {}),
                 });
                 await refreshWeek();
             } catch (e) {

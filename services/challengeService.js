@@ -110,6 +110,28 @@ export const createChallenge = async (data) => {
   }
 };
 
+export const getChallengeInvites = async (challengeId) => {
+  if (!challengeId) return [];
+  const data = await apiGet(`/challenges/${challengeId}/invites`);
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.invites)) return data.invites;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+};
+
+export const createBulkChallengeInvites = async (challengeId, inviteeUserIds) => {
+  if (!challengeId || !inviteeUserIds?.length) return null;
+  try {
+    return await apiPost(`/challenges/${challengeId}/invites/bulk`, {
+      inviteeUserIds,
+    });
+  } catch (err) {
+    console.error('Error creating bulk invites:', err);
+    throw err;
+  }
+};
+
 export const deleteChallenge = async (id) => {
   if (!id) throw new Error('Challenge ID is required');
   try {
