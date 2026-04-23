@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { createChallenge } from '../services/challengeService';
+import { createBulkChallengeInvites, createChallenge } from '../services/challengeService';
 import { getAllTeams } from '../services/teamService';
 import { getDisplayAvatarUri, getUsers, searchUsers } from '../services/userService';
 
@@ -514,7 +514,8 @@ function TeamRow({ team, selected, onToggle }) {
 function UserRow({ user, selected, onToggle }) {
   const avatarUri = getDisplayAvatarUri(user);
   const [imgErr, setImgErr] = useState(false);
-  const ini = initials(user.username || user.email || '?');
+  const displayName = user.name ?? user.fullname ?? user.full_name ?? user.username ?? 'Unbekannt';
+  const ini = initials(displayName);
   return (
     <TouchableOpacity
       style={[s.userRow, selected && s.userRowSel]}
@@ -534,11 +535,9 @@ function UserRow({ user, selected, onToggle }) {
       )}
       <View style={s.teamBody}>
         <Text style={[s.teamName, selected && s.teamNameSel]} numberOfLines={1}>
-          {user.username || user.email || 'Unbekannt'}
+          {displayName}
         </Text>
-        {user.email && user.username && (
-          <Text style={s.teamMeta} numberOfLines={1}>{user.email}</Text>
-        )}
+        <Text style={s.teamMeta}>ID: {user.id}</Text>
       </View>
       <View style={[s.checkbox, selected && s.checkboxOn]}>
         {selected && <Text style={s.checkTick}>✓</Text>}
@@ -660,7 +659,14 @@ export default function CreateHybridChallenge({ navigation }) {
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Zeitüberschreitung. Bitte Verbindung prüfen und erneut versuchen.')), 10000)
       );
-      await Promise.race([createChallenge(payload), timeout]);
+      const created = await Promise.race([createChallenge(payload), timeout]);
+      if (teamModus === 'individual' && selectedUserIds.length > 0 && created?.id) {
+        try {
+          await createBulkChallengeInvites(created.id, selectedUserIds);
+        } catch (inviteErr) {
+          console.warn('Invites could not be sent:', inviteErr);
+        }
+      }
       showToast('success', 'Challenge erstellt! Hier klicken um sie zu sehen.', () => router.push('/challenges/hybridIndex'));
     } catch (err) {
       showToast('error', extractErrorMessage(err));

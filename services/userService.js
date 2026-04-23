@@ -101,6 +101,20 @@ export const uploadMyProfilePicture = async (imageUri) => {
 };
 
 // ---------------------------------------------------------------------------
+// GET USER BY ID
+// ---------------------------------------------------------------------------
+export const getUserById = async (id) => {
+  if (!id) return null;
+  try {
+    const user = await apiGet(`/users/${id}`);
+    return user ? normalizeUser(user) : null;
+  } catch (err) {
+    console.error('Error fetching user by id:', err);
+    return null;
+  }
+};
+
+// ---------------------------------------------------------------------------
 // GET USERS (with skip/limit + verified filter)
 // ---------------------------------------------------------------------------
 export const getUsers = async (skip = 0, limit = 10, isVerified = null) => {
