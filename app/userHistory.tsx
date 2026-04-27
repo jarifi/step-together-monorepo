@@ -67,7 +67,7 @@ export default function ChallengeHistoryScreen() {
       <View style={styles.centered}>
         <View style={styles.hero}>
           <View style={styles.accentLine} />
-          <Text style={styles.heroTitle}>Meine History</Text>
+          <Text style={styles.heroTitle}>Meine Vergangenheit</Text>
           <Text style={styles.heroSub}>
             Hier siehst du alle Challenges, an denen du bereits teilgenommen hast.
           </Text>
