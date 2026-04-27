@@ -198,6 +198,7 @@ export default function RootLayout() {
               <Stack.Screen name="verifyInfo" options={{ headerShown: false }} />
               <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} />
               <Stack.Screen name="hybridUpdate" options={{ headerShown: false }} />
+              <Stack.Screen name="challenges/adminCreate" options={{ headerShown: false }} />
 
 
             </Stack>
