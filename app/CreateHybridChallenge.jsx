@@ -596,6 +596,7 @@ export default function CreateHybridChallenge({ navigation }) {
     if (!targetLoc.trim())                              e.targetLoc  = 'Zielort eingeben';
     if (!distance || isNaN(+distance) || +distance <= 0) e.distance = 'Gültige Distanz eingeben';
     if (!startDate)                                     e.startDate  = 'Startdatum wählen';
+    if (startDate && startDate < today())               e.startDate  = 'Startdatum darf nicht in der Vergangenheit liegen';
     if (!endDate)                                       e.endDate    = 'Enddatum wählen';
     if (startDate && endDate && endDate <= startDate)   e.endDate    = 'Enddatum muss nach Startdatum liegen';
     setErrors(e);
@@ -753,6 +754,7 @@ export default function CreateHybridChallenge({ navigation }) {
               <DateField
                 label="Startdatum"
                 required
+                minDate={today()}
                 value={startDate}
                 onChange={v => { setStartDate(v); clearError('startDate'); if (endDate && v && endDate <= v) setEndDate(null); }}
                 error={errors.startDate}
