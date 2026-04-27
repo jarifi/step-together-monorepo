@@ -157,7 +157,10 @@ export default function AllChallengesScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.headerCard}>
-          <Text style={styles.title}>Meine Challenges</Text>
+          <Text style={styles.title}>Challenge Verwaltung</Text>
+          <Text style={styles.subtitle}>
+            Erstelle und verwalte deine Individual- und Team-Challenges.
+          </Text>
 
           {/* Search */}
           <View style={styles.searchWrap}>
@@ -325,6 +328,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: 0.2,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: COLORS.sub,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
   },
   searchWrap: {
     marginTop: 14,
