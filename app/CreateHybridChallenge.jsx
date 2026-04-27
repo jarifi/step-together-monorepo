@@ -17,7 +17,6 @@ import {
   View,
 } from 'react-native';
 import { createBulkChallengeInvites, createChallenge } from '../services/challengeService';
-import { getAllTeams } from '../services/teamService';
 import { getDisplayAvatarUri, getUsers, searchUsers } from '../services/userService';
 
 function extractErrorMessage(err) {
@@ -556,51 +555,23 @@ export default function CreateHybridChallenge({ navigation }) {
   const [startDate,  setStartDate]  = useState(null);
   const [endDate,    setEndDate]    = useState(null);
 
-  // Teams
-  const [teams,        setTeams]        = useState([]);
-  const [teamsLoading, setTeamsLoading] = useState(false);
-  const [teamsError,   setTeamsError]   = useState(null);
-  const [search,       setSearch]       = useState('');
-  const [selectedIds,  setSelectedIds]  = useState([]);
-
   // Users
-  const [users,          setUsers]          = useState([]);
-  const [query,          setQuery]          = useState('');
-  const [loadingUsers,   setLoadingUsers]   = useState(false);
-  const [visibleUsers,   setVisibleUsers]   = useState(4);
-  const [visibleTeams,   setVisibleTeams]   = useState(4);
+  const [users,           setUsers]           = useState([]);
+  const [query,           setQuery]           = useState('');
+  const [loadingUsers,    setLoadingUsers]    = useState(false);
+  const [visibleUsers,    setVisibleUsers]    = useState(4);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
-
 
   // Form
   const [errors,     setErrors]     = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [teamModus, setTeamModus] = useState(null);
 
   // Toast
   const [toast, setToast] = useState(null);
   const toastAnim  = useRef(new Animated.Value(-140)).current;
   const toastTimer = useRef(null);
 
-  useEffect(() => { loadTeams(); }, []);
-
-  useEffect(() => {
-    if (teamModus === 'individual') loadUsers('');
-  }, [teamModus]);
-
-  const loadTeams = async () => {
-    setTeamsLoading(true);
-    setTeamsError(null);
-    try {
-      const data = await getAllTeams();
-      setTeams(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load teams:', err);
-      setTeamsError('Teams konnten nicht geladen werden.');
-    } finally {
-      setTeamsLoading(false);
-    }
-  };
+  useEffect(() => { loadUsers(''); }, []);
 
   const loadUsers = async (q = query) => {
     setLoadingUsers(true);
@@ -612,17 +583,9 @@ export default function CreateHybridChallenge({ navigation }) {
     setLoadingUsers(false);
   };
 
-  const toggleTeam = useCallback((id) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  }, []);
-
   const toggleUser = useCallback((id) => {
     setSelectedUserIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   }, []);
-
-  const filteredTeams = teams.filter(t =>
-    (t.name || '').toLowerCase().includes(search.toLowerCase())
-  );
 
   const duration = daysBetween(startDate, endDate);
 
@@ -635,7 +598,6 @@ export default function CreateHybridChallenge({ navigation }) {
     if (!startDate)                                     e.startDate  = 'Startdatum wählen';
     if (!endDate)                                       e.endDate    = 'Enddatum wählen';
     if (startDate && endDate && endDate <= startDate)   e.endDate    = 'Enddatum muss nach Startdatum liegen';
-    if (teamModus !== 'individual' && selectedIds.length === 0) e.teams = 'Mindestens ein Team auswählen';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -652,15 +614,15 @@ export default function CreateHybridChallenge({ navigation }) {
         distance:        parseFloat(distance),
         start_date:      startDate.toISOString(),
         end_date:        endDate.toISOString(),
-        mode:            teamModus === 'individual' ? 'individual' : 'team',
-        team_ids:        teamModus === 'individual' ? [] : selectedIds,
+        mode:            'individual',
+        team_ids:        [],
         creator_id:      parseInt(storedUserId || '0', 10),
       };
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Zeitüberschreitung. Bitte Verbindung prüfen und erneut versuchen.')), 10000)
       );
       const created = await Promise.race([createChallenge(payload), timeout]);
-      if (teamModus === 'individual' && selectedUserIds.length > 0 && created?.id) {
+      if (selectedUserIds.length > 0 && created?.id) {
         try {
           await createBulkChallengeInvites(created.id, selectedUserIds);
         } catch (inviteErr) {
@@ -821,156 +783,54 @@ export default function CreateHybridChallenge({ navigation }) {
           )}
         </Card>
 
-        {/* ── 3. Team Modus ──────────────────────────────────────────────── */}
-        <SectionHead title="Team Modus" subtitle="Wie möchtest du laufen?" />
-        <Card>
-          <Text style={s.teamModusDesc}>
-            Wähle zwischen 2 team modi, individual wenn du die Challenge selbst bezwingen möchtest, oder in einer gruppe wenn du die Challenge mit deinen Freunden im Team laufen möchtest.
-          </Text>
-          <View style={s.teamModusRow}>
-            <TouchableOpacity
-              style={[s.teamModusBtn, teamModus === 'individual' && s.teamModusBtnActive]}
-              onPress={() => setTeamModus('individual')}
-              activeOpacity={0.8}
-            >
-              <Text style={[s.teamModusBtnLabel, teamModus === 'individual' && s.teamModusBtnLabelActive]}>
-                Individual
-              </Text>
-              <Text style={[s.teamModusBtnSub, teamModus === 'individual' && s.teamModusBtnSubActive]}>
-                Alleine laufen
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.teamModusBtn, teamModus === 'gruppe' && s.teamModusBtnActive]}
-              onPress={() => setTeamModus('gruppe')}
-              activeOpacity={0.8}
-            >
-              <Text style={[s.teamModusBtnLabel, teamModus === 'gruppe' && s.teamModusBtnLabelActive]}>
-                Gruppe
-              </Text>
-              <Text style={[s.teamModusBtnSub, teamModus === 'gruppe' && s.teamModusBtnSubActive]}>
-                Im Team laufen
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
-
-        {/* ── 4. Auswahl Widget ────────────────────────────────────────── */}
+        {/* ── 3. Einladungen ─────────────────────────────────────────────── */}
+        <SectionHead title="Einladungen" subtitle="Lade Nutzer zur Challenge ein" />
         <Card style={s.modeWidget}>
-
-          {/* Empty placeholder */}
-          {teamModus == null && (
-            <View style={s.widgetEmpty}>
-              <Text style={s.widgetEmptyIcon}>⊙</Text>
-              <Text style={s.widgetEmptyTitle}>Suche deinen Modus-Typ aus</Text>
-              <Text style={s.widgetEmptySub}>
-                Wähle oben «Individual» oder «Gruppe» aus
-              </Text>
+          <View style={s.widgetSearchWrap}>
+            <View style={s.searchBox}>
+              <Text style={s.searchIcon}>⌕</Text>
+              <TextInput
+                style={s.searchInput}
+                placeholder="User suchen…"
+                placeholderTextColor={T.textMuted}
+                value={query}
+                onChangeText={(text) => { setQuery(text); loadUsers(text); }}
+              />
             </View>
-          )}
+          </View>
 
-          {/* ── USERS (Individual) ── */}
-          {teamModus === 'individual' && (
-            <View>
-              <View style={s.widgetSearchWrap}>
-                <View style={s.searchBox}>
-                  <Text style={s.searchIcon}>⌕</Text>
-                  <TextInput
-                    style={s.searchInput}
-                    placeholder="User suchen…"
-                    placeholderTextColor={T.textMuted}
-                    value={query}
-                    onChangeText={(text) => { setQuery(text); loadUsers(text); }}
+          {loadingUsers ? (
+            <View style={s.widgetCenter}>
+              <ActivityIndicator color={T.primary} />
+            </View>
+          ) : users.length === 0 ? (
+            <View style={s.widgetCenter}>
+              <Text style={s.emptyText}>Keine User gefunden</Text>
+            </View>
+          ) : (
+            <>
+              {users.slice(0, visibleUsers).map((user, i, arr) => (
+                <View key={user.id}>
+                  <UserRow
+                    user={user}
+                    selected={selectedUserIds.includes(user.id)}
+                    onToggle={toggleUser}
                   />
+                  {i < arr.length - 1 && <View style={s.teamDivider} />}
                 </View>
-              </View>
-
-              {loadingUsers ? (
-                <View style={s.widgetCenter}>
-                  <ActivityIndicator color={T.primary} />
-                </View>
-              ) : users.length === 0 ? (
-                <View style={s.widgetCenter}>
-                  <Text style={s.emptyText}>Keine User gefunden</Text>
-                </View>
-              ) : (
-                <>
-                  {users.slice(0, visibleUsers).map((user, i, arr) => (
-                    <View key={user.id}>
-                      <UserRow
-                        user={user}
-                        selected={selectedUserIds.includes(user.id)}
-                        onToggle={toggleUser}
-                      />
-                      {i < arr.length - 1 && <View style={s.teamDivider} />}
-                    </View>
-                  ))}
-                  {visibleUsers < Math.min(users.length, 15) && (
-                    <TouchableOpacity
-                      style={s.showMoreBtn}
-                      onPress={() => setVisibleUsers(v => Math.min(v + 5, 15))}
-                    >
-                      <Text style={s.showMoreText}>
-                        Mehr anzeigen ({Math.min(users.length, 15) - visibleUsers} weitere)
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </>
+              ))}
+              {visibleUsers < Math.min(users.length, 15) && (
+                <TouchableOpacity
+                  style={s.showMoreBtn}
+                  onPress={() => setVisibleUsers(v => Math.min(v + 5, 15))}
+                >
+                  <Text style={s.showMoreText}>
+                    Mehr anzeigen ({Math.min(users.length, 15) - visibleUsers} weitere)
+                  </Text>
+                </TouchableOpacity>
               )}
-            </View>
+            </>
           )}
-
-          {/* ── TEAMS (Gruppe) ── */}
-          {teamModus === 'gruppe' && (
-            <View>
-              <View style={s.widgetSearchWrap}>
-                <View style={s.searchBox}>
-                  <Text style={s.searchIcon}>⌕</Text>
-                  <TextInput
-                    style={s.searchInput}
-                    placeholder="Teams durchsuchen…"
-                    placeholderTextColor={T.textMuted}
-                    value={search}
-                    onChangeText={(text) => { setSearch(text); setVisibleTeams(4); }}
-                  />
-                </View>
-              </View>
-
-              {teamsLoading ? (
-                <View style={s.widgetCenter}>
-                  <ActivityIndicator color={T.primary} />
-                </View>
-              ) : filteredTeams.length === 0 ? (
-                <View style={s.widgetCenter}>
-                  <Text style={s.emptyText}>Keine Teams gefunden</Text>
-                </View>
-              ) : (
-                <>
-                  {filteredTeams.slice(0, visibleTeams).map((team, i, arr) => (
-                    <View key={team.id}>
-                      <TeamRow
-                        team={team}
-                        selected={selectedIds.includes(team.id)}
-                        onToggle={toggleTeam}
-                      />
-                      {i < arr.length - 1 && <View style={s.teamDivider} />}
-                    </View>
-                  ))}
-                  {visibleTeams < Math.min(filteredTeams.length, 15) && (
-                    <TouchableOpacity
-                      style={s.showMoreBtn}
-                      onPress={() => setVisibleTeams(v => Math.min(v + 5, 15))}
-                    >
-                      <Text style={s.showMoreText}>
-                        Mehr anzeigen ({Math.min(filteredTeams.length, 15) - visibleTeams} weitere)
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
-            </View>
-          )}
-
         </Card>
 
 
