@@ -1,7 +1,7 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,15 +12,14 @@ import {
   View,
 } from 'react-native';
 
-import { useUser } from '../../context/UserContext';
 import {
   acceptChallengeInvite,
   declineChallengeInvite,
+  getChallengeById,
   getChallengeTeams,
-  getChallenges,
+  getMyActiveChallenges,
   getMyInvites,
 } from '../../services/challengeService';
-import { getHomeInit } from '../../services/dashboardService';
 
 const TEAM = '#1B7A42';
 const IND = '#D4650A';
@@ -180,130 +179,66 @@ export default function AllChallengesScreen() {
   const [loadingInitial, setLoadingInit] = useState(true);
 
   const router = useRouter();
-  const { user } = useUser();
 
-  const userTeamId = Number(user?.teamId ?? user?.team_id ?? user?.team?.id ?? 0) || null;
-
-  const activeChallengeIds = useMemo(
-    () =>
-      new Set(
-        asArray(user?.activeChallenges)
-          .map((c) => Number(c?.id ?? c?.challengeId ?? c?.challenge_id ?? 0))
-          .filter(Boolean)
-      ),
-    [user?.activeChallenges]
+  const visible = useMemo(
+    () => challenges.filter((c) => {
+      const s = String(c?.state ?? '').toLowerCase();
+      return s === 'open' || s === 'active';
+    }),
+    [challenges]
   );
-
-  const teamIdRef = useRef(userTeamId);
-  const activeIdsRef = useRef(activeChallengeIds);
-  teamIdRef.current = userTeamId;
-  activeIdsRef.current = activeChallengeIds;
-
-  const visible = useMemo(() => {
-    const v = challenges.filter((c) => {
-      const state = String(c?.state ?? '').toLowerCase();
-      return state === 'open' || state === 'active' || state === '';
-    });
-
-    console.log('[visible]', {
-      before: challenges.length,
-      after: v.length,
-      states: challenges.map((c) => c.state),
-    });
-
-    return v;
-  }, [challenges]);
 
   const loadChallenges = useCallback(async () => {
     setLoadingInit(true);
-
     try {
-      const [rawChallenges, rawInvites, homeInit] = await Promise.all([
-        getChallenges(0, 50),
+        const [rawChallenges, rawInvites] = await Promise.all([
+        getMyActiveChallenges(),
         getMyInvites(),
-        getHomeInit(),
       ]);
 
-      const homeTeamId = Number(
-        homeInit?.team?.id ?? homeInit?.team?.teamId ?? homeInit?.team?.team_id ?? 0
-      ) || null;
-      const homeChallengeId = Number(homeInit?.challenge?.id ?? 0) || null;
-
-      const effectiveTeamId = homeTeamId ?? teamIdRef.current;
-      const effectiveActiveIds = new Set([
-        ...activeIdsRef.current,
-        ...(homeChallengeId ? [homeChallengeId] : []),
-      ]);
-
-      const safe = asArray(rawChallenges);
+      const activeList = asArray(rawChallenges);
       const invites = asArray(rawInvites);
+      const activeIds = new Set(activeList.map((c) => Number(c.id)));
+
+      // Pending-Einladungen die noch nicht in der aktiven Liste sind nachladen
+      const pendingExtras = await Promise.all(
+        invites
+          .filter((i) => i.status === 'pending' && !activeIds.has(Number(i.challengeId ?? i.challenge_id)))
+          .map(async (i) => {
+            try { return await getChallengeById(i.challengeId ?? i.challenge_id); } catch { return null; }
+          })
+      );
+
+      const safe = [...activeList, ...pendingExtras.filter(Boolean)];
 
       const enriched = await Promise.all(
         safe.map(async (ch) => {
-          const inv = invites.find((i) =>
-            sameId(i.challengeId ?? i.challenge_id, ch.id)
-          );
-
+          const inv = invites.find((i) => sameId(i.challengeId ?? i.challenge_id, ch.id));
           try {
-            const rawTeams = await getChallengeTeams(ch.id);
-            console.log('[raw teams]', ch.id, rawTeams);
-
-            const teams = asArray(rawTeams);
-
+            const teams = asArray(await getChallengeTeams(ch.id));
             const teamIds = teams
-              .map((t) =>
-                Number(
-                  t.id ??
-                  t.teamId ??
-                  t.team_id ??
-                  t.team?.id ??
-                  0
-                )
-              )
+              .map((t) => Number(t.id ?? t.teamId ?? t.team_id ?? t.team?.id ?? 0))
               .filter(Boolean);
-
             return {
               ...ch,
               teamCount: teamIds.length,
               teamIds,
-              inviteStatus: inv?.status ?? null,
+              inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
               inviteId: inv?.id ?? null,
             };
-          } catch (e) {
-            console.log('[getChallengeTeams failed]', ch.id, e);
-
+          } catch {
             return {
               ...ch,
               teamCount: 0,
               teamIds: [],
-              inviteStatus: inv?.status ?? null,
+              inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
               inviteId: inv?.id ?? null,
             };
           }
         })
       );
 
-      console.log('[load enriched]', enriched.map((c) => ({
-        id: c.id,
-        name: c.name,
-        mode: resolveMode(c),
-        state: c.state,
-        teamIds: c.teamIds,
-        inviteStatus: c.inviteStatus,
-      })));
-
-      const mine = enriched.filter((c) => {
-        if (c.inviteStatus === 'declined') return false;
-        if (effectiveActiveIds.has(Number(c.id))) return true;
-        const mode = resolveMode(c);
-        if (mode === 'individual') {
-          return c.inviteStatus === 'accepted' || c.inviteStatus === 'pending';
-        }
-        const teamIds = Array.isArray(c.teamIds) ? c.teamIds.map(Number) : [];
-        return effectiveTeamId ? teamIds.includes(effectiveTeamId) : false;
-      });
-
-      setChallenges(mine);
+      setChallenges(enriched.filter((c) => c.inviteStatus !== 'declined'));
     } catch (e) {
       console.error('Failed to load challenges:', e);
       setChallenges([]);

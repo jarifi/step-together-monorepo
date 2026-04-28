@@ -152,6 +152,16 @@ export const getMyChallenges = async () => {
   }
 };
 
+export const getMyActiveChallenges = async () => {
+  try {
+    const data = await apiGet(`/challenges/me/active`);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('Error fetching active challenges:', err);
+    return [];
+  }
+};
+
 export const getChallengeHistory = async () => {
   try {
     return await apiGet(`/challenges/me/history`);
