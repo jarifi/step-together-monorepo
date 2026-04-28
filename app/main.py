@@ -15,10 +15,20 @@ app = FastAPI(
     openapi_url=None if is_prod else "/openapi.json"
 )
 
-# Start CORS configuration: set BACKEND_CORS_ORIGINS in app.core.config (list or comma-separated string)
-origins = getattr(settings, "BACKEND_CORS_ORIGINS", ["*"])
-if isinstance(origins, str):
-    origins = [o.strip() for o in origins.split(",") if o.strip()]
+# Start CORS configuration
+_raw_origins = getattr(settings, "BACKEND_CORS_ORIGINS", None)
+if _raw_origins and isinstance(_raw_origins, str):
+    origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+elif _raw_origins:
+    origins = list(_raw_origins)
+else:
+    origins = [
+        "http://localhost:8081",
+        "http://localhost:19006",
+        "http://10.12.100.66:8081",
+        "http://10.12.100.66:19006",
+        "exp://10.12.100.66:8081",
+    ]
 
 app.add_middleware(
     CORSMiddleware,

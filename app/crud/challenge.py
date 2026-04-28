@@ -23,6 +23,7 @@ def get_all_challenges(db: Session, skip: int = 0, limit: int = 10) -> List[Chal
     return (
         db.query(ChallengeModel)
         .filter(ChallengeModel.is_deleted == False)
+        .order_by(ChallengeModel.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
@@ -306,6 +307,18 @@ def get_active_challenges_for_user(db: Session, user_id: int) -> List[ChallengeM
             results.append(challenge)
 
     return results
+
+
+def get_my_created_challenges(db: Session, user_id: int) -> List[ChallengeModel]:
+    return (
+        db.query(ChallengeModel)
+        .filter(
+            ChallengeModel.creator_id == user_id,
+            ChallengeModel.is_deleted == False,
+        )
+        .order_by(ChallengeModel.created_at.desc())
+        .all()
+    )
 
 
 def get_finished_challenges_for_user(db: Session, user_id: int):

@@ -71,6 +71,14 @@ def read_all_challenges(
 
 
 # ✅ MUST be before /{challenge_id}
+@router.get("/me/created", response_model=List[ChallengeResponse])
+def read_my_created_challenges(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return challenge_crud.get_my_created_challenges(db, current_user.id)
+
+
 @router.get("/me/history", response_model=List[ChallengeResponse])
 def read_my_finished_challenges(
     db: Session = Depends(get_db),
@@ -79,6 +87,36 @@ def read_my_finished_challenges(
     return challenge_crud.get_finished_challenges_for_user(
         db, current_user.id
     )
+
+
+@router.get("/me/invites", response_model=List[ChallengeInviteResponse])
+def get_my_invites(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invites = challenge_crud.get_invites_for_user(db, user_id=current_user.id)
+    return invites
+
+
+@router.get("/challenge_participants/count-active")
+def get_active_counts(db: Session = Depends(get_db)):
+    results = (
+        db.query(
+            ChallengeParticipant.challenge_id,
+            func.count(ChallengeParticipant.id).label("active_participants")
+        )
+        .filter(ChallengeParticipant.status == "active")
+        .group_by(ChallengeParticipant.challenge_id)
+        .all()
+    )
+
+    return [
+        {
+            "challenge_id": r.challenge_id,
+            "active_participants": r.active_participants
+        }
+        for r in results
+    ]
 
 
 @router.get("/{challenge_id}", response_model=ChallengeResponse)
@@ -179,16 +217,6 @@ def join_challenge(
     )
 
     return joined
-
-@router.get("/me/invites", response_model=List[ChallengeInviteResponse])
-def get_my_invites(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    invites = challenge_crud.get_invites_for_user(db, user_id=current_user.id)
-    return invites
-
-
 
 @router.get("/{challenge_id}/invites", response_model=List[ChallengeInviteResponse])
 def read_challenge_invites(
@@ -307,24 +335,3 @@ def read_challenge_participants(
     if result is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     return result
-
-
-@router.get("/challenge_participants/count-active")
-def get_active_counts(db: Session = Depends(get_db)):
-    results = (
-        db.query(
-            ChallengeParticipant.challenge_id,
-            func.count(ChallengeParticipant.id).label("active_participants")
-        )
-        .filter(ChallengeParticipant.status == "active")
-        .group_by(ChallengeParticipant.challenge_id)
-        .all()
-    )
-
-    return [
-        {
-            "challenge_id": r.challenge_id,
-            "active_participants": r.active_participants
-        }
-        for r in results
-    ]
