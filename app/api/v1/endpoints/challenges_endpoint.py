@@ -98,6 +98,14 @@ def get_my_invites(
     return invites
 
 
+@router.get("/me/active", response_model=List[ChallengeResponse])
+def read_my_active_challenges(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return challenge_crud.get_active_challenges_for_user(db, current_user.id)
+
+
 @router.get("/challenge_participants/count-active")
 def get_active_counts(db: Session = Depends(get_db)):
     results = (
