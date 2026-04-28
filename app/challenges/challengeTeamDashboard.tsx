@@ -31,6 +31,7 @@ import {
 import BottomBar from '../../components/BottomBar';
 import { getChallengeById } from '../../services/challengeService';
 import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../services/dashboardService';
+import { getTeamRanking } from '../../services/teamService';
 import styles from '../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -149,6 +150,9 @@ const Dashboard: React.FC = () => {
   const [sessionSteps, setSessionSteps] = useState(0);
   const [sessionStart, setSessionStart] = useState<number | null>(null);
   const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
+
+  const [goalReached, setGoalReached] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
 
   const subscriptionRef = useRef<any>(null);
   const isMountedRef = useRef(true);
@@ -323,6 +327,10 @@ const Dashboard: React.FC = () => {
     loadInitial();
   }, [loadInitial]);
 
+  useEffect(() => {
+    if (vm?.team?.id && vm?.challenge?.id) checkGoal();
+  }, [vm?.team?.id, vm?.challenge?.id]);
+
   const fetchAndApplyWeek = useCallback(
     async (weekStart: Date, pivotDay: Date) => {
       if (!vm?.user?.id || !vm?.challenge?.id) return;
@@ -372,6 +380,26 @@ const Dashboard: React.FC = () => {
 
     await fetchAndApplyWeek(weekStart, pivot);
   }, [vm?.user?.id, vm?.challenge?.id, displayDate, minDate, maxDate, fetchAndApplyWeek]);
+
+  const checkGoal = useCallback(async () => {
+    if (!vm?.team?.id || !vm?.challenge?.id) return;
+    const target = Number(vm.challenge.distanceKm ?? vm.challenge.distance ?? 0);
+    if (!target) return;
+    try {
+      const rawRank = await getTeamRanking(vm.team.id, vm.challenge.id);
+      const kmSum = (Array.isArray(rawRank) ? rawRank : []).reduce((sum: number, r: any) => {
+        const steps = Number(r?.numberOfSteps ?? r?.steps ?? 0);
+        const sl = Number(r?.stepLength ?? r?.user?.stepLength ?? 0);
+        return sum + (steps * (sl > 0 ? sl : FIX_STEP_LENGTH_M)) / 1000;
+      }, 0);
+      if (kmSum >= target) {
+        setGoalReached(true);
+        setShowGoalModal(true);
+      }
+    } catch (e) {
+      console.warn('checkGoal failed:', e);
+    }
+  }, [vm?.team?.id, vm?.challenge?.id, vm?.challenge?.distanceKm, vm?.challenge?.distance]);
 
   useEffect(() => {
     if (!vm?.user?.id || !vm?.challenge?.id) return;
@@ -425,6 +453,7 @@ const Dashboard: React.FC = () => {
           teamId: vm.team.id,
         });
         await refreshWeek();
+        await checkGoal();
       } catch (e) {
         setWeekSteps(prev);
         setStepsToday(prev[idx] ?? 0);
@@ -432,7 +461,7 @@ const Dashboard: React.FC = () => {
         setErrorMsg('Schritte konnten nicht gespeichert werden.');
       }
     },
-    [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
+    [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek, checkGoal]
   );
 
   const saveAbsoluteStepsForSelectedDay = useCallback(
@@ -458,6 +487,7 @@ const Dashboard: React.FC = () => {
           teamId: vm.team.id,
         });
         await refreshWeek();
+        await checkGoal();
       } catch (e) {
         setWeekSteps(prev);
         setStepsToday(prev[idx] ?? 0);
@@ -465,7 +495,7 @@ const Dashboard: React.FC = () => {
         setErrorMsg('Schritte konnten nicht gespeichert werden.');
       }
     },
-    [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
+    [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek, checkGoal]
   );
 
   const applyStepDelta = useCallback(
@@ -833,9 +863,9 @@ const Dashboard: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.primaryActionBtn,
-                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected) && styles.buttonDisabled,
+                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected || goalReached) && styles.buttonDisabled,
               ]}
-              disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected}
+              disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected || goalReached}
               onPress={startTracking}
               activeOpacity={0.9}
             >
@@ -865,19 +895,21 @@ const Dashboard: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.secondaryActionBtn,
-                (isFutureSelected || isChallengeExpired) && styles.buttonDisabled,
+                (isFutureSelected || isChallengeExpired || goalReached) && styles.buttonDisabled,
               ]}
-              disabled={isFutureSelected || isChallengeExpired}
+              disabled={isFutureSelected || isChallengeExpired || goalReached}
               onPress={() => setModalVisible(true)}
               activeOpacity={0.9}
             >
               <Ionicons name="create-outline" size={18} color="#2F3E34" />
               <Text style={[styles.secondaryActionBtnText, styles.font]}>
-                {isChallengeExpired
-                  ? 'Keine Bearbeitung möglich'
-                  : isFutureSelected
-                    ? 'Zukünftiger Tag'
-                    : 'Schritte bearbeiten'}
+                {goalReached
+                  ? 'Ziel bereits erreicht'
+                  : isChallengeExpired
+                    ? 'Keine Bearbeitung möglich'
+                    : isFutureSelected
+                      ? 'Zukünftiger Tag'
+                      : 'Schritte bearbeiten'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1095,10 +1127,42 @@ const Dashboard: React.FC = () => {
             </View>
           </TouchableOpacity>
         </Modal>
+
+        <Modal animationType="fade" transparent visible={showGoalModal} onRequestClose={() => setShowGoalModal(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 28, padding: 28, width: '100%', maxWidth: 380, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#e3efe6', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Ionicons name="trophy" size={32} color="#2E7D32" />
+              </View>
+              <Text style={[styles.font, { fontSize: 22, fontWeight: '900', color: '#0F1411', marginBottom: 8, textAlign: 'center' }]}>
+                Ziel erreicht! 🎉
+              </Text>
+              <Text style={[styles.font, { fontSize: 15, color: '#55605A', lineHeight: 22, textAlign: 'center', marginBottom: 8 }]}>
+                Euer Team hat die Challenge-Distanz von{' '}
+                <Text style={{ fontWeight: '800', color: '#2E7D32' }}>{challengeDistanceKm} km</Text>{' '}
+                erfolgreich zurückgelegt.
+              </Text>
+              <Text style={[styles.font, { fontSize: 13, color: '#8A9590', textAlign: 'center', marginBottom: 24 }]}>
+                Es können keine weiteren Schritte mehr hinzugefügt werden.
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowGoalModal(false)}
+                activeOpacity={0.9}
+                style={{ backgroundColor: '#55805c', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 18, width: '100%', alignItems: 'center' }}
+              >
+                <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>Verstanden</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
       <BottomBar
         pathname={pathname}
-        overviewPath="/challenges/challengeTeamDashboard"
+        overviewPath={
+          vm?.challenge?.id
+            ? `/challenges/challengeTeamDashboard?id=${vm.challenge.id}`
+            : '/challenges/challengeTeamDashboard'
+        }
         challengePath={
           vm?.challenge?.id
             ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}`

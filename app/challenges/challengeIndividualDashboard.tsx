@@ -682,7 +682,7 @@ const IndividualDashboard: React.FC = () => {
                     <ActivityIndicator size="large" />
                     <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
                 </View>
-                <BottomBar pathname={pathname} overviewPath="/challenges/challengeIndividualDashboard" />
+                <BottomBar pathname={pathname} overviewPath={vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard'} />
             </>
         );
     }
@@ -695,7 +695,7 @@ const IndividualDashboard: React.FC = () => {
         return (
             <>
                 <EmptyChallengeCard />
-                <BottomBar pathname={pathname} overviewPath="/challenges/challengeIndividualDashboard" />
+                <BottomBar pathname={pathname} overviewPath={vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard'} />
             </>
         );
     }
@@ -1092,7 +1092,7 @@ const IndividualDashboard: React.FC = () => {
             </ScrollView>
             <BottomBar
                 pathname={pathname}
-                overviewPath="/challenges/challengeIndividualDashboard"
+                overviewPath={vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard'}
                 challengePath={
                     vm?.challenge?.id
                         ? `/challenges/challengeIndividualDashboardDetails?id=${vm.challenge.id}`

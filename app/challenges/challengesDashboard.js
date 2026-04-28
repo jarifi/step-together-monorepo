@@ -1,585 +1,674 @@
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
-  View
+  View,
 } from 'react-native';
 
-import ChallengeCard from '../../components/ChallengeCard';
 import { useUser } from '../../context/UserContext';
-import { acceptChallengeInvite, getActiveParticipantsCounts, getChallengeTeams, getChallenges, getMyInvites, declineChallengeInvite } from '../../services/challengeService';
+import {
+  acceptChallengeInvite,
+  declineChallengeInvite,
+  getChallengeTeams,
+  getChallenges,
+  getMyInvites,
+} from '../../services/challengeService';
 
-const { height: screenHeight } = Dimensions.get('window');
-const IS_WEB = Platform.OS === 'web';
-const CARD_RADIUS = 26;
-const DETAILS_PATH = '/challenges/details';
+const TEAM = '#1B7A42';
+const IND = '#D4650A';
+const BG = '#EDEEED';
+const CARD = '#FFFFFF';
+const TEXT = '#111714';
+const SUB = '#576058';
+const MUTED = '#9AA49C';
+const BORD = 'rgba(0,0,0,0.07)';
 
-const COLORS = {
-  bg: '#F5F7F4',
-  surface: '#FFFFFF',
-  text: '#0F1411',
-  sub: '#55605A',
-  border: 'rgba(15,20,17,0.10)',
-  accent: '#55805c',
-  accentSoft: 'rgba(85,128,92,0.12)',
+const shadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  android: { elevation: 3 },
+  default: {},
+});
+
+const asArray = (x) => {
+  if (Array.isArray(x)) return x;
+  if (Array.isArray(x?.content)) return x.content;
+  if (Array.isArray(x?.data)) return x.data;
+  if (Array.isArray(x?.challenges)) return x.challenges;
+  if (Array.isArray(x?.teams)) return x.teams;
+  if (Array.isArray(x?.items)) return x.items;
+  return [];
 };
 
+const sameId = (a, b) => Number(a) === Number(b);
+
+const fmt = (s) => {
+  if (!s) return '—';
+  const d = new Date(s);
+  return isNaN(d) ? '—' : d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+};
+
+function resolveMode(item) {
+  const raw = String(item?.mode ?? item?.challenge_mode ?? item?.type ?? '')
+    .toLowerCase()
+    .trim();
+
+  if (['individual', 'individuell', 'solo'].includes(raw)) return 'individual';
+  if (raw === 'team') return 'team';
+
+  if (item?.inviteStatus === 'accepted' || item?.inviteStatus === 'pending') {
+    return 'individual';
+  }
+
+  if (item?.teamCount > 0 || (Array.isArray(item?.teamIds) && item.teamIds.length > 0)) {
+    return 'team';
+  }
+
+  return 'team';
+}
+
+function ChallengeCard({ item, onPress, onAccept, onDecline }) {
+  const mode = resolveMode(item);
+  const isInd = mode === 'individual';
+  const isPend = isInd && item?.inviteStatus === 'pending';
+
+  const color = isInd ? IND : TEAM;
+  const soft = isInd ? 'rgba(212,101,10,0.07)' : 'rgba(27,122,66,0.07)';
+  const label = isInd ? 'Individuell' : 'Team';
+  const mIcon = isInd ? 'person' : 'group';
+
+  const dist = item?.distance ?? item?.distanceKm ?? 0;
+  const from = item?.startLocation ?? '—';
+  const to = item?.targetLocation ?? '—';
+  const d1 = fmt(item?.startDate);
+  const d2 = fmt(item?.endDate);
+
+  return (
+    <Pressable
+      onPress={isPend ? undefined : onPress}
+      style={({ pressed }) => [styles.card, !isPend && pressed && styles.cardTap]}
+    >
+      <View style={[styles.stripe, { backgroundColor: color }]} />
+
+      <View style={styles.cardInner}>
+        <View style={[styles.cardTop, { backgroundColor: soft }]}>
+          <View style={styles.cardTopRow}>
+            <View style={[styles.modeBadge, { backgroundColor: color }]}>
+              <MaterialIcons name={mIcon} size={11} color="#fff" />
+              <Text style={styles.modeTxt}>{label}</Text>
+            </View>
+
+            {isPend ? (
+              <View style={styles.invBadge}>
+                <Ionicons name="mail-outline" size={11} color="#92400E" />
+                <Text style={styles.invTxt}>Einladung</Text>
+              </View>
+            ) : (
+              <Text style={[styles.kmTxt, { color }]}>{dist} km</Text>
+            )}
+          </View>
+
+          <Text style={styles.name} numberOfLines={2}>
+            {item?.name ?? '—'}
+          </Text>
+        </View>
+
+        <View style={styles.cardBody}>
+          <View style={styles.routeRow}>
+            <View style={[styles.dot, { backgroundColor: color }]} />
+            <Text style={styles.routeTxt} numberOfLines={1}>{from}</Text>
+            <Ionicons name="arrow-forward" size={12} color={MUTED} style={{ marginHorizontal: 4 }} />
+            <MaterialIcons name="flag" size={13} color={color} />
+            <Text style={styles.routeTxt} numberOfLines={1}>{to}</Text>
+          </View>
+
+          <View style={styles.footer}>
+            <View style={styles.dateRow}>
+              <Ionicons name="calendar-outline" size={13} color={MUTED} />
+              <Text style={styles.dateTxt}>{d1} – {d2}</Text>
+            </View>
+
+            {!isPend && (
+              <View style={[styles.goBtn, { backgroundColor: color }]}>
+                <Ionicons name="chevron-forward" size={15} color="#fff" />
+              </View>
+            )}
+          </View>
+
+          {isPend && (
+            <View style={styles.pendBtns}>
+              <Pressable
+                onPress={onDecline}
+                style={({ pressed }) => [styles.btnNo, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.btnNoTxt}>Ablehnen</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={onAccept}
+                style={({ pressed }) => [
+                  styles.btnYes,
+                  { backgroundColor: color },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Ionicons name="checkmark" size={14} color="#fff" />
+                <Text style={styles.btnYesTxt}>Annehmen</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function AllChallengesScreen() {
+  const [allChallenges, setAllChallenges] = useState([]);
   const [challenges, setChallenges] = useState([]);
+  const [loadingInitial, setLoadingInit] = useState(true);
+
+  const router = useRouter();
   const { user } = useUser();
 
-  const [loadingInitial, setLoadingInitial] = useState(true);
-  const [tab, setTab] = useState('active');
+  const userTeamId = Number(user?.teamId ?? user?.team_id ?? user?.team?.id ?? 0) || null;
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const router = useRouter();
+  const activeChallengeIds = useMemo(
+    () =>
+      new Set(
+        asArray(user?.activeChallenges)
+          .map((c) => Number(c?.id ?? c?.challengeId ?? c?.challenge_id ?? 0))
+          .filter(Boolean)
+      ),
+    [user?.activeChallenges]
+  );
 
-  const filteredChallenges = useMemo(() => {
-    if (!searchQuery.trim()) return challenges;
+  const teamIdRef = useRef(userTeamId);
+  const activeIdsRef = useRef(activeChallengeIds);
+  const allChallengesRef = useRef(allChallenges);
 
-    const query = searchQuery.toLowerCase().trim();
-    return challenges.filter((challenge) => {
-      const name = challenge?.name?.toLowerCase?.() ?? '';
-      const id = challenge?.id?.toString?.() ?? '';
-      const start = challenge?.startLocation?.toLowerCase?.() ?? '';
-      const target = challenge?.targetLocation?.toLowerCase?.() ?? '';
-      const teamId = challenge?.teamId?.toString?.() ?? '';
-      const teamCount = challenge?.teamCount?.toString?.() ?? '';
+  teamIdRef.current = userTeamId;
+  activeIdsRef.current = activeChallengeIds;
+  allChallengesRef.current = allChallenges;
 
-      return (
-        name.includes(query) ||
-        id.includes(query) ||
-        start.includes(query) ||
-        target.includes(query) ||
-        teamId.includes(query) ||
-        teamCount.includes(query)
-      );
+  const applyFilter = useCallback(() => {
+    const ids = activeIdsRef.current;
+    const teamId = teamIdRef.current;
+    const all = allChallengesRef.current;
+
+    console.log('[filter]', {
+      total: all.length,
+      teamId,
+      activeIds: [...ids],
     });
-  }, [searchQuery, challenges]);
 
-  const openChallenges = useMemo(
-    () =>
-      filteredChallenges.filter(
-        (challenge) => String(challenge?.state ?? '').toLowerCase() === 'open'
-      ),
-    [filteredChallenges]
-  );
+    const mine = all.filter((c) => {
+      if (c.inviteStatus === 'declined') return false;
 
-  const incomingChallenges = useMemo(
-    () =>
-      filteredChallenges.filter(
-        (challenge) => String(challenge?.state ?? '').toLowerCase() === 'incoming'
-      ),
-    [filteredChallenges]
-  );
+      if (ids.has(Number(c.id))) return true;
 
-  const closedChallenges = useMemo(
-    () =>
-      filteredChallenges.filter(
-        (challenge) => String(challenge?.state ?? '').toLowerCase() === 'closed'
-      ),
-    [filteredChallenges]
-  );
+      const mode = resolveMode(c);
 
-  const visibleChallenges = useMemo(
-    () => {
-      if (tab === 'active') return openChallenges;
-      if (tab === 'incoming') return incomingChallenges;
-      return closedChallenges;
-    },
-    [tab, openChallenges, incomingChallenges, closedChallenges]
-  );
+      if (mode === 'individual') {
+        return c.inviteStatus === 'accepted' || c.inviteStatus === 'pending';
+      }
+
+      const teamIds = Array.isArray(c.teamIds) ? c.teamIds.map(Number) : [];
+
+      if (teamId && teamIds.includes(Number(teamId))) {
+        return true;
+      }
+
+      return false;
+    });
+
+    console.log('[filter matched]', mine.map((c) => ({
+      id: c.id,
+      mode: resolveMode(c),
+      state: c.state,
+      teamIds: c.teamIds,
+      inviteStatus: c.inviteStatus,
+    })));
+
+    setChallenges(mine);
+  }, []);
 
   useEffect(() => {
-    if (user?.activeChallenges) {
-      setChallenges(user.activeChallenges);
-    }
-  }, [user]);
+    applyFilter();
+  }, [userTeamId, activeChallengeIds, applyFilter]);
+
+  const visible = useMemo(() => {
+    const v = challenges.filter((c) => {
+      const state = String(c?.state ?? '').toLowerCase();
+      return state === 'open' || state === 'active' || state === '';
+    });
+
+    console.log('[visible]', {
+      before: challenges.length,
+      after: v.length,
+      states: challenges.map((c) => c.state),
+    });
+
+    return v;
+  }, [challenges]);
 
   const loadChallenges = useCallback(async () => {
-    setLoadingInitial(true);
+    setLoadingInit(true);
 
     try {
-      const data = await getChallenges(0, 50);
-      const safe = Array.isArray(data) ? data : [];
+      const rawChallenges = await getChallenges(0, 50);
+      console.log('[raw challenges]', rawChallenges);
 
-      // Get active participants count for individual challenges
-      const [count, userInvites] = await Promise.all([
-        getActiveParticipantsCounts(),
-        getMyInvites()
-      ]);
+      const safe = asArray(rawChallenges);
 
-      const countMap = {};
-      count.forEach((c) => {
-        countMap[c.challenge_id] = c.active_participants;
-      });
+      const rawInvites = await getMyInvites();
+      console.log('[raw invites]', rawInvites);
 
-      // Get team counts for team/hybrid challenges
-      const enrichedChallenges = await Promise.all(
-        safe.map(async (challenge) => {
+      const invites = asArray(rawInvites);
 
-          const invite = userInvites.find((inv) => inv.challengeId === challenge.id);
+      const enriched = await Promise.all(
+        safe.map(async (ch) => {
+          const inv = invites.find((i) =>
+            sameId(i.challengeId ?? i.challenge_id, ch.id)
+          );
 
           try {
-            const teams = await getChallengeTeams(challenge.id);
+            const rawTeams = await getChallengeTeams(ch.id);
+            console.log('[raw teams]', ch.id, rawTeams);
+
+            const teams = asArray(rawTeams);
+
+            const teamIds = teams
+              .map((t) =>
+                Number(
+                  t.id ??
+                  t.teamId ??
+                  t.team_id ??
+                  t.team?.id ??
+                  0
+                )
+              )
+              .filter(Boolean);
+
             return {
-              ...challenge,
-              activeParticipants: countMap[challenge.id] ?? 0,
-              teamCount: Array.isArray(teams) ? teams.length : 0,
-              inviteStatus: invite ? invite.status : null,
-              inviteId: invite ? invite.id : null,
+              ...ch,
+              teamCount: teamIds.length,
+              teamIds,
+              inviteStatus: inv?.status ?? null,
+              inviteId: inv?.id ?? null,
             };
-          } catch (err) {
-            console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
+          } catch (e) {
+            console.log('[getChallengeTeams failed]', ch.id, e);
+
             return {
-              ...challenge,
-              activeParticipants: countMap[challenge.id] ?? 0,
+              ...ch,
               teamCount: 0,
-              inviteStatus: invite ? invite.status : null,
+              teamIds: [],
+              inviteStatus: inv?.status ?? null,
+              inviteId: inv?.id ?? null,
             };
           }
         })
       );
 
-      const visibleOnly = enrichedChallenges.filter((challenge) => {
-        if (challenge.inviteStatus === 'declined') {
-          return false;
-        }
-        return true;
-      });
+      console.log('[load enriched]', enriched.map((c) => ({
+        id: c.id,
+        name: c.name,
+        mode: resolveMode(c),
+        state: c.state,
+        teamIds: c.teamIds,
+        inviteStatus: c.inviteStatus,
+      })));
 
-      setChallenges(visibleOnly);
-    } catch (err) {
-      console.error('Failed to load challenges dashboard list:', err);
+      setAllChallenges(enriched);
+      allChallengesRef.current = enriched;
+      applyFilter();
+    } catch (e) {
+      console.error('Failed to load challenges:', e);
+      setAllChallenges([]);
+      allChallengesRef.current = [];
+      setChallenges([]);
     } finally {
-      setLoadingInitial(false);
+      setLoadingInit(false);
     }
-  }, []);
+  }, [applyFilter]);
 
   useFocusEffect(
     useCallback(() => {
       loadChallenges();
-
-      return () => { };
+      return () => {};
     }, [loadChallenges])
   );
 
+  const handleAccept = async (cId, iId) => {
+    try {
+      await acceptChallengeInvite(cId, iId);
+      loadChallenges();
+    } catch (e) {
+      console.error('[accept failed]', e);
+    }
+  };
+
+  const handleDecline = async (cId, iId) => {
+    try {
+      await declineChallengeInvite(cId, iId);
+      loadChallenges();
+    } catch (e) {
+      console.error('[decline failed]', e);
+    }
+  };
+
+  const handlePress = (item) => {
+    const mode = resolveMode(item);
+
+    const params = {
+      id: String(item.id),
+      name: item?.name ?? '',
+      startLocation: item?.startLocation ?? '',
+      targetLocation: item?.targetLocation ?? '',
+      distance: String(item?.distance ?? item?.distanceKm ?? 0),
+      startDate: item?.startDate ?? '',
+      endDate: item?.endDate ?? '',
+      state: item?.state ?? '',
+    };
+
+    router.push({
+      pathname:
+        mode === 'individual'
+          ? '/challenges/challengeIndividualDashboard'
+          : '/challenges/challengeTeamDashboard',
+      params,
+    });
+  };
+
   if (loadingInitial) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Lade Challenges...</Text>
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color={TEAM} />
+        <Text style={styles.splashTxt}>Lade Challenges…</Text>
       </View>
     );
   }
 
-  const emptyMap = {
-    active: ['Keine aktiven Challenges', 'Momentan sind keine aktiven Challenges verfügbar.'],
-    incoming: ['Keine kommenden Challenges', 'Momentan sind keine kommenden Challenges verfügbar.'],
-    closed: ['Keine geschlossenen Challenges', 'Momentan sind keine geschlossenen Challenges verfügbar.'],
-  };
-
-  const [emptyTitle, emptyText] = emptyMap[tab] ?? emptyMap.active;
-
-  const handleAccept = async (challengeId, inviteId) => {
-    try {
-      await acceptChallengeInvite(challengeId, inviteId);
-      loadChallenges();
-    } catch (err) {
-      console.error('Error accepting invite:', err);
-    }
-  };
-
-  const handleDecline = async (challengeId, inviteId) => {
-    try {
-      await declineChallengeInvite(challengeId, inviteId);
-      loadChallenges();
-    } catch (err) {
-      console.error('Error declining invite:', err);
-    }
-  };
-
   return (
     <View style={styles.screen}>
-      <View style={styles.container}>
-        <View style={styles.headerCard}>
-          <Text style={styles.title}>Meine Challenges</Text>
+      <FlatList
+        data={visible}
+        keyExtractor={(it) => String(it?.id)}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ListHeaderComponent={
+          <View style={styles.heroWrap}>
+            <View style={styles.hero}>
+              <View style={[styles.accentLine, { backgroundColor: TEAM }]} />
 
-          <View style={styles.tabsWrap}>
-            <View style={styles.tabsPill}>
-              <Pressable
-                onPress={() => setTab('active')}
-                style={[styles.tabBtn, tab === 'active' && styles.tabBtnActive]}
-              >
-                <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>
-                  Aktiv
-                </Text>
-              </Pressable>
+              <View style={styles.heroTopRow}>
+                <View style={styles.heroTexts}>
+                  <Text style={styles.heroTitle}>Laufende Challenges</Text>
+                  <Text style={styles.heroSub}>
+                    Challenges, an denen du aktiv teilnimmst.
+                  </Text>
+                </View>
 
-              <Pressable
-                onPress={() => setTab('incoming')}
-                style={[styles.tabBtn, tab === 'incoming' && styles.tabBtnActive]}
-              >
-                <Text style={[styles.tabText, tab === 'incoming' && styles.tabTextActive]}>
-                  Kommend
-                </Text>
-              </Pressable>
+                {visible.length > 0 && (
+                  <View style={styles.countBadge}>
+                    <Text style={[styles.countNum, { color: TEAM }]}>{visible.length}</Text>
+                    <Text style={styles.countSub}>aktiv</Text>
+                  </View>
+                )}
+              </View>
 
-              <Pressable
-                onPress={() => setTab('closed')}
-                style={[styles.tabBtn, tab === 'closed' && styles.tabBtnActive]}
-              >
-                <Text style={[styles.tabText, tab === 'closed' && styles.tabTextActive]}>
-                  Geschlossen
-                </Text>
-              </Pressable>
-            </View>
+              <View style={styles.heroDivider} />
 
-            <Text style={styles.tabHint}>
-              {tab === 'active' && 'Alle aktuell laufenden Challenges.'}
-              {tab === 'incoming' && 'Alle Challenges, die bald starten.'}
-              {tab === 'closed' && 'Alle geschlossenen Challenges.'}
-            </Text>
-          </View>
+              <View style={styles.legend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: TEAM }]} />
+                  <Text style={styles.legendTxt}>Team</Text>
+                </View>
 
-          <View style={styles.searchWrap}>
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Challenges suchen…"
-              placeholderTextColor="#8A9590"
-              style={styles.searchInput}
-              clearButtonMode="while-editing"
-            />
-            {searchQuery.length > 0 && (
-              <Pressable
-                onPress={() => setSearchQuery('')}
-                style={styles.clearButton}
-                hitSlop={10}
-              >
-                <Text style={styles.clearButtonText}>✕</Text>
-              </Pressable>
-            )}
-          </View>
-
-          {searchQuery.trim() ? (
-            <View style={styles.searchInfoPill}>
-              <Text style={styles.searchInfoText}>
-                {filteredChallenges.length} von {challenges.length} gefunden · „
-                {searchQuery.trim()}“
-              </Text>
-            </View>
-          ) : null}
-        </View>
-
-        <FlatList
-          data={visibleChallenges}
-          keyExtractor={(item) => String(item?.id)}
-          renderItem={({ item }) => {
-            const isIndividual = String(item?.mode ?? '').toLowerCase() === 'individual';
-            const isPending = isIndividual && item?.inviteStatus === 'pending';
-
-            return (
-              <View style={styles.cardWrap}>
-                <View>
-                  <ChallengeCard
-                    challenge={item}
-                    isPending={isPending}
-                    onAccept={() => handleAccept(item.id, item.inviteId)}
-                    onDecline={() => handleDecline(item.id, item.inviteId)}
-                    showActions={false}
-                    actionIcon="arrow-forward"
-                    onPress={() => {
-                      if (isPending) return;
-
-                      const state = String(item?.state ?? '').toLowerCase();
-
-                      if (state === 'incoming' || state === 'closed') {
-                        router.push({
-                          pathname: DETAILS_PATH,
-                          params: { id: String(item.id) },
-                        });
-                        return;
-                      }
-
-                      const mode = String(item?.mode ?? '').toLowerCase();
-
-                      if (mode === 'team' || mode === 'hybrid') {
-                        router.push({
-                          pathname: '/challenges/challengeTeamDashboard',
-                          params: {
-                            id: String(item.id),
-                            name: item?.name ?? '',
-                            startLocation: item?.startLocation ?? '',
-                            targetLocation: item?.targetLocation ?? '',
-                            distance: String(item?.distance ?? 0),
-                            startDate: item?.startDate ?? '',
-                            endDate: item?.endDate ?? '',
-                            state: item?.state ?? '',
-                          },
-                        });
-                        return;
-                      }
-
-                      if (mode === 'individual') {
-                        router.push({
-                          pathname: '/challenges/challengeIndividualDashboard',
-                          params: {
-                            id: String(item.id),
-                            name: item?.name ?? '',
-                            startLocation: item?.startLocation ?? '',
-                            targetLocation: item?.targetLocation ?? '',
-                            distance: String(item?.distance ?? 0),
-                            startDate: item?.startDate ?? '',
-                            endDate: item?.endDate ?? '',
-                            state: item?.state ?? '',
-                          },
-                        });
-                      }
-                    }}
-                  />
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: IND }]} />
+                  <Text style={styles.legendTxt}>Individuell</Text>
                 </View>
               </View>
-            );
-          }}
-          onEndReachedThreshold={0.5}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>{searchQuery.trim() ? 'Keine Treffer' : emptyTitle}</Text>
-              <Text style={styles.emptyText}>
-                {searchQuery.trim()
-                  ? `Für „${searchQuery.trim()}“ wurde nichts gefunden.`
-                  : emptyText}
-              </Text>
-
-              {!searchQuery.trim() && (
-                <Pressable
-                  onPress={() => router.push('/challenges/create')}
-                  style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-                >
-                  <Text style={styles.secondaryBtnText}>Challenge erstellen</Text>
-                </Pressable>
-              )}
             </View>
-          }
-          contentContainerStyle={{
-            paddingBottom: 28,
-            flexGrow: 1,
-            minHeight: screenHeight - 220,
-          }}
-        />
-      </View>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <ChallengeCard
+            item={item}
+            onPress={() => handlePress(item)}
+            onAccept={() => handleAccept(item.id, item.inviteId)}
+            onDecline={() => handleDecline(item.id, item.inviteId)}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <View style={[styles.emptyCircle, { backgroundColor: `${TEAM}12`, borderColor: `${TEAM}25` }]}>
+              <Ionicons name="flag-outline" size={28} color={TEAM} />
+            </View>
+
+            <Text style={styles.emptyTitle}>Keine aktiven Challenges</Text>
+            <Text style={styles.emptySub}>
+              Du nimmst aktuell an keiner Challenge teil.
+            </Text>
+
+            <Pressable
+              onPress={() => router.push('/CreateHybridChallenge')}
+              style={({ pressed }) => [
+                styles.createBtn,
+                { backgroundColor: TEAM },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={styles.createTxt}>Challenge erstellen</Text>
+            </Pressable>
+          </View>
+        }
+        ListFooterComponent={<View style={{ height: 40 }} />}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 56,
-  },
+  screen: { flex: 1, backgroundColor: BG },
 
-  loadingWrap: {
+  splash: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: BG,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    padding: 16,
+    gap: 12,
   },
-  loadingText: {
-    fontSize: 13,
-    color: COLORS.sub,
-  },
+  splashTxt: { fontSize: 14, color: SUB },
 
-  headerCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    padding: 16,
+  list: { paddingBottom: 40 },
+
+  heroWrap: { paddingHorizontal: 16, paddingTop: 68, paddingBottom: 20 },
+  hero: {
+    backgroundColor: CARD,
+    borderRadius: 24,
+    padding: 22,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 14,
-
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
+    borderColor: BORD,
+    ...shadow,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: 0.2,
-  },
-
-  tabsWrap: {
-    marginTop: 12,
-    marginBottom: 2,
-  },
-  tabsPill: {
+  accentLine: { width: 40, height: 4, borderRadius: 4, marginBottom: 16 },
+  heroTopRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(15,20,17,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.08)',
-    borderRadius: 999,
-    padding: 4,
-    gap: 6,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 999,
+  heroTexts: { flex: 1, marginRight: 12 },
+  heroTitle: { fontSize: 22, fontWeight: '700', color: TEXT, marginBottom: 4 },
+  heroSub: { fontSize: 13, color: MUTED, lineHeight: 18 },
+  countBadge: {
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabBtnActive: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.sub,
-  },
-  tabTextActive: {
-    color: COLORS.text,
-  },
-  tabHint: {
-    marginTop: 8,
-    fontSize: 13,
-    color: COLORS.sub,
-  },
-  searchWrap: {
-    marginTop: 14,
-    position: 'relative',
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: '#FBFCFB',
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    paddingRight: 44,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  clearButton: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    width: 28,
-    height: 28,
+    backgroundColor: `${TEAM}10`,
     borderRadius: 14,
-    backgroundColor: 'rgba(15,20,17,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: `${TEAM}25`,
   },
-  clearButtonText: {
-    color: COLORS.sub,
-    fontSize: 14,
-    fontWeight: '900',
-    marginTop: -1,
-  },
+  countNum: { fontSize: 22, fontWeight: '900' },
+  countSub: { fontSize: 10, fontWeight: '600', color: MUTED, marginTop: 1 },
+  heroDivider: { height: 1, backgroundColor: BORD, marginBottom: 14 },
+  legend: { flexDirection: 'row', gap: 16 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendTxt: { fontSize: 13, fontWeight: '600', color: SUB },
 
-  searchInfoPill: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.accentSoft,
+  card: {
+    marginHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: CARD,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: BORD,
+    flexDirection: 'row',
+    ...shadow,
+  },
+  cardTap: { opacity: 0.9, transform: [{ scale: 0.983 }] },
+
+  stripe: { width: 5 },
+  cardInner: { flex: 1 },
+
+  cardTop: {
+    paddingHorizontal: 14,
+    paddingTop: 13,
+    paddingBottom: 13,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(85,128,92,0.18)',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
   },
-  searchInfoText: {
-    fontSize: 12,
-    color: COLORS.sub,
-    fontWeight: '700',
-  },
+  modeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
-  primaryBtn: {
-    marginTop: 14,
-    backgroundColor: COLORS.accent,
-    paddingVertical: 13,
-    borderRadius: 18,
+  invBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: 0.2,
-  },
-
-  secondaryBtn: {
-    marginTop: 14,
-    backgroundColor: '#F9FAFB',
+    gap: 4,
+    backgroundColor: 'rgba(234,179,8,0.13)',
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(234,179,8,0.25)',
+  },
+  invTxt: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+
+  kmTxt: { fontSize: 13, fontWeight: '800' },
+
+  name: { fontSize: 16, fontWeight: '700', color: TEXT, lineHeight: 21 },
+
+  cardBody: {
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 18,
+    borderTopWidth: 1,
+    borderTopColor: BORD,
+    gap: 10,
+  },
+
+  routeRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  dot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
+  routeTxt: { fontSize: 12, color: SUB, flexShrink: 1, fontWeight: '500' },
+
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dateTxt: { fontSize: 12, color: MUTED, fontWeight: '500' },
+  goBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryBtnText: {
-    color: COLORS.text,
-    fontWeight: '800',
-    fontSize: 14,
-  },
 
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
-
-  emptyContainer: {
+  pendBtns: { flexDirection: 'row', gap: 8 },
+  btnNo: {
     flex: 1,
+    paddingVertical: 9,
+    borderRadius: 11,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderWidth: 1,
+    borderColor: BORD,
+  },
+  btnNoTxt: { fontSize: 13, fontWeight: '700', color: SUB },
+  btnYes: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 11,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 40,
+    gap: 5,
+  },
+  btnYesTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  empty: { marginTop: 60, alignItems: 'center', paddingHorizontal: 32 },
+  emptyCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: '800',
+    color: TEXT,
     marginBottom: 6,
-  },
-  emptyText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: COLORS.sub,
     textAlign: 'center',
-    maxWidth: 320,
   },
-
-  cardWrap: {
-    marginBottom: 0,
+  emptySub: {
+    fontSize: 14,
+    color: SUB,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 220,
+    marginBottom: 24,
   },
-
+  createBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    ...shadow,
+  },
+  createTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

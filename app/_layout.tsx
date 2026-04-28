@@ -113,8 +113,9 @@ export default function RootLayout() {
   const showPill = useMemo(() => {
     if (!showSidebar) return false;
     const onDashboard = pathname === '/dashboard' || pathname.startsWith('/dashboard/');
-    const onMyChallenge = pathname === '/challenges/challengeTeamDashboardDetails' || pathname.startsWith('/challenges/challengeTeamDashboardDetails/');
-    return onDashboard || onMyChallenge;
+    const onTeamDetails = pathname === '/challenges/challengeTeamDashboardDetails' || pathname.startsWith('/challenges/challengeTeamDashboardDetails/');
+    const onIndDetails = pathname === '/challenges/challengeIndividualDashboardDetails' || pathname.startsWith('/challenges/challengeIndividualDashboardDetails/');
+    return onDashboard || onTeamDetails || onIndDetails;
   }, [showSidebar, pathname]);
 
   const contentTopPadding = useMemo(() => {
