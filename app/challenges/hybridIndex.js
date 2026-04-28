@@ -13,13 +13,12 @@ import {
 } from 'react-native';
 
 import ChallengeCard from '../../components/ChallengeCard';
-import { useUser } from '../../context/UserContext';
 import {
   deleteChallenge,
   getActiveParticipantsCounts,
   getChallengeInvites,
-  getChallenges,
   getChallengeTeams,
+  getMyChallenges,
 } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
@@ -36,53 +35,33 @@ const COLORS = {
 
 export default function AllChallengesScreen() {
   const [challenges, setChallenges] = useState([]);
-  const [skip, setSkip] = useState(0);
-  const limit = 10;
-
   const [loadingInitial, setLoadingInitial] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const { user } = useUser();
-
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   const filteredChallenges = useMemo(() => {
-    const baseFiltered = challenges.filter((challenge) => {
-      const creatorId = challenge?.creatorId ?? challenge?.creator_id;
-      const mode = challenge?.mode;
-      return (mode === 'individual' || mode === 'team') && creatorId === user?.id;
-    });
-
-    if (!searchQuery.trim()) return baseFiltered;
+    if (!searchQuery.trim()) return challenges;
 
     const query = searchQuery.toLowerCase().trim();
-
-    return baseFiltered.filter((challenge) => {
+    return challenges.filter((challenge) => {
       const name = challenge?.name?.toLowerCase?.() ?? '';
       const id = challenge?.id?.toString?.() ?? '';
-      const start = (challenge?.startLocation ?? challenge?.start_location ?? '').toLowerCase();
-      const target = (challenge?.targetLocation ?? challenge?.target_location ?? '').toLowerCase();
-      const teamId = challenge?.teamId?.toString?.() ?? '';
+      const start = (challenge?.startLocation ?? '').toLowerCase();
+      const target = (challenge?.targetLocation ?? '').toLowerCase();
 
       return (
         name.includes(query) ||
         id.includes(query) ||
         start.includes(query) ||
-        target.includes(query) ||
-        teamId.includes(query)
+        target.includes(query)
       );
     });
-  }, [searchQuery, challenges, user]);
+  }, [searchQuery, challenges]);
 
-  const loadChallenges = async (currentSkip = 0, append = false) => {
-    if (append && loadingMore) return;
-
-    if (append) setLoadingMore(true);
-    else setLoadingInitial(true);
-
+  const loadChallenges = async () => {
+    setLoadingInitial(true);
     try {
-      const data = await getChallenges(currentSkip, limit);
+      const data = await getMyChallenges();
       const safe = Array.isArray(data) ? data : [];
 
       const count = await getActiveParticipantsCounts();
@@ -93,10 +72,7 @@ export default function AllChallengesScreen() {
 
       const enriched = await Promise.all(
         safe.map(async (challenge) => {
-          const base = {
-            ...challenge,
-            activeParticipants: countMap[challenge.id] ?? 0,
-          };
+          const base = { ...challenge, activeParticipants: countMap[challenge.id] ?? 0 };
 
           if (challenge.mode === 'team') {
             try {
@@ -120,26 +96,19 @@ export default function AllChallengesScreen() {
         })
       );
 
-      if (append) setChallenges((prev) => [...prev, ...enriched]);
-      else setChallenges(enriched);
-
-      setSkip(currentSkip + safe.length);
-      setHasMore(safe.length === limit);
+      setChallenges(enriched);
     } catch (err) {
       console.error('Failed to load challenges:', err);
     } finally {
-      if (append) setLoadingMore(false);
-      else setLoadingInitial(false);
+      setLoadingInitial(false);
     }
   };
 
   useFocusEffect(
     useCallback(() => {
       setChallenges([]);
-      setSkip(0);
-      setHasMore(true);
       setSearchQuery('');
-      loadChallenges(0, false);
+      loadChallenges();
     }, [])
   );
 
@@ -185,7 +154,7 @@ export default function AllChallengesScreen() {
             <View style={styles.searchInfoPill}>
               <Text style={styles.searchInfoText}>
                 {filteredChallenges.length} von {challenges.length} gefunden · „
-                {searchQuery.trim()}“
+                {searchQuery.trim()}"
               </Text>
             </View>
           ) : null}
@@ -241,8 +210,6 @@ export default function AllChallengesScreen() {
               />
             </View>
           )}
-          onEndReached={!searchQuery.trim() && hasMore ? () => loadChallenges(skip, true) : undefined}
-          onEndReachedThreshold={0.5}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -252,24 +219,19 @@ export default function AllChallengesScreen() {
               </Text>
               <Text style={styles.emptyText}>
                 {searchQuery.trim()
-                  ? `Für „${searchQuery.trim()}“ wurde nichts gefunden.`
+                  ? `Für „${searchQuery.trim()}" wurde nichts gefunden.`
                   : 'Erstell deine erste Challenge und leg los.'}
               </Text>
 
               {!searchQuery.trim() && (
                 <Pressable
-                  onPress={() => router.push('/challenges/create')}
+                  onPress={() => router.push('/CreateHybridChallenge')}
                   style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
                 >
                   <Text style={styles.secondaryBtnText}>Challenge erstellen</Text>
                 </Pressable>
               )}
             </View>
-          }
-          ListFooterComponent={
-            loadingMore && !searchQuery.trim() ? (
-              <ActivityIndicator style={{ marginVertical: 18 }} />
-            ) : null
           }
           contentContainerStyle={{
             paddingBottom: 28,
@@ -437,4 +399,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 320,
   },
+
+  cardWrap: {},
 });

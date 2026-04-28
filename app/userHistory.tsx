@@ -13,6 +13,8 @@ import {
 
 import { getChallengeHistory } from './../services/challengeService.js';
 
+type ModeFilter = 'all' | 'team' | 'individual';
+
 const IS_WEB = Platform.OS === 'web';
 const CARD_RADIUS = 26;
 
@@ -40,6 +42,7 @@ export default function ChallengeHistoryScreen() {
   const router = useRouter();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
 
   useFocusEffect(
     useCallback(() => {
@@ -60,7 +63,13 @@ export default function ChallengeHistoryScreen() {
     }, [])
   );
 
-  const hasHistory = history.length > 0;
+  const filteredHistory = useMemo(() => {
+    if (modeFilter === 'team') return history.filter((c) => c?.mode !== 'individual');
+    if (modeFilter === 'individual') return history.filter((c) => c?.mode === 'individual');
+    return history;
+  }, [history, modeFilter]);
+
+  const hasHistory = filteredHistory.length > 0;
 
   const ListHeader = useMemo(() => {
     return (
@@ -71,10 +80,24 @@ export default function ChallengeHistoryScreen() {
           <Text style={styles.heroSub}>
             Hier siehst du alle Challenges, an denen du bereits teilgenommen hast.
           </Text>
+
+          <View style={styles.modeRow}>
+            {(['all', 'team', 'individual'] as ModeFilter[]).map((key) => (
+              <Pressable
+                key={key}
+                onPress={() => setModeFilter(key)}
+                style={[styles.modeBtn, modeFilter === key && styles.modeBtnActive]}
+              >
+                <Text style={[styles.modeBtnText, modeFilter === key && styles.modeBtnTextActive]}>
+                  {key === 'all' ? 'Alle' : key === 'team' ? 'Team' : 'Individuell'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
     );
-  }, []);
+  }, [modeFilter]);
 
   const Empty = useMemo(() => {
     return (
@@ -111,7 +134,7 @@ export default function ChallengeHistoryScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={history}
+        data={filteredHistory}
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -338,4 +361,32 @@ const styles = StyleSheet.create({
   },
 
   cardLink: { marginTop: 12, fontSize: 13, fontWeight: '700', color: COLORS.sub },
+
+  modeRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 8,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 14,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: '#F0F2F0',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modeBtnActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  modeBtnText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: COLORS.sub,
+  },
+  modeBtnTextActive: {
+    color: '#fff',
+  },
 });

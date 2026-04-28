@@ -143,6 +143,15 @@ export const deleteChallenge = async (id) => {
   }
 };
 
+export const getMyChallenges = async () => {
+  try {
+    return await apiGet(`/challenges/me/created`);
+  } catch (err) {
+    console.error('Error fetching my challenges:', err);
+    return [];
+  }
+};
+
 export const getChallengeHistory = async () => {
   try {
     return await apiGet(`/challenges/me/history`);
