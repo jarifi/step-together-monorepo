@@ -1,7 +1,7 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,6 +20,7 @@ import {
   getChallenges,
   getMyInvites,
 } from '../../services/challengeService';
+import { getHomeInit } from '../../services/dashboardService';
 
 const TEAM = '#1B7A42';
 const IND = '#D4650A';
@@ -175,7 +176,6 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
 }
 
 export default function AllChallengesScreen() {
-  const [allChallenges, setAllChallenges] = useState([]);
   const [challenges, setChallenges] = useState([]);
   const [loadingInitial, setLoadingInit] = useState(true);
 
@@ -196,57 +196,8 @@ export default function AllChallengesScreen() {
 
   const teamIdRef = useRef(userTeamId);
   const activeIdsRef = useRef(activeChallengeIds);
-  const allChallengesRef = useRef(allChallenges);
-
   teamIdRef.current = userTeamId;
   activeIdsRef.current = activeChallengeIds;
-  allChallengesRef.current = allChallenges;
-
-  const applyFilter = useCallback(() => {
-    const ids = activeIdsRef.current;
-    const teamId = teamIdRef.current;
-    const all = allChallengesRef.current;
-
-    console.log('[filter]', {
-      total: all.length,
-      teamId,
-      activeIds: [...ids],
-    });
-
-    const mine = all.filter((c) => {
-      if (c.inviteStatus === 'declined') return false;
-
-      if (ids.has(Number(c.id))) return true;
-
-      const mode = resolveMode(c);
-
-      if (mode === 'individual') {
-        return c.inviteStatus === 'accepted' || c.inviteStatus === 'pending';
-      }
-
-      const teamIds = Array.isArray(c.teamIds) ? c.teamIds.map(Number) : [];
-
-      if (teamId && teamIds.includes(Number(teamId))) {
-        return true;
-      }
-
-      return false;
-    });
-
-    console.log('[filter matched]', mine.map((c) => ({
-      id: c.id,
-      mode: resolveMode(c),
-      state: c.state,
-      teamIds: c.teamIds,
-      inviteStatus: c.inviteStatus,
-    })));
-
-    setChallenges(mine);
-  }, []);
-
-  useEffect(() => {
-    applyFilter();
-  }, [userTeamId, activeChallengeIds, applyFilter]);
 
   const visible = useMemo(() => {
     const v = challenges.filter((c) => {
@@ -267,14 +218,24 @@ export default function AllChallengesScreen() {
     setLoadingInit(true);
 
     try {
-      const rawChallenges = await getChallenges(0, 50);
-      console.log('[raw challenges]', rawChallenges);
+      const [rawChallenges, rawInvites, homeInit] = await Promise.all([
+        getChallenges(0, 50),
+        getMyInvites(),
+        getHomeInit(),
+      ]);
+
+      const homeTeamId = Number(
+        homeInit?.team?.id ?? homeInit?.team?.teamId ?? homeInit?.team?.team_id ?? 0
+      ) || null;
+      const homeChallengeId = Number(homeInit?.challenge?.id ?? 0) || null;
+
+      const effectiveTeamId = homeTeamId ?? teamIdRef.current;
+      const effectiveActiveIds = new Set([
+        ...activeIdsRef.current,
+        ...(homeChallengeId ? [homeChallengeId] : []),
+      ]);
 
       const safe = asArray(rawChallenges);
-
-      const rawInvites = await getMyInvites();
-      console.log('[raw invites]', rawInvites);
-
       const invites = asArray(rawInvites);
 
       const enriched = await Promise.all(
@@ -331,18 +292,25 @@ export default function AllChallengesScreen() {
         inviteStatus: c.inviteStatus,
       })));
 
-      setAllChallenges(enriched);
-      allChallengesRef.current = enriched;
-      applyFilter();
+      const mine = enriched.filter((c) => {
+        if (c.inviteStatus === 'declined') return false;
+        if (effectiveActiveIds.has(Number(c.id))) return true;
+        const mode = resolveMode(c);
+        if (mode === 'individual') {
+          return c.inviteStatus === 'accepted' || c.inviteStatus === 'pending';
+        }
+        const teamIds = Array.isArray(c.teamIds) ? c.teamIds.map(Number) : [];
+        return effectiveTeamId ? teamIds.includes(effectiveTeamId) : false;
+      });
+
+      setChallenges(mine);
     } catch (e) {
       console.error('Failed to load challenges:', e);
-      setAllChallenges([]);
-      allChallengesRef.current = [];
       setChallenges([]);
     } finally {
       setLoadingInit(false);
     }
-  }, [applyFilter]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
