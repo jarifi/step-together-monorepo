@@ -30,7 +30,7 @@ import {
 
 import BottomBar from '../../components/BottomBar';
 import { getChallengeById } from '../../services/challengeService';
-import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../services/dashboardService';
+import { getHomeInit, getWeekSteps, listMyStepLogs, upsertStepsForDate } from '../../services/dashboardService';
 import styles from '../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -144,6 +144,8 @@ const IndividualDashboard: React.FC = () => {
     const [calendarPick, setCalendarPick] = useState<Date>(new Date());
 
     const [showExpiredWarning, setShowExpiredWarning] = useState(true);
+    const [goalReached, setGoalReached] = useState(false);
+    const [showGoalModal, setShowGoalModal] = useState(false);
 
     const [isTracking, setIsTracking] = useState(false);
     const [sessionSteps, setSessionSteps] = useState(0);
@@ -292,6 +294,25 @@ const IndividualDashboard: React.FC = () => {
             };
 
             initFromMapped(merged);
+
+            // Ziel-Check: kumulierte Schritte vs. Challenge-Distanz
+            try {
+                const allLogs = await listMyStepLogs();
+                const cId = selectedChallengeId ?? merged.challenge.id;
+                const totalSteps = (allLogs ?? [])
+                    .filter((s: any) => Number(s.challengeId ?? s.challenge_id) === cId)
+                    .reduce((sum: number, s: any) => sum + Number(s.numberOfSteps ?? 0), 0);
+                const sl = merged.user?.stepLength;
+                const stepLen = sl && sl > 0 ? sl : FIX_STEP_LENGTH_M;
+                const coveredKm = (totalSteps * stepLen) / 1000;
+                const targetKm = Number(merged.challenge.distanceKm ?? merged.challenge.distance ?? 0);
+                if (isMountedRef.current && targetKm > 0 && coveredKm >= targetKm) {
+                    setGoalReached(true);
+                    setShowGoalModal(true);
+                }
+            } catch {
+                // Ziel-Check ist optional — kein Fehler werfen
+            }
         } catch (e: any) {
             if (isAbortError(e)) return;
             if (!isMountedRef.current) return;
@@ -730,7 +751,7 @@ const IndividualDashboard: React.FC = () => {
     return (
         <>
             <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
-                {isChallengeExpired && showExpiredWarning && (
+                {!goalReached && isChallengeExpired && showExpiredWarning && (
                     <View style={styles.expiredWarningContainer}>
                         <Ionicons name="information-circle" size={22} color="#DC2626" style={styles.expiredWarningIcon} />
                         <View style={styles.expiredWarningContent}>
@@ -827,9 +848,9 @@ const IndividualDashboard: React.FC = () => {
                         <TouchableOpacity
                             style={[
                                 styles.primaryActionBtn,
-                                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected) && styles.buttonDisabled,
+                                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || goalReached || !isTodaySelected) && styles.buttonDisabled,
                             ]}
-                            disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || !isTodaySelected}
+                            disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || goalReached || !isTodaySelected}
                             onPress={startTracking}
                             activeOpacity={0.9}
                         >
@@ -859,15 +880,15 @@ const IndividualDashboard: React.FC = () => {
                         <TouchableOpacity
                             style={[
                                 styles.secondaryActionBtn,
-                                (isFutureSelected || isChallengeExpired) && styles.buttonDisabled,
+                                (isFutureSelected || isChallengeExpired || goalReached) && styles.buttonDisabled,
                             ]}
-                            disabled={isFutureSelected || isChallengeExpired}
+                            disabled={isFutureSelected || isChallengeExpired || goalReached}
                             onPress={() => setModalVisible(true)}
                             activeOpacity={0.9}
                         >
                             <Ionicons name="create-outline" size={18} color="#2F3E34" />
                             <Text style={[styles.secondaryActionBtnText, styles.font]}>
-                                {isChallengeExpired
+                                {isChallengeExpired || goalReached
                                     ? 'Keine Bearbeitung möglich'
                                     : isFutureSelected
                                         ? 'Zukünftiger Tag'
@@ -1088,6 +1109,33 @@ const IndividualDashboard: React.FC = () => {
                             </TouchableOpacity>
                         </View>
                     </TouchableOpacity>
+                </Modal>
+                <Modal animationType="fade" transparent visible={showGoalModal} onRequestClose={() => setShowGoalModal(false)}>
+                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                        <View style={{ backgroundColor: '#fff', borderRadius: 28, padding: 28, width: '100%', maxWidth: 380, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 }}>
+                            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#e3efe6', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                                <Ionicons name="trophy" size={32} color="#2E7D32" />
+                            </View>
+                            <Text style={[styles.font, { fontSize: 22, fontWeight: '900', color: '#0F1411', marginBottom: 8, textAlign: 'center' }]}>
+                                Ziel erreicht! 🎉
+                            </Text>
+                            <Text style={[styles.font, { fontSize: 15, color: '#55605A', lineHeight: 22, textAlign: 'center', marginBottom: 8 }]}>
+                                Du hast die Challenge-Distanz von{' '}
+                                <Text style={{ fontWeight: '800', color: '#2E7D32' }}>{challengeDistanceKm} km</Text>{' '}
+                                erfolgreich zurückgelegt.
+                            </Text>
+                            <Text style={[styles.font, { fontSize: 13, color: '#8A9590', textAlign: 'center', marginBottom: 24 }]}>
+                                Es können keine weiteren Schritte mehr hinzugefügt werden.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => setShowGoalModal(false)}
+                                activeOpacity={0.9}
+                                style={{ backgroundColor: '#55805c', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 18, width: '100%', alignItems: 'center' }}
+                            >
+                                <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>Verstanden</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </Modal>
             </ScrollView>
             <BottomBar
