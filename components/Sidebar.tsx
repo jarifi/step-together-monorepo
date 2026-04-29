@@ -178,10 +178,11 @@ export default function Sidebar({
 
           <View style={styles.separator} />
 
-          {renderNavLink('/userHistory', 'Meine Historie', 'restore', MaterialIcons)}
+          
           {renderNavLink('/challenges/activeChallenges', 'Alle Challenges', 'flag', MaterialIcons)}
-          {renderNavLink('/challenges/hybridIndex', 'Meine Challenges', 'person', MaterialIcons)}
-
+          
+          {renderNavLink('/challenges/hybridIndex', 'Challenge Verwaltung', 'person', MaterialIcons)}
+          {renderNavLink('/userHistory', 'Verlauf', 'restore', MaterialIcons)}
           <View style={styles.separator} />
 
           {userRole === 'admin' && renderNavLink('/admin', 'Admin Bereich', 'groups', MaterialIcons)}
