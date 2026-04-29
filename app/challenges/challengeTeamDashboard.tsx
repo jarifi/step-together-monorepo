@@ -766,7 +766,7 @@ const Dashboard: React.FC = () => {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
-        {isChallengeExpired && showExpiredWarning && (
+        {!goalReached && isChallengeExpired && showExpiredWarning && (
           <View style={styles.expiredWarningContainer}>
             <Ionicons name="information-circle" size={22} color="#DC2626" style={styles.expiredWarningIcon} />
             <View style={styles.expiredWarningContent}>
