@@ -126,7 +126,7 @@ export default function AllChallengesScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.headerCard}>
-          <Text style={styles.title}>Meine Challenges</Text>
+          <Text style={styles.title}>Challenge Verwaltung</Text>
 
           {/* Search */}
           <View style={styles.searchWrap}>
