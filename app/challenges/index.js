@@ -44,15 +44,10 @@ export default function AllChallengesScreen() {
   const router = useRouter();
 
   const filteredChallenges = useMemo(() => {
-    const nonHybrid = challenges.filter((challenge) => {
-      const mode = challenge?.mode;
-      return mode !== 'individual' && mode !== 'team';
-    });
-
-    if (!searchQuery.trim()) return nonHybrid;
+    if (!searchQuery.trim()) return challenges;
 
     const query = searchQuery.toLowerCase().trim();
-    return nonHybrid.filter((challenge) => {
+    return challenges.filter((challenge) => {
       const name = challenge?.name?.toLowerCase?.() ?? '';
       const id = challenge?.id?.toString?.() ?? '';
       const start = challenge?.startLocation?.toLowerCase?.() ?? '';
@@ -461,4 +456,5 @@ const styles = StyleSheet.create({
   cardWrap: {
     marginBottom: 0,
   },
+
 });

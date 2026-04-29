@@ -222,15 +222,6 @@ export default function AllChallengesScreen() {
                   ? `Für „${searchQuery.trim()}" wurde nichts gefunden.`
                   : 'Erstell deine erste Challenge und leg los.'}
               </Text>
-
-              {!searchQuery.trim() && (
-                <Pressable
-                  onPress={() => router.push('/CreateHybridChallenge')}
-                  style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-                >
-                  <Text style={styles.secondaryBtnText}>Challenge erstellen</Text>
-                </Pressable>
-              )}
             </View>
           }
           contentContainerStyle={{

@@ -109,14 +109,14 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
               <Text style={styles.modeTxt}>{label}</Text>
             </View>
 
-            {isPend ? (
-              <View style={styles.invBadge}>
-                <Ionicons name="mail-outline" size={11} color="#92400E" />
-                <Text style={styles.invTxt}>Einladung</Text>
-              </View>
-            ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {isPend && (
+                <View style={styles.invBadge}>
+                  <Ionicons name="notifications" size={11} color="#92400E" />
+                </View>
+              )}
               <Text style={[styles.kmTxt, { color }]}>{dist} km</Text>
-            )}
+            </View>
           </View>
 
           <Text style={styles.name} numberOfLines={2}>
