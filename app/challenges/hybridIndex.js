@@ -126,7 +126,9 @@ export default function AllChallengesScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.headerCard}>
+          <View style={styles.accentLine} />
           <Text style={styles.title}>Challenge Verwaltung</Text>
+          <Text style={styles.heroSub}>Verwalte deine Challenges und erstell neue.</Text>
 
           {/* Search */}
           <View style={styles.searchWrap}>
@@ -261,23 +263,36 @@ const styles = StyleSheet.create({
 
   headerCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    padding: 16,
+    borderRadius: 26,
+    padding: 22,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 14,
+    marginBottom: 16,
 
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
     elevation: 4,
   },
+  accentLine: {
+    width: 140,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
+    marginBottom: 14,
+  },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: 0.2,
+    marginBottom: 6,
+  },
+  heroSub: {
+    fontSize: 15,
+    color: COLORS.sub,
+    lineHeight: 21,
   },
   searchWrap: {
     marginTop: 14,
