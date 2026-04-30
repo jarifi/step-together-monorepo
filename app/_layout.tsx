@@ -1,40 +1,67 @@
-//file: app/_layout.tsx
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Platform,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
-  View
+  View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 import BottomBar from '../components/BottomBar';
 import Sidebar from '../components/Sidebar';
-
-import { UserProvider } from '../context/UserContext';
+import { UserProvider, useUser } from '../context/UserContext';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { isLoggedIn } from '../lib/auth';
+import {
+  getChallengeById,
+  getMyInvites,
+} from '../services/challengeService';
 
 const queryClient = new QueryClient();
 const PHONE_HEADER_HEIGHT = 72;
 const PUBLIC_ROUTES = ['/', '/login', '/register', '/welcome', '/verifyInfo'];
+const SHOWN_POPUP_KEY = 'shown_invite_popup_ids';
+
+const asArray = (x: any): any[] => {
+  if (Array.isArray(x)) return x;
+  if (Array.isArray(x?.content)) return x.content;
+  if (Array.isArray(x?.data)) return x.data;
+  if (Array.isArray(x?.items)) return x.items;
+  return [];
+};
 
 export default function RootLayout() {
+  return (
+    <UserProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
+    </UserProvider>
+  );
+}
+
+function AppContent() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const { setPendingInviteCount } = useUser();
 
   const isTablet = width >= 768;
 
   const [authChecked, setAuthChecked] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
 
@@ -42,9 +69,16 @@ export default function RootLayout() {
   const redirectingRef = useRef(false);
   const mountedRef = useRef(true);
 
-  const isPublicRoute = useMemo(() => {
-    return PUBLIC_ROUTES.includes(pathname);
-  }, [pathname]);
+  const [inviteAlert, setInviteAlert] = useState<{
+    challenge: any;
+    inviteId: any;
+    inviterName?: string;
+  } | null>(null);
+  const alertSlide = useRef(new Animated.Value(-220)).current;
+  const inviteAlertRef = useRef(inviteAlert);
+  inviteAlertRef.current = inviteAlert;
+
+  const isPublicRoute = useMemo(() => PUBLIC_ROUTES.includes(pathname), [pathname]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -52,10 +86,8 @@ export default function RootLayout() {
     const checkAuth = async () => {
       try {
         const loggedIn = await isLoggedIn();
-
         if (!mountedRef.current) return;
 
-        // unauthenticated users may only see public routes
         if (!loggedIn && !isPublicRoute) {
           if (!redirectingRef.current) {
             redirectingRef.current = true;
@@ -64,41 +96,28 @@ export default function RootLayout() {
           return;
         }
 
-        // reset redirect lock once we are on a valid route
         redirectingRef.current = false;
-
         const shouldShow = loggedIn && !isPublicRoute;
         setShowSidebar(shouldShow);
-
-        if (!shouldShow) {
-          setSidebarOpen(false);
-        }
+        if (!shouldShow) setSidebarOpen(false);
       } catch (err) {
         console.error('Auth check failed:', err);
-
         if (!redirectingRef.current) {
           redirectingRef.current = true;
           router.replace('/');
         }
       } finally {
-        if (mountedRef.current) {
-          setAuthChecked(true);
-        }
+        if (mountedRef.current) setAuthChecked(true);
       }
     };
 
     checkAuth();
-
-    return () => {
-      mountedRef.current = false;
-    };
+    return () => { mountedRef.current = false; };
   }, [pathname, isPublicRoute]);
 
   useEffect(() => {
     if (!authChecked) return;
-
     const target = showSidebar ? (isTablet ? sidebarWidth : 0) : 0;
-
     Animated.timing(contentLeft, {
       toValue: target,
       duration: 260,
@@ -112,107 +131,220 @@ export default function RootLayout() {
 
   const showPill = useMemo(() => {
     if (!showSidebar) return false;
-    const onDashboard = pathname === '/dashboard' || pathname.startsWith('/dashboard/');
-    const onTeamDetails = pathname === '/challenges/challengeTeamDashboardDetails' || pathname.startsWith('/challenges/challengeTeamDashboardDetails/');
-    const onIndDetails = pathname === '/challenges/challengeIndividualDashboardDetails' || pathname.startsWith('/challenges/challengeIndividualDashboardDetails/');
-    return onDashboard || onTeamDetails || onIndDetails;
+    return (
+      pathname === '/dashboard' ||
+      pathname.startsWith('/dashboard/') ||
+      pathname === '/challenges/challengeTeamDashboardDetails' ||
+      pathname.startsWith('/challenges/challengeTeamDashboardDetails/') ||
+      pathname === '/challenges/challengeIndividualDashboardDetails' ||
+      pathname.startsWith('/challenges/challengeIndividualDashboardDetails/')
+    );
   }, [showSidebar, pathname]);
 
-  const contentTopPadding = useMemo(() => {
-    return showSidebar && !isTablet ? PHONE_HEADER_HEIGHT : 0;
-  }, [showSidebar, isTablet]);
+  const contentTopPadding = useMemo(
+    () => (showSidebar && !isTablet ? PHONE_HEADER_HEIGHT : 0),
+    [showSidebar, isTablet]
+  );
+
+  const showAlert = useCallback(
+    (challenge: any, inviteId: any, inviterName?: string) => {
+      setInviteAlert({ challenge, inviteId, inviterName });
+      alertSlide.setValue(-220);
+      Animated.spring(alertSlide, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 60,
+        friction: 12,
+      }).start();
+    },
+    [alertSlide]
+  );
+
+  const hideAlert = useCallback(() => {
+    Animated.timing(alertSlide, {
+      toValue: -220,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => setInviteAlert(null));
+  }, [alertSlide]);
+
+  // ✅ auto dismiss
+  useEffect(() => {
+    if (!inviteAlert) return;
+    const timer = setTimeout(() => hideAlert(), 3000);
+    return () => clearTimeout(timer);
+  }, [inviteAlert, hideAlert]);
+
+  // Keep refs to the latest callbacks so the interval never needs to be
+  // recreated when they change identity between renders.
+  const showAlertRef = useRef(showAlert);
+  showAlertRef.current = showAlert;
+  const setPendingRef = useRef(setPendingInviteCount);
+  setPendingRef.current = setPendingInviteCount;
+
+  // The check function lives in a ref so setInterval captures a stable pointer.
+  // Re-assigning every render ensures it always closes over fresh values.
+  const checkRef = useRef(async () => {});
+  checkRef.current = async () => {
+    if (inviteAlertRef.current) return;
+    try {
+      const data = await getMyInvites();
+      const pending = asArray(data).filter((i: any) => i.status === 'pending');
+      setPendingRef.current(pending.length);
+      if (pending.length === 0) return;
+
+      const raw = await AsyncStorage.getItem(SHOWN_POPUP_KEY);
+      const shown = new Set<string>(raw ? JSON.parse(raw) : []);
+      const newInvite = pending.find((i: any) => !shown.has(String(i.id)));
+      if (!newInvite) return;
+
+      shown.add(String(newInvite.id));
+      await AsyncStorage.setItem(SHOWN_POPUP_KEY, JSON.stringify([...shown]));
+
+      const challenge = await getChallengeById(newInvite.challengeId ?? newInvite.challenge_id);
+      showAlertRef.current(
+        challenge,
+        newInvite.id,
+        newInvite.inviterName ?? newInvite.inviter_name ?? newInvite.inviter?.name
+      );
+    } catch {}
+  };
+
+  // Fire immediately whenever the user navigates to a new screen
+  useEffect(() => {
+    if (!showSidebar) return;
+    checkRef.current();
+  }, [pathname, showSidebar]);
+
+  // Poll every 15 s — only depends on showSidebar so the interval is never
+  // accidentally reset by a render or function-reference change.
+  useEffect(() => {
+    if (!showSidebar) return;
+    const id = setInterval(() => checkRef.current(), 15000);
+    return () => clearInterval(id);
+  }, [showSidebar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!authChecked) {
     return (
-      <UserProvider>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <View style={styles.loadingScreen}>
-              <ActivityIndicator size="large" color="#698059ff" />
-              <Text style={styles.loadingText}>Step Together</Text>
-            </View>
-            <StatusBar style="light" />
-            <Toast />
-          </ThemeProvider>
-        </QueryClientProvider>
-      </UserProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <View style={styles.loadingScreen}>
+          <ActivityIndicator size="large" color="#698059ff" />
+          <Text style={styles.loadingText}>Step Together</Text>
+        </View>
+        <StatusBar style="light" />
+        <Toast />
+      </ThemeProvider>
     );
   }
 
+  const alertTop = showSidebar && !isTablet ? PHONE_HEADER_HEIGHT + 8 : insets.top + 8;
+  const alertLeft = isTablet ? sidebarWidth + 12 : 12;
+
   return (
-    <UserProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          {showSidebar && (
-            <Sidebar
-              isOpen={isTablet ? true : sidebarOpen}
-              onToggle={() => setSidebarOpen((v) => !v)}
-              onWidthChange={setSidebarWidth}
-            />
-          )}
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      {showSidebar && (
+        <Sidebar
+          isOpen={isTablet ? true : sidebarOpen}
+          onToggle={() => setSidebarOpen((v) => !v)}
+          onWidthChange={setSidebarWidth}
+        />
+      )}
 
-          <Animated.View
-            style={[
-              styles.contentWrap,
-              {
-                marginLeft: contentLeft,
-                paddingTop: contentTopPadding,
-              },
-            ]}
+      {inviteAlert && (
+        <Animated.View
+          style={[
+            styles.alertBanner,
+            { top: alertTop, left: alertLeft, transform: [{ translateY: alertSlide }] },
+          ]}
+        >
+          <Pressable
+            style={styles.alertTouchable}
+            onPress={() => { hideAlert(); router.push('/notifications'); }}
           >
-            <Stack initialRouteName="index">
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="welcome" options={{ headerShown: false }} />
-              <Stack.Screen name="login" options={{ headerShown: false }} />
-              <Stack.Screen name="register" options={{ headerShown: false }} />
-              <Stack.Screen name="users/update" options={{ headerShown: false }} />
-              <Stack.Screen name="admin" options={{ headerShown: false }} />
-              <Stack.Screen name="teams/index" options={{ headerShown: false }} />
-              <Stack.Screen name="teams/create" options={{ headerShown: false }} />
-              <Stack.Screen name="teams/members" options={{ headerShown: false }} />
-              <Stack.Screen name="users/index" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/challengeTeamDashboardDetails" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/challengeIndividualDashboardDetails" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/index" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/hybridIndex" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/challengesDashboard" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/create" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/update" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} />
-              <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
-              <Stack.Screen name="userHistory" options={{ headerShown: false }} />
-              <Stack.Screen name="profileInfo" options={{ headerShown: false }} />
-              <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
-              <Stack.Screen name="settings/profile" options={{ headerShown: false }} />
-              <Stack.Screen name="settings/password" options={{ headerShown: false }} />
-              <Stack.Screen name="settings/userDelete" options={{ headerShown: false }} />
-              <Stack.Screen name="users/create" options={{ headerShown: false }} />
-              <Stack.Screen name="help/start" options={{ headerShown: false }} />
-              <Stack.Screen name="help/help" options={{ headerShown: false }} />
-              <Stack.Screen name="help/about" options={{ headerShown: false }} />
-              <Stack.Screen name="help/contact" options={{ headerShown: false }} />
-              <Stack.Screen name="help/privacy" options={{ headerShown: false }} />
-              <Stack.Screen name="help/terms" options={{ headerShown: false }} />
-              <Stack.Screen name="teams/update" options={{ headerShown: false }} />
-              <Stack.Screen name="verifyInfo" options={{ headerShown: false }} />
-              <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} />
-              <Stack.Screen name="hybridUpdate" options={{ headerShown: false }} />
+            <View style={styles.alertIconWrap}>
+              <Ionicons name="notifications" size={20} color="#92400E" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle}>
+                {inviteAlert.inviterName
+                  ? `${inviteAlert.inviterName} hat dich zu einer Challenge eingeladen. Bist du dabei?`
+                  : 'Du wurdest zu einer Challenge eingeladen. Bist du dabei?'}
+              </Text>
+              <Text style={styles.alertSub} numberOfLines={1}>
+                {inviteAlert.challenge?.name
+                  ? `${inviteAlert.challenge.name} · `
+                  : ''}
+                <Text style={styles.alertLink}>Klick für mehr Infos</Text>
+              </Text>
+            </View>
+          </Pressable>
+          <Pressable onPress={hideAlert} style={styles.alertCloseBtn} hitSlop={10}>
+            <Ionicons name="close" size={16} color="#576058" />
+          </Pressable>
+        </Animated.View>
+      )}
 
+      <Animated.View
+        style={[
+          styles.contentWrap,
+          {
+            marginLeft: contentLeft,
+            paddingTop: contentTopPadding,
+          },
+        ]}
+      >
+        <Stack initialRouteName="index">
+           <Stack.Screen name="index" options={{ headerShown: false }} /> 
+           <Stack.Screen name="welcome" options={{ headerShown: false }} /> 
+           <Stack.Screen name="login" options={{ headerShown: false }} /> 
+           <Stack.Screen name="register" options={{ headerShown: false }} /> 
+           <Stack.Screen name="users/update" options={{ headerShown: false }} /> 
+           <Stack.Screen name="admin" options={{ headerShown: false }} /> 
+           <Stack.Screen name="teams/index" options={{ headerShown: false }} /> 
+           <Stack.Screen name="teams/create" options={{ headerShown: false }} /> 
+           <Stack.Screen name="teams/members" options={{ headerShown: false }} /> 
+           <Stack.Screen name="users/index" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/challengeTeamDashboardDetails" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/challengeIndividualDashboardDetails" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/index" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/hybridIndex" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/challengesDashboard" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/create" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/update" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/details" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} /> 
+           <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} /> 
+           <Stack.Screen name="userHistory" options={{ headerShown: false }} /> 
+           <Stack.Screen name="profileInfo" options={{ headerShown: false }} /> 
+           <Stack.Screen name="settings/settings" options={{ headerShown: false }} /> 
+           <Stack.Screen name="settings/profile" options={{ headerShown: false }} /> 
+           <Stack.Screen name="settings/password" options={{ headerShown: false }} /> 
+           <Stack.Screen name="settings/userDelete" options={{ headerShown: false }} /> 
+           <Stack.Screen name="users/create" options={{ headerShown: false }} /> 
+           <Stack.Screen name="help/start" options={{ headerShown: false }} /> 
+           <Stack.Screen name="help/help" options={{ headerShown: false }} /> 
+           <Stack.Screen name="help/about" options={{ headerShown: false }} /> 
+           <Stack.Screen name="help/contact" options={{ headerShown: false }} /> 
+           <Stack.Screen name="help/privacy" options={{ headerShown: false }} /> 
+           <Stack.Screen name="help/terms" options={{ headerShown: false }} /> 
+           <Stack.Screen name="teams/update" options={{ headerShown: false }} /> 
+           <Stack.Screen name="verifyInfo" options={{ headerShown: false }} /> 
+           <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} /> 
+           <Stack.Screen name="hybridUpdate" options={{ headerShown: false }} /> 
+           <Stack.Screen name="notifications" options={{ headerShown: false }} /> 
+         </Stack>
 
-            </Stack>
+        {showPill && <BottomBar pathname={pathname} />}
+      </Animated.View>
 
-            {showPill && <BottomBar pathname={pathname} />}
-          </Animated.View>
-
-          <StatusBar style="light" />
-          <Toast />
-        </ThemeProvider>
-      </QueryClientProvider>
-    </UserProvider>
+      <StatusBar style="light" />
+      <Toast />
+    </ThemeProvider>
   );
 }
+
+// styles unchanged
 
 const styles = StyleSheet.create({
   contentWrap: {
@@ -229,5 +361,63 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  alertBanner: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 1100,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(234,179,8,0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.15,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: { elevation: 8 },
+    }),
+  },
+  alertTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+  },
+  alertIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(234,179,8,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  alertTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111714',
+    lineHeight: 18,
+  },
+  alertSub: {
+    fontSize: 12,
+    color: '#576058',
+    marginTop: 3,
+  },
+  alertLink: {
+    fontSize: 12,
+    color: '#1B7A42',
+    fontWeight: '700',
+  },
+  alertCloseBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    flexShrink: 0,
   },
 });

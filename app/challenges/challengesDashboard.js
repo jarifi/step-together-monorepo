@@ -15,9 +15,7 @@ import {
 import {
   acceptChallengeInvite,
   declineChallengeInvite,
-  getChallengeById,
   getChallengeTeams,
-  getMyChallenges,
   getMyActiveChallenges,
   getMyInvites,
 } from '../../services/challengeService';
@@ -186,33 +184,26 @@ export default function AllChallengesScreen() {
   const loadChallenges = useCallback(async () => {
     setLoadingInit(true);
     try {
-        const [rawChallenges, rawInvites, rawCreated] = await Promise.all([
+      const [rawChallenges, rawInvites] = await Promise.all([
         getMyActiveChallenges(),
         getMyInvites(),
-        getMyChallenges(),
       ]);
 
-      const activeList = asArray(rawChallenges);
-      const createdList = asArray(rawCreated);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Only challenges that have already started
+      const activeList = asArray(rawChallenges).filter((c) => {
+        const state = String(c.state ?? '').toLowerCase();
+        if (state === 'open' || state === 'active') return true;
+        const start = c.startDate ?? c.start_date;
+        return start ? new Date(start) <= today : false;
+      });
+
       const invites = asArray(rawInvites);
-      const activeIds = new Set(activeList.map((c) => Number(c.id)));
-
-      // Pending-Einladungen die noch nicht in der aktiven Liste sind nachladen
-      const pendingExtras = await Promise.all(
-        invites
-          .filter((i) => i.status === 'pending' && !activeIds.has(Number(i.challengeId ?? i.challenge_id)))
-          .map(async (i) => {
-            try { return await getChallengeById(i.challengeId ?? i.challenge_id); } catch { return null; }
-          })
-      );
-
-      // Eigene erstellte Challenges die noch nicht in der aktiven Liste sind hinzufügen
-      const createdExtras = createdList.filter((c) => !activeIds.has(Number(c.id)));
-
-      const safe = [...activeList, ...createdExtras, ...pendingExtras.filter(Boolean)];
 
       const enriched = await Promise.all(
-        safe.map(async (ch) => {
+        activeList.map(async (ch) => {
           const inv = invites.find((i) => sameId(i.challengeId ?? i.challenge_id, ch.id));
           try {
             const teams = asArray(await getChallengeTeams(ch.id));
@@ -238,7 +229,8 @@ export default function AllChallengesScreen() {
         })
       );
 
-      setChallenges(enriched.filter((c) => c.inviteStatus !== 'declined'));
+      // Exclude declined and still-pending invites — dashboard = active participation only
+      setChallenges(enriched.filter((c) => c.inviteStatus !== 'declined' && c.inviteStatus !== 'pending'));
     } catch (e) {
       console.error('Failed to load challenges:', e);
       setChallenges([]);
