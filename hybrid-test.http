@@ -21,7 +21,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "gocaandjelkovic2004@gmail.com",
+    "email": "jetonbfi@gmail.com",
     "password": "ChangeMe2026/"
 }
 
@@ -56,12 +56,12 @@ Content-Type: application/json
 ### 3) Invite Friend to Created Challenge
 # IMPORTANT: Replace inviteeUserId with the user id you want to invite.
 # @name inviteFriend
-POST {{baseUrl}}/challenges/{{createIndividualChallenge.response.body.id}}/invites
+POST {{baseUrl}}/challenges/45/invites
 Authorization: Bearer {{login.response.body.accessToken}}
 Content-Type: application/json
 
 {
-    "inviteeUserId": 24
+    "inviteeUserId": 122
 }
 
 

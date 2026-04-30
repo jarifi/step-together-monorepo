@@ -497,6 +497,24 @@ def create_challenge_invite(
     if existing_pending_invite:
         return existing_pending_invite
 
+    existing_declined_invite = (
+        db.query(ChallengeInvite)
+        .filter(
+            ChallengeInvite.challenge_id == challenge_id,
+            ChallengeInvite.invitee_user_id == invitee_user_id,
+            ChallengeInvite.status == ChallengeInvite.STATUS_DECLINED,
+        )
+        .order_by(ChallengeInvite.updated_at.desc())
+        .first()
+    )
+    if existing_declined_invite:
+        existing_declined_invite.status = ChallengeInvite.STATUS_PENDING
+        existing_declined_invite.inviter_user_id = inviter_user_id
+        existing_declined_invite.expires_at = expires_at
+        db.commit()
+        db.refresh(existing_declined_invite)
+        return existing_declined_invite
+
     invite = ChallengeInvite(
         challenge_id=challenge_id,
         inviter_user_id=inviter_user_id,
@@ -569,6 +587,23 @@ def create_challenge_invites(
     )
     pending_by_user_id = {invite.invitee_user_id: invite for invite in pending_invites}
 
+    declined_invites = (
+        db.query(ChallengeInvite)
+        .filter(
+            ChallengeInvite.challenge_id == challenge_id,
+            ChallengeInvite.invitee_user_id.in_(unique_user_ids),
+            ChallengeInvite.status == ChallengeInvite.STATUS_DECLINED,
+        )
+        .order_by(ChallengeInvite.updated_at.desc())
+        .all()
+    )
+    declined_by_user_id: dict[int, ChallengeInvite] = {}
+    for invite in declined_invites:
+        if invite.invitee_user_id not in declined_by_user_id:
+            declined_by_user_id[invite.invitee_user_id] = invite
+
+    new_invites: List[ChallengeInvite] = []
+    reactivated_invites: List[ChallengeInvite] = []
     created_invites: List[ChallengeInvite] = []
     already_pending: List[ChallengeInvite] = []
     already_participant: List[int] = []
@@ -594,7 +629,15 @@ def create_challenge_invites(
             already_pending.append(pending)
             continue
 
-        created_invites.append(
+        declined = declined_by_user_id.get(user_id)
+        if declined is not None:
+            declined.status = ChallengeInvite.STATUS_PENDING
+            declined.inviter_user_id = inviter_user_id
+            declined.expires_at = expires_at
+            reactivated_invites.append(declined)
+            continue
+
+        new_invites.append(
             ChallengeInvite(
                 challenge_id=challenge_id,
                 inviter_user_id=inviter_user_id,
@@ -603,15 +646,17 @@ def create_challenge_invites(
             )
         )
 
-    if created_invites:
+    if new_invites or reactivated_invites:
         try:
-            db.add_all(created_invites)
+            if new_invites:
+                db.add_all(new_invites)
             db.commit()
+            created_invites = [*reactivated_invites, *new_invites]
             for invite in created_invites:
                 db.refresh(invite)
         except IntegrityError:
             db.rollback()
-            for invite in created_invites:
+            for invite in [*reactivated_invites, *new_invites]:
                 errors.append(
                     {
                         "user_id": invite.invitee_user_id,
