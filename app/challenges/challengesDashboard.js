@@ -110,14 +110,14 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
               <Text style={styles.modeTxt}>{label}</Text>
             </View>
 
-            {isPend ? (
-              <View style={styles.invBadge}>
-                <Ionicons name="mail-outline" size={11} color="#92400E" />
-                <Text style={styles.invTxt}>Einladung</Text>
-              </View>
-            ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {isPend && (
+                <View style={styles.invBadge}>
+                  <Ionicons name="notifications" size={11} color="#92400E" />
+                </View>
+              )}
               <Text style={[styles.kmTxt, { color }]}>{dist} km</Text>
-            )}
+            </View>
           </View>
 
           <Text style={styles.name} numberOfLines={2}>
@@ -404,13 +404,13 @@ const styles = StyleSheet.create({
   heroWrap: { paddingHorizontal: 16, paddingTop: 68, paddingBottom: 20 },
   hero: {
     backgroundColor: CARD,
-    borderRadius: 24,
+    borderRadius: 26,
     padding: 22,
     borderWidth: 1,
     borderColor: BORD,
     ...shadow,
   },
-  accentLine: { width: 40, height: 4, borderRadius: 4, marginBottom: 16 },
+  accentLine: { width: 140, height: 4, borderRadius: 4, marginBottom: 16 },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -418,8 +418,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   heroTexts: { flex: 1, marginRight: 12 },
-  heroTitle: { fontSize: 22, fontWeight: '700', color: TEXT, marginBottom: 4 },
-  heroSub: { fontSize: 13, color: MUTED, lineHeight: 18 },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: TEXT, marginBottom: 6 },
+  heroSub: { fontSize: 15, color: MUTED, lineHeight: 21 },
   countBadge: {
     alignItems: 'center',
     backgroundColor: `${TEAM}10`,

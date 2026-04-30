@@ -1,9 +1,29 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-const BTN = 38;
-const R = 12;
+const TEAM_COLOR = '#55805c';
+const IND_COLOR = '#D4650A';
+
+const shadow = Platform.select({
+  ios: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 5 } },
+  android: { elevation: 4 },
+  default: {},
+});
+
+const fmt = (s) => {
+  if (!s) return '—';
+  const d = new Date(s);
+  return isNaN(d) ? '—' : d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: '2-digit' });
+};
+
+const getStatus = (stateRaw) => {
+  const state = (stateRaw ?? '').toLowerCase();
+  if (state === 'open') return { color: '#22c55e', bg: 'rgba(34,197,94,0.12)', text: 'Aktiv' };
+  if (state === 'incoming') return { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', text: 'Bevorstehend' };
+  if (state === 'closed') return { color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', text: 'Beendet' };
+  return { color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', text: 'Unbekannt' };
+};
 
 const ChallengeCard = ({
   challenge,
@@ -11,199 +31,119 @@ const ChallengeCard = ({
   onDelete,
   onPress,
   showActions = false,
-  actionIcon = "info-outline",
   onAccept,
   onDecline,
-  isPending
+  isPending,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'Kein Datum';
-    try {
-      const date = new Date(dateString);
-      if (!isNaN(date)) {
-        return date.toLocaleString('de-DE', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-      }
-    } catch (_e) {
-      return 'Ungültiges Datum';
-    }
-    return 'Ungültiges Datum';
-  };
-
-  const getStatus = (stateRaw) => {
-    const state = (stateRaw ?? '').toLowerCase();
-    if (state === 'open') return { icon: 'lock-open', color: '#2E7D32', text: 'Offen' };
-    if (state === 'incoming') return { icon: 'schedule', color: '#EF6C00', text: 'Bevorstehend' };
-    if (state === 'closed') return { icon: 'lock', color: '#C62828', text: 'Abgeschlossen' };
-    return { icon: 'help-outline', color: '#6B7280', text: 'Unbekannt' };
-  };
-
   const status = useMemo(() => getStatus(challenge?.state), [challenge?.state]);
 
   if (!challenge) return null;
 
+  const isInd = challenge?.mode === 'individual';
+  const color = isInd ? IND_COLOR : TEAM_COLOR;
+  const softBg = isInd ? 'rgba(212,101,10,0.06)' : 'rgba(85,128,92,0.06)';
+
   return (
     <View style={styles.card}>
-      <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={2}>
-          {challenge.name}
-        </Text>
 
-        <View style={styles.metaRow}>
-          <MaterialIcons name="place" size={16} color="#6B7280" />
-          <Text style={styles.metaText} numberOfLines={2}>
-            {challenge.startLocation || 'Start'} → {challenge.targetLocation || 'Ziel'}
-          </Text>
-        </View>
+      {/* Colored top accent bar */}
+      <View style={[styles.accentBar, { backgroundColor: color }]} />
 
-        <View style={styles.metaRow}>
-          <MaterialIcons name="straighten" size={16} color="#6B7280" />
-          <Text style={styles.metaText}>{challenge.distance || 0} km</Text>
-        </View>
-
-        <View style={styles.metaRow}>
-          <MaterialIcons name="groups" size={16} color="#6B7280" />
-          <Text style={styles.metaText}>
-            {challenge.mode === 'individual'
-              ? `${challenge.inviteCount ?? challenge.activeParticipants ?? 0} Eingeladen`
-              : `${challenge.teamCount ?? challenge.teams?.length ?? 0} Teams`}
-          </Text>
-        </View>
-
-        <View style={styles.metaRow}>
-          <MaterialIcons name="event" size={16} color="#6B7280" />
-          <Text style={styles.metaText} numberOfLines={2}>
-            {formatDateTime(challenge.startDate)} – {formatDateTime(challenge.endDate)}
-          </Text>
-        </View>
-
-        <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusPill,
-              {
-                borderColor: `${status.color}33`,
-                backgroundColor: `${status.color}14`,
-              },
-            ]}
-          >
-            <MaterialIcons name={status.icon} size={16} color={status.color} />
-            <Text style={[styles.statusText, { color: status.color }]}>
-              {status.text}
-            </Text>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: softBg }]}>
+        <View style={styles.headerTop}>
+          <View style={[styles.modeBadge, { backgroundColor: color + '20', borderColor: color + '35' }]}>
+            <MaterialIcons name={isInd ? 'person' : 'group'} size={12} color={color} />
+            <Text style={[styles.modeBadgeText, { color }]}>{isInd ? 'Individuell' : 'Team'}</Text>
+          </View>
+          <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+            <View style={[styles.statusDot, { backgroundColor: status.color }]} />
+            <Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
           </View>
         </View>
+        <Text style={styles.name} numberOfLines={2}>{challenge.name}</Text>
       </View>
 
-      <View style={styles.buttonStack}>
-        {isPending ? (
-          <>
-            <Pressable
-              onPress={onAccept}
-              style={({ pressed }) => [
-                styles.iconButton,
-                { backgroundColor: '#4CAF50' },
-                pressed && styles.pressed,
-              ]}
-              hitSlop={8}
-            >
-              <MaterialIcons name="person-add" size={20} color="#fff" />
-            </Pressable>
+      {/* Info rows */}
+      <View style={styles.infoBlock}>
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <MaterialIcons name="place" size={14} color={color} />
+          </View>
+          <Text style={styles.infoText} numberOfLines={1}>
+            {challenge.startLocation || '—'}
+            <Text style={styles.infoArrow}>  →  </Text>
+            {challenge.targetLocation || '—'}
+          </Text>
+        </View>
 
-            <Pressable
-              onPress={onDecline}
-              style={({ pressed }) => [
-                styles.iconButton,
-                { backgroundColor: '#C62828', marginTop: 8 },
-                pressed && styles.pressed,
-              ]}
-              hitSlop={8}
-            >
-              <MaterialIcons name="close" size={20} color="#fff" />
-            </Pressable>
-          </>
-        ) : (
-          /* 2. THE NORMAL DASHBOARD BUTTON (For everything else) */
-          onPress && (
-            <Pressable
-              onPress={() => onPress(challenge)}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.infoButton,
-                pressed && styles.pressed,
-              ]}
-              hitSlop={8}
-            >
-              <MaterialIcons name={actionIcon || "chevron-right"} size={20} color="#fff" />
-            </Pressable>
-          )
-        )}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <MaterialIcons name="event" size={14} color={color} />
+          </View>
+          <Text style={styles.infoText}>
+            {fmt(challenge.startDate)} – {fmt(challenge.endDate)}
+          </Text>
+        </View>
 
-        {showActions && !isPending && (
-          <>
-            <Pressable
-              onPress={onUpdate}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.updateButton,
-                styles.stackSpace,
-                pressed && styles.pressed,
-              ]}
-              hitSlop={8}
-            >
-              <MaterialIcons name="edit" size={20} color="#fff" />
-            </Pressable>
-
-            <Pressable
-              onPress={() => setModalVisible(true)}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.deleteButton,
-                styles.stackSpace,
-                pressed && styles.pressed,
-              ]}
-              hitSlop={8}
-            >
-              <MaterialIcons name="delete" size={20} color="#fff" />
-            </Pressable>
-          </>
-        )}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <MaterialIcons name="straighten" size={14} color={color} />
+          </View>
+          <Text style={styles.infoText}>{challenge.distance ?? 0} km</Text>
+        </View>
       </View>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Möchten Sie diese Challenge wirklich löschen?
-            </Text>
+      {/* Footer / Actions */}
+      {(isPending || onPress || showActions) && (
+        <View style={styles.footer}>
+          {isPending ? (
+            <>
+              <Pressable onPress={onDecline} style={({ pressed }) => [styles.btnOutline, pressed && styles.pressed]}>
+                <Text style={styles.btnOutlineText}>Ablehnen</Text>
+              </Pressable>
+              <Pressable onPress={onAccept} style={({ pressed }) => [styles.btnSolid, { backgroundColor: color }, pressed && styles.pressed]}>
+                <Text style={styles.btnSolidText}>Annehmen</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {showActions && (
+                <>
+                  <Pressable onPress={onUpdate} hitSlop={8} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+                    <MaterialIcons name="edit" size={18} color="#64748b" />
+                  </Pressable>
+                  <Pressable onPress={() => setModalVisible(true)} hitSlop={8} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+                    <MaterialIcons name="delete-outline" size={18} color="#f87171" />
+                  </Pressable>
+                </>
+              )}
+              {onPress && (
+                <Pressable onPress={() => onPress(challenge)} style={({ pressed }) => [styles.btnSolid, { backgroundColor: color, marginLeft: 'auto' }, pressed && styles.pressed]}>
+                  <Text style={styles.btnSolidText}>Öffnen</Text>
+                  <MaterialIcons name="arrow-forward" size={14} color="#fff" />
+                </Pressable>
+              )}
+            </>
+          )}
+        </View>
+      )}
 
-            <Pressable
-              style={({ pressed }) => [styles.modalDanger, pressed && styles.modalPressed]}
-              onPress={() => {
-                setModalVisible(false);
-                if (onDelete) onDelete();
-              }}
-            >
-              <Text style={styles.modalDangerText}>Challenge löschen</Text>
+      {/* Delete modal */}
+      <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalIconWrap}>
+              <MaterialIcons name="delete-outline" size={26} color="#f87171" />
+            </View>
+            <Text style={styles.modalTitle}>Challenge löschen?</Text>
+            <Text style={styles.modalSub}>Diese Aktion kann nicht rückgängig gemacht werden.</Text>
+            <Pressable style={({ pressed }) => [styles.btnDanger, pressed && { opacity: 0.85 }]} onPress={() => { setModalVisible(false); onDelete?.(); }}>
+              <Text style={styles.btnDangerText}>Löschen</Text>
             </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.modalCancel, pressed && styles.modalPressed]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.modalCancelText}>Abbrechen</Text>
+            <Pressable style={({ pressed }) => [styles.btnOutline, { width: '100%', justifyContent: 'center' }, pressed && { opacity: 0.85 }]} onPress={() => setModalVisible(false)}>
+              <Text style={styles.btnOutlineText}>Abbrechen</Text>
             </Pressable>
           </View>
         </View>
@@ -214,161 +154,169 @@ const ChallengeCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    padding: 14,
     backgroundColor: '#fff',
-    marginBottom: 14,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.08)',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    alignItems: 'flex-start',
+    borderColor: 'rgba(0,0,0,0.07)',
+    overflow: 'hidden',
+    ...shadow,
   },
 
-  info: {
-    flex: 1,
-    paddingRight: 10,
+  accentBar: {
+    height: 4,
   },
 
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#101613',
-    marginBottom: 8,
-    lineHeight: 22,
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+    gap: 10,
   },
-
-  metaRow: {
+  headerTop: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
-  metaText: {
-    fontSize: 13.5,
-    color: '#4B5563',
-    flex: 1,
-    marginLeft: 6,
-    lineHeight: 18,
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderWidth: 1,
   },
-
-  statusRow: {
-    marginTop: 8,
-  },
+  modeBadgeText: { fontSize: 12, fontWeight: '700' },
 
   statusPill: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    gap: 6,
     borderRadius: 999,
-    borderWidth: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 12, fontWeight: '600' },
+
+  name: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+    lineHeight: 23,
+    letterSpacing: 0.1,
   },
 
-  statusText: {
+  infoBlock: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  infoIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoText: {
     fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-
-  buttonStack: {
-    alignItems: 'center',
-    paddingLeft: 8,
-    paddingTop: 2,
-  },
-
-  stackSpace: {
-    marginTop: 8,
-  },
-
-  iconButton: {
-    width: BTN,
-    height: BTN,
-    borderRadius: R,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  infoButton: {
-    backgroundColor: '#6FAF78',
-  },
-
-  updateButton: {
-    backgroundColor: '#5B8EDB',
-  },
-
-  deleteButton: {
-    backgroundColor: '#E57373',
-  },
-
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
-  },
-
-  modalOverlay: {
+    color: '#475569',
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    fontWeight: '500',
+  },
+  infoArrow: {
+    color: '#cbd5e1',
   },
 
-  modalContent: {
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.07)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  btnSolid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 11,
+  },
+  btnSolidText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
+  btnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.10)',
+  },
+  btnOutlineText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
+
+  pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modal: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 20,
+    padding: 22,
     width: '88%',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.08)',
+    gap: 10,
   },
-
-  modalTitle: {
-    fontWeight: '500',
-    fontSize: 16,
-    marginBottom: 14,
-    textAlign: 'center',
-    color: '#111827',
-  },
-
-  modalDanger: {
-    backgroundColor: '#E53935',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    width: '100%',
+  modalIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(248,113,113,0.10)',
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'center',
+    marginBottom: 2,
   },
-
-  modalDangerText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-
-  modalCancel: {
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#0f172a' },
+  modalSub: { fontSize: 13, color: '#94a3b8', textAlign: 'center', marginBottom: 4 },
+  btnDanger: {
+    backgroundColor: '#ef4444',
+    paddingVertical: 13,
     borderRadius: 12,
     width: '100%',
     alignItems: 'center',
   },
-
-  modalCancelText: {
-    fontWeight: '600',
-    color: '#111827',
-  },
-
-  modalPressed: {
-    opacity: 0.9,
-  },
+  btnDangerText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
 
 export default ChallengeCard;

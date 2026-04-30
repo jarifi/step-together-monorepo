@@ -456,4 +456,5 @@ const styles = StyleSheet.create({
   cardWrap: {
     marginBottom: 0,
   },
+
 });
