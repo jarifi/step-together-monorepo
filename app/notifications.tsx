@@ -1,5 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +18,7 @@ import {
   acceptChallengeInvite,
   declineChallengeInvite,
   getChallengeById,
+  getChallengeParticipants,
   getChallengeTeams,
   getMyActiveChallenges,
   getMyInvites,
@@ -110,17 +112,21 @@ interface NotifChallenge {
   inviterName?: string;
   teamCount: number;
   teamIds: number[];
+  participantCount?: number;
   mode?: string;
+  state?: string;
 }
 
 function ChallengeNotifCard({
   item,
   onAccept,
   onDecline,
+  onPress,
 }: {
   item: NotifChallenge;
   onAccept: () => void;
   onDecline: () => void;
+  onPress: () => void;
 }) {
   const mode = resolveMode(item);
   const isInd = mode === 'individual';
@@ -130,9 +136,15 @@ function ChallengeNotifCard({
   const modeLabel = isInd ? 'Individuell' : 'Team';
   const dist = item?.distance ?? 0;
   const startDate = getStartDate(item);
+  const count = isInd ? item.participantCount : item.teamCount;
+  const countLabel = isInd ? 'Teilnehmer' : (count === 1 ? 'Team' : 'Teams');
+  const countIcon = isInd ? 'person' : 'group';
 
   return (
-    <View style={[styles.notifCard, { borderLeftColor: color, borderLeftWidth: 4 }]}>
+    <Pressable
+      onPress={isPending ? undefined : onPress}
+      style={({ pressed }) => [styles.notifCard, { borderLeftColor: color, borderLeftWidth: 4 }, !isPending && pressed && { opacity: 0.88 }]}
+    >
       <View style={[styles.notifCardHeader, { backgroundColor: softBg }]}>
         <View style={[styles.modeBadge, { backgroundColor: color }]}>
           <MaterialIcons name={isInd ? 'person' : 'group'} size={11} color="#fff" />
@@ -164,6 +176,13 @@ function ChallengeNotifCard({
           </Text>
         </View>
 
+        {count != null && (
+          <View style={styles.infoRow}>
+            <MaterialIcons name={countIcon as any} size={13} color={color} />
+            <Text style={[styles.infoTxt, { color, fontWeight: '600' }]}>{count} {countLabel}</Text>
+          </View>
+        )}
+
         {isPending && item.inviterName && (
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={13} color={MUTED} />
@@ -192,13 +211,14 @@ function ChallengeNotifCard({
           </Pressable>
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
 export default function NotificationsScreen() {
   const { setPendingInviteCount } = useUser();
 
+  const router = useRouter();
   const [challenges, setChallenges] = useState<NotifChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -240,30 +260,23 @@ export default function NotificationsScreen() {
           const inv = invites.find(
             (i: any) => Number(i.challengeId ?? i.challenge_id) === Number(ch.id)
           );
+          const base = {
+            inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
+            inviteId: inv?.id ?? null,
+            inviterName: inv?.inviterName ?? inv?.inviter_name ?? inv?.inviter?.name ?? undefined,
+          };
+          const mode = resolveMode(ch);
           try {
-            const teams = asArray(await getChallengeTeams(ch.id));
-            const teamIds = teams
-              .map((t: any) => Number(t.id ?? t.teamId ?? t.team_id ?? 0))
-              .filter(Boolean);
-            return {
-              ...ch,
-              teamCount: teamIds.length,
-              teamIds,
-              inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
-              inviteId: inv?.id ?? null,
-              inviterName:
-                inv?.inviterName ?? inv?.inviter_name ?? inv?.inviter?.name ?? undefined,
-            };
+            if (mode === 'individual') {
+              const participants = asArray(await getChallengeParticipants(ch.id));
+              return { ...ch, ...base, participantCount: participants.length, teamCount: 0, teamIds: [] };
+            } else {
+              const teams = asArray(await getChallengeTeams(ch.id));
+              const teamIds = teams.map((t: any) => Number(t.id ?? t.teamId ?? t.team_id ?? 0)).filter(Boolean);
+              return { ...ch, ...base, teamCount: teamIds.length, teamIds };
+            }
           } catch {
-            return {
-              ...ch,
-              teamCount: 0,
-              teamIds: [],
-              inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
-              inviteId: inv?.id ?? null,
-              inviterName:
-                inv?.inviterName ?? inv?.inviter_name ?? inv?.inviter?.name ?? undefined,
-            };
+            return { ...ch, ...base, teamCount: 0, teamIds: [], participantCount: 0 };
           }
         })
       );
@@ -377,6 +390,10 @@ export default function NotificationsScreen() {
                 item={item}
                 onAccept={() => handleAccept(item.id, item.inviteId)}
                 onDecline={() => handleDecline(item.id, item.inviteId)}
+                onPress={() => router.push({
+                  pathname: '/challenges/details',
+                  params: { id: String(item.id) },
+                })}
               />
             ))
           )}
