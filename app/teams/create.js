@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { validateTeamName } from '../../lib/teamValidation';
-import { createTeam } from '../../services/teamService';
+import { addTeamMember, createTeam } from '../../services/teamService';
 import { getUsers, searchUsers } from '../../services/userService';
 
 const COLORS = {
@@ -298,12 +298,17 @@ export default function CreateTeamScreen() {
 
     setLoading(true);
     try {
-      await createTeam({
+      const createdTeam = await createTeam({
         name: trimmedName,
         teamId,
         maxMembers,
-        memberIds,
       });
+
+      if (createdTeam?.id && memberIds.length > 0) {
+        await Promise.allSettled(
+          memberIds.map((userId) => addTeamMember(createdTeam.id, userId))
+        );
+      }
 
       Toast.show({
         type: 'success',

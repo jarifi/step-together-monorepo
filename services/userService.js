@@ -121,7 +121,6 @@ export const getUsers = async (skip = 0, limit = 10, isVerified = null) => {
   try {
     const qs = buildUserQuery({ skip, limit, isVerified });
     const users = await apiGet(`/users/?${qs}`);
-    console.log('GET USERS RESPONSE:', JSON.stringify(users, null, 2));
     return Array.isArray(users) ? users.map(normalizeUser) : [];
   } catch (err) {
     console.error('Error fetching users:', err);

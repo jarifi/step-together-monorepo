@@ -124,7 +124,7 @@ export const createBulkChallengeInvites = async (challengeId, inviteeUserIds) =>
   if (!challengeId || !inviteeUserIds?.length) return null;
   try {
     return await apiPost(`/challenges/${challengeId}/invites/bulk`, {
-      inviteeUserIds,
+      invitee_user_ids: inviteeUserIds,
     });
   } catch (err) {
     console.error('Error creating bulk invites:', err);

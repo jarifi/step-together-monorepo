@@ -3,189 +3,265 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { getTeamMembers } from '../../services/teamService';
+import Toast from 'react-native-toast-message';
+import { getTeamMembers, removeTeamMember } from '../../services/teamService';
+
+const COLORS = {
+  bg: '#F5F7F4',
+  surface: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#55805c',
+  accentSoft: 'rgba(85,128,92,0.12)',
+  danger: '#D92D20',
+  dangerSoft: 'rgba(217,45,32,0.10)',
+  dangerBorder: 'rgba(217,45,32,0.18)',
+};
 
 export default function TeamMembersScreen() {
-  const { id, name, totalSteps: totalStepsParam } = useLocalSearchParams();
+  const { id, name, isAdmin } = useLocalSearchParams();
   const router = useRouter();
+  const admin = isAdmin === '1' || isAdmin === 'true';
+
+  const teamId = Array.isArray(id) ? id[0] : id;
+  const teamName = Array.isArray(name) ? name[0] : (name ?? 'Team');
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const stepsToKm = (steps) => steps * 0.0008;
-  const totalSteps = parseInt(totalStepsParam ?? '0', 10) || 0;
-  const totalKm = stepsToKm(totalSteps);
+  const [removing, setRemoving] = useState(null);
+
+  const loadMembers = async () => {
+    if (!teamId) { setLoading(false); return; }
+    try {
+      const data = await getTeamMembers(teamId);
+      setMembers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Fehler beim Laden der Teammitglieder:', err);
+      setMembers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const teamId = Array.isArray(id) ? id[0] : id;
-
-    if (!teamId) {
-      setMembers([]);
-      setLoading(false);
-      return;
-    }
-
-    const load = async () => {
-      try {
-        const data = await getTeamMembers(teamId);
-        setMembers(data ?? []);
-      } catch (error) {
-        console.error('Fehler beim Laden der Teammitglieder:', error);
-        setMembers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     setLoading(true);
-    load();
+    loadMembers();
   }, [id]);
+
+  const handleRemove = async (member) => {
+    const memberId = member.id;
+    if (!memberId) return;
+    setRemoving(memberId);
+    try {
+      await removeTeamMember(memberId);
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      Toast.show({ type: 'success', text1: 'Mitglied entfernt', position: 'top', topOffset: 100 });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Fehler', text2: 'Konnte Mitglied nicht entfernen.', position: 'top', topOffset: 100 });
+    } finally {
+      setRemoving(null);
+    }
+  };
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingWrap]}>
+      <View style={styles.loadingWrap}>
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header-Card */}
-      <View style={[styles.card, styles.centered]}>
-        <Text style={styles.title}>{name ?? 'Team'}</Text>
-        <Text style={styles.sub}>Teammitglieder</Text>
-
-
-        <Text style={styles.subSmall}>
-          {totalSteps.toLocaleString()} Schritte · {totalKm.toFixed(2)} km
-        </Text>
-      </View>
-
-      {/* Mitgliederliste */}
-      <View style={styles.card}>
-        {members.length === 0 ? (
-          <Text style={styles.emptyText}>Dieses Team hat noch keine Mitglieder.</Text>
-        ) : (
-          members.map((m) => (
-            <View key={m.id ?? `${m.userId}-${m.joiningDate ?? ''}`} style={styles.memberRow}>
-              <View style={styles.iconWrapper}>
-                <MaterialIcons name="person" size={22} color="#2f5c3a" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.memberName}>{m.name ?? `User #${m.userId}`}</Text>
-                {m.joiningDate && (
-                  <Text style={styles.memberSub}>
-                    Mitglied seit {new Date(m.joiningDate).toLocaleDateString()}
-                  </Text>
-                )}
-              </View>
+    <View style={styles.screen}>
+      <FlatList
+        data={members}
+        keyExtractor={(m) => String(m.id ?? m.userId)}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.headerCard}>
+              <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+                <MaterialIcons name="arrow-back" size={22} color={COLORS.text} />
+              </Pressable>
+              <Text style={styles.title}>{teamName}</Text>
+              <Text style={styles.sub}>
+                {members.length} Mitglied{members.length !== 1 ? 'er' : ''}
+              </Text>
             </View>
-          ))
-        )}
-      </View>
 
-      <Pressable onPress={() => router.back()} style={styles.backButton}>
-        <Text style={styles.backText}>Zurück</Text>
-      </Pressable>
-    </ScrollView>
+            {members.length > 0 && (
+              <Text style={styles.listLabel}>MITGLIEDER</Text>
+            )}
+          </View>
+        }
+        renderItem={({ item: m }) => (
+          <View style={styles.memberCard}>
+            <View style={styles.iconWrapper}>
+              <MaterialIcons name="person" size={22} color="#2f5c3a" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.memberName}>{m.name ?? `User #${m.userId}`}</Text>
+              {m.joiningDate ? (
+                <Text style={styles.memberSub}>
+                  Mitglied seit {new Date(m.joiningDate).toLocaleDateString('de')}
+                </Text>
+              ) : null}
+            </View>
+            {admin && (
+              <Pressable
+                onPress={() => handleRemove(m)}
+                disabled={removing === m.id}
+                style={({ pressed }) => [styles.removeBtn, pressed && styles.pressed]}
+                hitSlop={8}
+              >
+                {removing === (m.userId ?? m.id)
+                  ? <ActivityIndicator size="small" color={COLORS.danger} />
+                  : <MaterialIcons name="remove-circle-outline" size={22} color={COLORS.danger} />}
+              </Pressable>
+            )}
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>Dieses Team hat noch keine Mitglieder.</Text>
+          </View>
+        }
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16 }}
+        showsVerticalScrollIndicator={false}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f7f2ff',
-    padding: 20,
-    paddingTop: 60,
+  screen: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 56 },
+  loadingWrap: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
+
+  headerCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+    alignItems: 'center',
   },
-  loadingWrap: {
+  backBtn: { position: 'absolute', left: 16, top: 16 },
+  title: { fontSize: 20, fontWeight: '800', color: COLORS.text, letterSpacing: 0.2 },
+  sub: { marginTop: 4, fontSize: 13, color: COLORS.sub, fontWeight: '600' },
+
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.sub,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  searchWrap: { position: 'relative', marginBottom: 8 },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: '#FBFCFB',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingRight: 40,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  searchSpinner: { position: 'absolute', right: 12, top: 10 },
+
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: 10,
+  },
+  resultIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centered: {
+  resultName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  resultSub: { fontSize: 12, color: COLORS.sub, marginTop: 1 },
+  addBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.accent,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    padding: 22,
-    borderRadius: 22,
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
+  noResults: { fontSize: 13, color: COLORS.sub, textAlign: 'center', paddingVertical: 8 },
+
+  listLabel: {
+    fontSize: 11,
     fontWeight: '700',
-    marginBottom: 6,
-    color: '#111',
-    textAlign: 'center',
+    color: COLORS.sub,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginLeft: 4,
   },
-  sub: {
-    fontSize: 15,
-    color: '#555',
-    textAlign: 'center',
-  },
-  emptyText: {
-    color: '#777',
-    paddingVertical: 14,
-    textAlign: 'center',
-    fontSize: 15,
-  },
-  memberRow: {
+
+  memberCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   iconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#e3efe6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  memberName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111',
-  },
-  memberSub: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
-  backButton: {
-    marginTop: 10,
-    backgroundColor: '#82ae8dff',
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 14,
-    alignSelf: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  backText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  memberName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  memberSub: { fontSize: 12, color: COLORS.sub, marginTop: 2 },
+  removeBtn: { padding: 4 },
+
+  emptyWrap: { paddingVertical: 32, alignItems: 'center' },
+  emptyText: { fontSize: 14, color: COLORS.sub, textAlign: 'center' },
+
+  pressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
 });

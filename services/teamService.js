@@ -74,6 +74,27 @@ export const getTeamMembers = async (teamId) => {
   }
 };
 
+export const addTeamMember = async (teamId, userId) => {
+  if (!teamId || !userId) throw new Error('teamId and userId required');
+  try {
+    return await apiPost(`/team_members/admin-add`, { teamId, userId });
+  } catch (err) {
+    console.error('Error adding team member:', err);
+    throw err;
+  }
+};
+
+export const removeTeamMember = async (memberId) => {
+  if (!memberId) throw new Error('memberId required');
+  try {
+    await apiDelete(`/team_members/${memberId}`);
+    return true;
+  } catch (err) {
+    console.error('Error removing team member:', err);
+    throw err;
+  }
+};
+
 export const getAllTeams = async (pageSize = 100) => {
   try {
     let skip = 0;
