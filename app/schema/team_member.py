@@ -7,6 +7,10 @@ from app.models.base import CamelCaseBaseModel
 class TeamMemberCreate(CamelCaseBaseModel):
     team_id: int
 
+class TeamMemberAdminCreate(CamelCaseBaseModel):
+    team_id: int
+    user_id: int
+
 class TeamMemberResponse(CamelCaseBaseModel):
     id: int
     user_id: int

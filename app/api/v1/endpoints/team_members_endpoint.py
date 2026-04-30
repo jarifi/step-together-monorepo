@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schema.team_member import TeamMemberCreate, TeamMemberResponse
+from app.schema.team_member import TeamMemberAdminCreate, TeamMemberCreate, TeamMemberResponse
 from app.crud import team_member as team_member_crud
 from app.core.security import get_current_user
 from app.models.user import User
@@ -31,6 +31,25 @@ def create_team_member(
         f"TEAM_MEMBER CREATED | team_id={member.team_id} | user_id={current_user.id} | member_id={created.id}"
     )
 
+    return created
+
+
+@router.post("/admin-add", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED)
+def admin_add_team_member(
+    member: TeamMemberAdminCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    created = team_member_crud.create_team_member(
+        db=db,
+        team_id=member.team_id,
+        user_id=member.user_id,
+    )
+    team_member_logger.info(
+        f"TEAM_MEMBER ADMIN-ADDED | team_id={member.team_id} | user_id={member.user_id} | added_by={current_user.id}"
+    )
     return created
 
 
