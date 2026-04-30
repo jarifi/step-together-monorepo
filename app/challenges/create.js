@@ -1,1062 +1,1267 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
   Modal,
-  Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import Toast from 'react-native-toast-message';
-import {
-  validateChallengeName,
-  validateDate,
-  validateDistance,
-  validateLocation,
-} from '../../lib/challengeValidation';
-import { createChallenge } from '../../services/challengeService';
+import { createBulkChallengeInvites, createChallenge } from '../../services/challengeService';
 import { getAllTeams } from '../../services/teamService';
+import { getDisplayAvatarUri, getUsers, searchUsers } from '../../services/userService';
 
-const COLORS = {
-  bg: '#F5F7F4',
-  surface: '#FFFFFF',
-  text: '#0F1411',
-  sub: '#55605A',
-  border: 'rgba(15,20,17,0.10)',
-  accent: '#55805c',
-  accentSoft: 'rgba(85,128,92,0.10)',
-  accentBorder: 'rgba(85,128,92,0.20)',
-  inputBg: '#FBFCFB',
+function extractErrorMessage(err) {
+  const p = err?.payload;
+  if (p) {
+    if (typeof p.message === 'string' && p.message) return p.message;
+    if (typeof p.detail === 'string' && p.detail) return p.detail;
+    if (Array.isArray(p.detail))
+      return p.detail.map(d => d.msg || JSON.stringify(d)).join(' · ');
+    if (typeof p === 'string') return p;
+  }
+  const m = err?.message;
+  if (typeof m === 'string' && m && m !== '[object Object]') return m;
+  const s = err?.status;
+  if (s === 400) return 'Ungültige Eingabe. Bitte alle Felder prüfen.';
+  if (s === 401) return 'Nicht autorisiert. Bitte erneut anmelden.';
+  if (s === 403) return 'Keine Berechtigung für diese Aktion.';
+  if (s === 404) return 'Ressource nicht gefunden.';
+  if (s === 422) return 'Eingabefehler. Bitte alle Felder korrekt ausfüllen.';
+  if (s >= 500) return 'Serverfehler. Bitte später erneut versuchen.';
+  if (err?.name === 'TypeError') return 'Netzwerkfehler. Bitte Internetverbindung prüfen.';
+  return 'Unbekannter Fehler. Bitte erneut versuchen.';
+}
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+const T = {
+  white:        '#FFFFFF',
+  bg:           '#F2F5F3',
+  surfaceAlt:   '#F7FAF8',
+  primary:      '#58896e81',
+  primaryMid:   '#2D7A50',
+  primaryLight: '#5f8568ff',
+  primarySoft:  '#D6EAE0',
+  primarySofter:'#EBF5EF',
+  accentLight:  '#A8D9BC',
+  border:       '#D0DDD6',
+  borderStrong: '#B0C8BA',
+  text:         '#0F1F17',
+  textSec:      '#3D5448',
+  textMuted:    '#7A9589',
+  textLight:    '#A8BEB5',
+  danger:       '#B83232',
+  dangerSoft:   '#FAEAEA',
+  success:      '#1F7A4A',
+  successSoft:  '#E3F5EC',
+  shadow:       'rgba(15,31,23,0.09)',
+  calHeader:    '#1E5C3A',
+  calToday:     '#EBF5EF',
+  calSelected:  '#7ac89dff',
+  calRange:     '#D6EAE0',
 };
 
-const stripTime = (date) => {
-  const d = new Date(date);
+const { width: W } = Dimensions.get('window');
+const IS_MOBILE = W < 680;
+const IS_WEB = Platform.OS === 'web';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const MONTHS_DE = [
+  'Januar','Februar','März','April','Mai','Juni',
+  'Juli','August','September','Oktober','November','Dezember',
+];
+const DAYS_DE = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+
+function today() {
+  const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
-};
+}
 
-const firstOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
-const lastOfMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
-const sameDay = (a, b) => stripTime(a).getTime() === stripTime(b).getTime();
+function sameDay(a, b) {
+  return a && b &&
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
 
-const formatLocalYMD = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
+function fmtDate(d) {
+  if (!d) return '';
+  return d.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
-const parseLocalYMD = (s) => {
-  if (!s) return null;
-  const [y, m, d] = s.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d, 12, 0, 0, 0);
-};
+function fmtTime(d) {
+  if (!d) return '';
+  return d.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+}
 
-const isValidHHMM = (t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t ?? '').trim());
+function fmtDateShort(d) {
+  if (!d) return '—';
+  return `${fmtDate(d)}  ${fmtTime(d)}`;
+}
 
-const localDateTimeToUtcIso = (ymd, hhmm) => {
-  const [y, m, d] = String(ymd).split('-').map(Number);
-  const [hh, mm] = String(hhmm).split(':').map(Number);
-  const local = new Date(y, m - 1, d, hh, mm, 0, 0);
-  return local.toISOString();
-};
+function daysBetween(a, b) {
+  if (!a || !b) return null;
+  const n = Math.round((b - a) / 86400000);
+  return n > 0 ? n : null;
+}
 
-export default function CreateChallengeScreen() {
-  const router = useRouter();
+function calDaysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
 
-  const [name, setName] = useState('');
-  const [startLocation, setStartLocation] = useState('');
-  const [targetLocation, setTargetLocation] = useState('');
-  const [distance, setDistance] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+function calFirstWeekday(year, month) {
+  const wd = new Date(year, month, 1).getDay();
+  return (wd + 6) % 7;
+}
 
-  const [startTime, setStartTime] = useState('08:00');
-  const [endTime, setEndTime] = useState('17:00');
+function initials(name) {
+  return (name || '?')
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
 
-  const [loading, setLoading] = useState(false);
+// ─── TimeWheel ────────────────────────────────────────────────────────────────
+function TimeWheel({ value, options, onChange }) {
+  return (
+    <ScrollView
+      style={tw.wheel}
+      showsVerticalScrollIndicator={false}
+      snapToInterval={24}
+      decelerationRate="fast"
+    >
+      {options.map(opt => (
+        <TouchableOpacity
+          key={opt}
+          style={[tw.wheelItem, opt === value && tw.wheelItemActive]}
+          onPress={() => onChange(opt)}
+        >
+          <Text style={[tw.wheelText, opt === value && tw.wheelTextActive]}>
+            {String(opt).padStart(2, '0')}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
 
-  const [availableTeams, setAvailableTeams] = useState([]);
-  const [teamsLoading, setTeamsLoading] = useState(true);
-  const [selectedTeamIds, setSelectedTeamIds] = useState([]);
-  const [teamModalOpen, setTeamModalOpen] = useState(false);
-  const [teamSearch, setTeamSearch] = useState('');
+const tw = StyleSheet.create({
+  wheel:           { height: 72, width: 44, flexGrow: 0 },
+  wheelItem:       { height: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
+  wheelItemActive: { backgroundColor: T.primarySoft },
+  wheelText:       { fontSize: 14, color: T.textMuted, fontWeight: '500' },
+  wheelTextActive: { fontSize: 16, color: T.primary,   fontWeight: '700' },
+});
 
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarType, setCalendarType] = useState('start');
-  const [calendarMonth, setCalendarMonth] = useState(new Date());
-  const [calendarPick, setCalendarPick] = useState(new Date());
-
-  const FieldLabel = ({ children }) => <Text style={styles.label}>{children}</Text>;
-
-  const showError = (msg) => {
-    Toast.show({
-      type: 'error',
-      text1: 'Error',
-      text2: String(msg),
-      position: 'top',
-      visibilityTime: 2000,
-      topOffset: 100,
-    });
-  };
+// ─── Calendar Picker ──────────────────────────────────────────────────────────
+function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) {
+  const now = new Date();
+  const [viewYear,  setViewYear]  = useState(value ? value.getFullYear()  : now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(value ? value.getMonth()     : now.getMonth());
+  const [picked,    setPicked]    = useState(value || null);
+  const [hour,      setHour]      = useState(value ? value.getHours()     : 8);
+  const [minute,    setMinute]    = useState(value ? value.getMinutes()   : 0);
 
   useEffect(() => {
-    let mounted = true;
-
-    const loadTeams = async () => {
-      try {
-        setTeamsLoading(true);
-        const data = await getAllTeams(100);
-
-        if (!mounted) return;
-
-        const mapped = (Array.isArray(data) ? data : [])
-          .map((team) => ({
-            id: Number(team.id),
-            name: team.name ?? `Team ${team.id}`,
-          }))
-          .filter((team) => team.id)
-          .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
-
-        setAvailableTeams(mapped);
-      } catch (error) {
-        console.error('Error loading teams:', error);
-        if (mounted) showError('Teams konnten nicht geladen werden.');
-      } finally {
-        if (mounted) setTeamsLoading(false);
-      }
-    };
-
-    loadTeams();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const selectedTeams = useMemo(() => {
-    return availableTeams.filter((team) => selectedTeamIds.includes(team.id));
-  }, [availableTeams, selectedTeamIds]);
-
-  const filteredTeamResults = useMemo(() => {
-    const q = teamSearch.trim().toLowerCase();
-
-    const sorted = [...availableTeams].sort((a, b) => {
-      const aSelected = selectedTeamIds.includes(a.id) ? 1 : 0;
-      const bSelected = selectedTeamIds.includes(b.id) ? 1 : 0;
-
-      if (aSelected !== bSelected) return bSelected - aSelected;
-      return a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
-    });
-
-    if (!q) return sorted;
-
-    return sorted.filter((team) => {
-      const name = String(team.name ?? '').toLowerCase();
-      const id = String(team.id ?? '');
-      return name.includes(q) || id.includes(q);
-    });
-  }, [availableTeams, selectedTeamIds, teamSearch]);
-
-  const toggleTeam = (teamId) => {
-    setSelectedTeamIds((prev) =>
-      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
-    );
-  };
-
-  const handleCreate = async () => {
-    const nameErrors = validateChallengeName(name);
-    const locationErrors = validateLocation(startLocation, targetLocation);
-    const distanceErrors = validateDistance(distance);
-    const dateErrors = validateDate(startDate, endDate);
-
-    const userId = await AsyncStorage.getItem('userId');
-
-    if (
-      !name ||
-      !startLocation ||
-      !targetLocation ||
-      !distance ||
-      !startDate ||
-      !endDate ||
-      !startTime ||
-      !endTime
-    ) {
-      showError('Alle Felder sind Pflichtfelder!');
-      return;
+    if (visible) {
+      const base = value || new Date();
+      setViewYear(base.getFullYear());
+      setViewMonth(base.getMonth());
+      setPicked(value || null);
+      setHour(value ? value.getHours() : 8);
+      setMinute(value ? value.getMinutes() : 0);
     }
+  }, [visible]);
 
-    if (!isValidHHMM(startTime) || !isValidHHMM(endTime)) {
-      showError('Bitte Zeiten im Format HH:mm eingeben.');
-      return;
-    }
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  }
 
-    const startIso = localDateTimeToUtcIso(startDate, startTime);
-    const endIso = localDateTimeToUtcIso(endDate, endTime);
+  function selectDay(day) {
+    const d = new Date(viewYear, viewMonth, day);
+    if (minDate && d < minDate) return;
+    setPicked(d);
+  }
 
-    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
-      showError('Ende darf nicht vor Start liegen.');
-      return;
-    }
+  function confirm() {
+    if (!picked) return;
+    const result = new Date(picked);
+    result.setHours(hour, minute, 0, 0);
+    onConfirm(result);
+  }
 
-    const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors].filter(
-      Boolean
-    );
+  const daysInMonth  = calDaysInMonth(viewYear, viewMonth);
+  const firstWeekday = calFirstWeekday(viewYear, viewMonth);
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length < 42) cells.push(null);
 
-    if (allErrors.length > 0) {
-      allErrors.forEach((error, i) => {
-        setTimeout(() => showError(error), i * 900);
-      });
-      return;
-    }
+  const HOURS   = Array.from({ length: 24 }, (_, i) => i);
+  const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
-    const newChallengeData = {
-      name,
-      start_location: startLocation,
-      target_location: targetLocation,
-      distance: parseFloat(distance),
-      start_date: startIso,
-      end_date: endIso,
-      creator_id: parseInt(userId || '0', 10),
-      ...(selectedTeamIds.length > 0 ? { team_ids: selectedTeamIds } : {}),
-    };
-
-    setLoading(true);
-    try {
-      await createChallenge(newChallengeData);
-      Toast.show({
-        type: 'success',
-        text1: 'Erfolg',
-        text2: 'Challenge erfolgreich erstellt!',
-        position: 'top',
-        topOffset: 100,
-      });
-      router.replace('/challenges');
-    } catch (error) {
-      showError(error?.message || 'Challenge konnte nicht erstellt werden!');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ---------- Kalender-Funktionen ----------
-  const openCalendar = (type) => {
-    setCalendarType(type);
-
-    const currentDate =
-      type === 'start' && startDate
-        ? parseLocalYMD(startDate) ?? new Date()
-        : type === 'end' && endDate
-          ? parseLocalYMD(endDate) ?? new Date()
-          : new Date();
-
-    setCalendarPick(currentDate);
-    setCalendarMonth(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
-    setCalendarOpen(true);
-  };
-
-  const applySelectedDate = () => {
-    const formatted = formatLocalYMD(calendarPick);
-    if (calendarType === 'start') setStartDate(formatted);
-    else setEndDate(formatted);
-    setCalendarOpen(false);
-  };
-
-  const calendarHeader = useMemo(
-    () =>
-      calendarMonth.toLocaleDateString('de-DE', {
-        month: 'long',
-        year: 'numeric',
-      }),
-    [calendarMonth]
-  );
-
-  const calendarGrid = useMemo(() => {
-    const first = firstOfMonth(calendarMonth);
-    const firstDayOfWeek = (first.getDay() + 6) % 7;
-    const start = new Date(first);
-    start.setDate(first.getDate() - firstDayOfWeek);
-
-    const cells = [];
-    for (let i = 0; i < 42; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
-
-      const inMonth = date.getMonth() === calendarMonth.getMonth();
-      let selectable = true;
-
-      if (calendarType === 'start') {
-        selectable = stripTime(date) >= stripTime(new Date());
-      } else if (calendarType === 'end') {
-        if (startDate) {
-          const startDateObj = parseLocalYMD(startDate) ?? new Date();
-          selectable = stripTime(date) >= stripTime(startDateObj);
-        } else {
-          selectable = stripTime(date) >= stripTime(new Date());
-        }
-      }
-
-      cells.push({ date, inMonth, selectable });
-    }
-    return cells;
-  }, [calendarMonth, calendarType, startDate]);
-
-  const canGoPrevMonth = () => {
-    if (calendarType === 'start') {
-      const prevMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
-      return lastOfMonth(prevMonth) >= stripTime(new Date());
-    }
-    return true;
-  };
-
-  const goPrevMonth = () => {
-    if (canGoPrevMonth()) {
-      setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
-    }
-  };
-
-  const goNextMonth = () => {
-    setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
-  };
+  if (!visible) return null;
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.headerCard}>
-          <Text style={styles.title}>Challenge erstellen</Text>
-        </View>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={cal.backdrop}>
+        <View style={cal.sheet}>
+          <View style={cal.titleBar}>
+            <Text style={cal.titleText}>{title || 'Datum wählen'}</Text>
+            <TouchableOpacity onPress={onClose} style={cal.closeBtn} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+              <Text style={cal.closeTxt}>×</Text>
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.formCard}>
-          <FieldLabel>Challenge Name</FieldLabel>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholderTextColor="#8A9590"
-            style={styles.input}
-            editable={!loading}
-          />
-
-          <FieldLabel>Startort</FieldLabel>
-          <TextInput
-            value={startLocation}
-            onChangeText={setStartLocation}
-            placeholderTextColor="#8A9590"
-            style={styles.input}
-            editable={!loading}
-          />
-
-          <FieldLabel>Zielort</FieldLabel>
-          <TextInput
-            value={targetLocation}
-            onChangeText={setTargetLocation}
-            placeholderTextColor="#8A9590"
-            style={styles.input}
-            editable={!loading}
-          />
-
-          <FieldLabel>Distanz (km)</FieldLabel>
-          <TextInput
-            value={distance}
-            onChangeText={setDistance}
-            placeholderTextColor="#8A9590"
-            style={styles.input}
-            keyboardType="numeric"
-            editable={!loading}
-          />
-
-          <FieldLabel>Teams</FieldLabel>
-          <Pressable
-            onPress={() => setTeamModalOpen(true)}
-            style={styles.selectorPill}
-            disabled={loading || teamsLoading}
-          >
-            <View style={styles.selectorLeft}>
-              <Ionicons name="people-outline" size={18} color={COLORS.accent} />
-              <Text style={[styles.selectorText, selectedTeams.length === 0 && styles.placeholderText]}>
-                {teamsLoading
-                  ? 'Teams werden geladen...'
-                  : selectedTeams.length > 0
-                    ? `${selectedTeams.length} Teams ausgewählt`
-                    : 'Teams auswählen'}
-              </Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={cal.scrollContent}>
+            <View style={cal.monthNav}>
+              <TouchableOpacity onPress={prevMonth} style={cal.navBtn}>
+                <Text style={cal.navArrow}>‹</Text>
+              </TouchableOpacity>
+              <Text style={cal.monthLabel}>{MONTHS_DE[viewMonth]} {viewYear}</Text>
+              <TouchableOpacity onPress={nextMonth} style={cal.navBtn}>
+                <Text style={cal.navArrow}>›</Text>
+              </TouchableOpacity>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.sub} />
-          </Pressable>
 
-          {selectedTeams.length > 0 && (
-            <View style={styles.chipsWrap}>
-              {selectedTeams.map((team) => (
-                <View key={team.id} style={styles.chip}>
-                  <Text style={styles.chipText} numberOfLines={1}>
-                    {team.name}
-                  </Text>
-                  <Pressable onPress={() => toggleTeam(team.id)} hitSlop={8} disabled={loading}>
-                    <Ionicons name="close" size={15} color={COLORS.text} />
-                  </Pressable>
+            <View style={cal.weekRow}>
+              {DAYS_DE.map(d => (
+                <View key={d} style={cal.weekCell}>
+                  <Text style={cal.weekLabel}>{d}</Text>
                 </View>
               ))}
             </View>
-          )}
 
-          <View style={styles.twoCol}>
-            <View style={{ flex: 1 }}>
-              <FieldLabel>Startdatum</FieldLabel>
-              <Pressable onPress={() => openCalendar('start')} style={styles.datePill}>
-                <View style={styles.datePillLeft}>
-                  <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
-                  <Text style={[styles.dateText, !startDate && styles.placeholderText]}>
-                    {startDate || 'Auswählen'}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-
-            <View style={{ flex: 1 }}>
-              <FieldLabel>Enddatum</FieldLabel>
-              <Pressable onPress={() => openCalendar('end')} style={styles.datePill}>
-                <View style={styles.datePillLeft}>
-                  <Ionicons name="calendar-outline" size={18} color={COLORS.accent} />
-                  <Text style={[styles.dateText, !endDate && styles.placeholderText]}>
-                    {endDate || 'Auswählen'}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.twoCol}>
-            <View style={{ flex: 1 }}>
-              <FieldLabel>Startzeit</FieldLabel>
-              <TextInput
-                value={startTime}
-                onChangeText={setStartTime}
-                placeholder="HH:mm"
-                placeholderTextColor="#8A9590"
-                style={styles.input}
-                editable={!loading}
-              />
-            </View>
-
-            <View style={{ flex: 1 }}>
-              <FieldLabel>Endzeit</FieldLabel>
-              <TextInput
-                value={endTime}
-                onChangeText={setEndTime}
-                placeholder="HH:mm"
-                placeholderTextColor="#8A9590"
-                style={styles.input}
-                editable={!loading}
-              />
-            </View>
-          </View>
-
-          <View style={styles.buttonRow}>
-            <Pressable
-              onPress={() => router.back()}
-              disabled={loading}
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                pressed && styles.pressed,
-                loading && styles.disabled,
-              ]}
-            >
-              <Text style={styles.secondaryBtnText}>Abbrechen</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleCreate}
-              disabled={loading}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                pressed && styles.pressed,
-                loading && styles.disabled,
-              ]}
-            >
-              {loading ? (
-                <View style={styles.loadingBtnContent}>
-                  <ActivityIndicator color="#fff" />
-                  <Text style={styles.primaryBtnText}>Erstelle…</Text>
-                </View>
-              ) : (
-                <Text style={styles.primaryBtnText}>Erstellen</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      </ScrollView>
-
-      <Modal
-        animationType="slide"
-        transparent
-        visible={teamModalOpen}
-        onRequestClose={() => setTeamModalOpen(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setTeamModalOpen(false)}>
-          <Pressable style={styles.teamModalCard} onPress={() => {}}>
-            <View style={styles.modalTopRow}>
-              <Text style={styles.teamModalTitle}>Teams auswählen</Text>
-              <Pressable onPress={() => setTeamModalOpen(false)} hitSlop={8}>
-                <Ionicons name="close" size={22} color={COLORS.text} />
-              </Pressable>
-            </View>
-
-            <View style={styles.searchBoxWrap}>
-              <Ionicons name="search-outline" size={18} color={COLORS.sub} />
-              <TextInput
-                value={teamSearch}
-                onChangeText={setTeamSearch}
-                placeholder="Team suchen…"
-                placeholderTextColor="#8A9590"
-                style={styles.searchInput}
-              />
-              {teamSearch.trim().length > 0 && (
-                <Pressable onPress={() => setTeamSearch('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color={COLORS.sub} />
-                </Pressable>
-              )}
-            </View>
-
-            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-              {teamsLoading ? (
-                <View style={styles.modalCenterState}>
-                  <ActivityIndicator size="small" color={COLORS.accent} />
-                  <Text style={styles.stateText}>Teams werden geladen...</Text>
-                </View>
-              ) : filteredTeamResults.length === 0 ? (
-                <View style={styles.modalCenterState}>
-                  <Text style={styles.stateText}>Keine Teams gefunden.</Text>
-                </View>
-              ) : (
-                filteredTeamResults.map((team) => {
-                  const selected = selectedTeamIds.includes(team.id);
-
-                  return (
-                    <Pressable
-                      key={team.id}
-                      style={[styles.teamRow, selected && styles.teamRowSelected]}
-                      onPress={() => toggleTeam(team.id)}
-                    >
-                      <Text style={styles.teamRowText}>{team.name}</Text>
-                      <Ionicons
-                        name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={22}
-                        color={selected ? COLORS.accent : COLORS.sub}
-                      />
-                    </Pressable>
-                  );
-                })
-              )}
-            </ScrollView>
-
-            <Pressable style={styles.applyBtn} onPress={() => setTeamModalOpen(false)}>
-              <Text style={styles.applyBtnText}>Fertig</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        animationType="fade"
-        transparent
-        visible={calendarOpen}
-        onRequestClose={() => setCalendarOpen(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setCalendarOpen(false)}>
-          <Pressable style={styles.calendarCard} onPress={() => {}}>
-            <View style={styles.calHeader}>
-              <Pressable
-                onPress={goPrevMonth}
-                style={[styles.navPill, !canGoPrevMonth() && styles.navDisabled]}
-                disabled={!canGoPrevMonth()}
-              >
-                <Ionicons name="chevron-back" size={18} color={COLORS.text} />
-              </Pressable>
-
-              <Text style={styles.calHeaderTitle}>{calendarHeader}</Text>
-
-              <Pressable onPress={goNextMonth} style={styles.navPill}>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.text} />
-              </Pressable>
-            </View>
-
-            <View style={styles.weekRow}>
-              {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((d) => (
-                <Text key={d} style={styles.weekCell}>
-                  {d}
-                </Text>
-              ))}
-            </View>
-
-            <View style={styles.grid}>
-              {calendarGrid.map(({ date, inMonth, selectable }, idx) => {
-                const isSelected = sameDay(date, calendarPick);
-                const isToday = sameDay(date, new Date());
-                const disabled = !selectable;
-
+            <View style={cal.grid}>
+              {cells.map((day, i) => {
+                if (!day) return <View key={`e${i}`} style={cal.cell} />;
+                const cellDate  = new Date(viewYear, viewMonth, day);
+                const isTodayD  = sameDay(cellDate, today());
+                const isSelected = picked && sameDay(cellDate, picked);
+                const isDisabled = minDate && cellDate < minDate;
                 return (
-                  <Pressable
-                    key={`${date.getTime()}-${idx}`}
-                    style={[styles.dayCellWrap, disabled && styles.dayDisabled]}
-                    onPress={() => !disabled && setCalendarPick(date)}
-                    disabled={disabled}
+                  <TouchableOpacity
+                    key={day}
+                    style={[
+                      cal.cell,
+                      isTodayD  && cal.cellToday,
+                      isSelected && cal.cellSelected,
+                      isDisabled && cal.cellDisabled,
+                    ]}
+                    onPress={() => !isDisabled && selectDay(day)}
+                    activeOpacity={isDisabled ? 1 : 0.7}
                   >
-                    <View
-                      style={[
-                        styles.dayCellInner,
-                        !inMonth && styles.dayCellInnerOutMonth,
-                        isToday && !isSelected && styles.dayCellInnerToday,
-                        isSelected && !disabled && styles.dayCellInnerSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dayCellText,
-                          !inMonth && styles.dayOutText,
-                          isToday && !isSelected && styles.dayTodayText,
-                          isSelected && !disabled && styles.daySelectedText,
-                        ]}
-                      >
-                        {date.getDate()}
-                      </Text>
-                    </View>
-                  </Pressable>
+                    <Text style={[
+                      cal.cellText,
+                      isTodayD  && cal.cellTextToday,
+                      isSelected && cal.cellTextSelected,
+                      isDisabled && cal.cellTextDisabled,
+                    ]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
                 );
               })}
             </View>
 
-            <Pressable style={styles.applyBtn} onPress={applySelectedDate}>
-              <Text style={styles.applyBtnText}>Übernehmen</Text>
-            </Pressable>
+            <View style={cal.divider} />
 
-            <Pressable style={styles.cancelBtn} onPress={() => setCalendarOpen(false)}>
-              <Text style={styles.cancelBtnText}>Abbrechen</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+            <Text style={cal.timeLabel}>Uhrzeit</Text>
+            <View style={cal.timeRow}>
+              <View style={cal.timeBlock}>
+                <Text style={cal.timeUnit}>Stunde</Text>
+                {IS_WEB ? (
+                  <select
+                    value={hour}
+                    onChange={e => setHour(Number(e.target.value))}
+                    style={{ fontSize: 16, padding: '6px 10px', borderRadius: 8, border: `1.5px solid ${T.border}`, color: T.text, background: T.surfaceAlt, fontFamily: 'inherit', outline: 'none' }}
+                  >
+                    {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}</option>)}
+                  </select>
+                ) : (
+                  <TimeWheel value={hour} options={HOURS} onChange={setHour} />
+                )}
+              </View>
+              <Text style={cal.timeSep}>:</Text>
+              <View style={cal.timeBlock}>
+                <Text style={cal.timeUnit}>Minute</Text>
+                {IS_WEB ? (
+                  <select
+                    value={minute}
+                    onChange={e => setMinute(Number(e.target.value))}
+                    style={{ fontSize: 16, padding: '6px 10px', borderRadius: 8, border: `1.5px solid ${T.border}`, color: T.text, background: T.surfaceAlt, fontFamily: 'inherit', outline: 'none' }}
+                  >
+                    {MINUTES.map(m => <option key={m} value={m}>{String(m).padStart(2,'0')}</option>)}
+                  </select>
+                ) : (
+                  <TimeWheel value={minute} options={MINUTES} onChange={setMinute} />
+                )}
+              </View>
+              {picked && (
+                <View style={cal.timePreview}>
+                  <Text style={cal.timePreviewLabel}>Gewählt</Text>
+                  <Text style={cal.timePreviewVal}>
+                    {fmtDate(picked)}{'\n'}{String(hour).padStart(2,'0')}:{String(minute).padStart(2,'0')}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+
+          <View style={cal.actions}>
+            <TouchableOpacity style={cal.cancelBtn} onPress={onClose}>
+              <Text style={cal.cancelTxt}>Abbrechen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[cal.confirmBtn, !picked && cal.confirmBtnDisabled]}
+              onPress={confirm}
+              disabled={!picked}
+            >
+              <Text style={cal.confirmTxt}>Übernehmen</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const cal = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(10,25,18,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheet: {
+    backgroundColor: T.white,
+    borderRadius: 20,
+    padding: 14,
+    width: Math.min(360, W - 32),
+    maxHeight: IS_MOBILE ? '78%' : '82%',
+    flexShrink: 1,
+    ...(IS_WEB
+      ? { boxShadow: '0 8px 40px rgba(10,25,18,0.22)' }
+      : { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 }),
+  },
+  scrollContent: { paddingBottom: 4 },
+  titleBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
+  },
+  titleText: { fontSize: 15, fontWeight: '700', color: T.text },
+  closeBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 7, backgroundColor: T.surfaceAlt },
+  closeTxt: { fontSize: 20, color: T.textMuted, lineHeight: 22 },
+  monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  navBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: T.surfaceAlt, borderWidth: 1, borderColor: T.border, alignItems: 'center', justifyContent: 'center' },
+  navArrow: { fontSize: 18, color: T.primary, fontWeight: '700', lineHeight: 22 },
+  monthLabel: { fontSize: 15, fontWeight: '700', color: T.text },
+  weekRow: { flexDirection: 'row', marginBottom: 2 },
+  weekCell: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+  weekLabel: { fontSize: 11, fontWeight: '600', color: T.textMuted },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 6, marginBottom: 1 },
+  cellToday: { backgroundColor: T.calToday },
+  cellSelected: { backgroundColor: T.calSelected },
+  cellDisabled: { opacity: 0.3 },
+  cellText: { fontSize: 14, color: T.text, fontWeight: '500' },
+  cellTextToday: { color: T.primary, fontWeight: '700' },
+  cellTextSelected: { color: T.white, fontWeight: '700' },
+  cellTextDisabled: { color: T.textLight },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: T.border, marginVertical: 10 },
+  timeLabel: { fontSize: 12, fontWeight: '700', color: T.textSec, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  timeBlock: { alignItems: 'center', gap: 6 },
+  timeUnit: { fontSize: 11, color: T.textMuted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+  timeSep: { fontSize: 28, fontWeight: '700', color: T.textMuted, marginTop: 16 },
+  timePreview: { flex: 1, backgroundColor: T.primarySofter, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: T.accentLight },
+  timePreviewLabel: { fontSize: 10, fontWeight: '700', color: T.primaryLight, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  timePreviewVal: { fontSize: 13, fontWeight: '700', color: T.primary, lineHeight: 19 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 14, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.border },
+  cancelBtn: { flex: 1, borderRadius: 12, borderWidth: 1.5, borderColor: T.border, paddingVertical: 12, alignItems: 'center', backgroundColor: T.white },
+  cancelTxt: { fontSize: 15, fontWeight: '600', color: T.textSec },
+  confirmBtn: { flex: 1, borderRadius: 12, backgroundColor: T.primary, paddingVertical: 12, alignItems: 'center' },
+  confirmBtnDisabled: { backgroundColor: T.textLight },
+  confirmTxt: { fontSize: 15, fontWeight: '700', color: T.white },
+});
+
+// ─── DateField ────────────────────────────────────────────────────────────────
+function DateField({ label, required, value, onChange, minDate, error }) {
+  const [open, setOpen] = useState(false);
+  const hasVal = !!value;
+  return (
+    <View style={s.fieldWrap}>
+      {label && (
+        <Text style={s.label}>{label}{required && <Text style={{ color: T.primary }}> *</Text>}</Text>
+      )}
+      <TouchableOpacity
+        style={[s.dateBtn, error && s.dateBtnError, hasVal && s.dateBtnFilled]}
+        onPress={() => setOpen(true)}
+        activeOpacity={0.75}
+      >
+        <View style={s.dateBtnInner}>
+          <Text style={[s.dateBtnIcon, hasVal && { color: T.primary }]}>▦</Text>
+          <Text style={[s.dateBtnText, !hasVal && s.dateBtnPlaceholder]}>
+            {hasVal ? fmtDateShort(value) : 'Datum und Uhrzeit wählen'}
+          </Text>
+        </View>
+        {hasVal && (
+          <TouchableOpacity
+            onPress={(e) => { e?.stopPropagation?.(); onChange(null); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={s.dateBtnClear}>×</Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+      {error && <Text style={s.errorMsg}>{error}</Text>}
+      <CalendarPicker
+        visible={open}
+        value={value}
+        minDate={minDate}
+        title={label}
+        onConfirm={(d) => { onChange(d); setOpen(false); }}
+        onClose={() => setOpen(false)}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 28,
-  },
+// ─── Section heading ──────────────────────────────────────────────────────────
+function SectionHead({ title, subtitle }) {
+  return (
+    <View style={s.secHead}>
+      <Text style={s.secTitle}>{title}</Text>
+      {subtitle && <Text style={s.secSub}>{subtitle}</Text>}
+    </View>
+  );
+}
 
-  headerCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 14,
+function Card({ children, style }) {
+  return <View style={[s.card, style]}>{children}</View>;
+}
+
+function HRule() {
+  return <View style={s.hrule} />;
+}
+
+// ─── User row ─────────────────────────────────────────────────────────────────
+function UserRow({ user, selected, onToggle }) {
+  const avatarUri = getDisplayAvatarUri(user);
+  const [imgErr, setImgErr] = useState(false);
+  const displayName = user.name ?? user.fullname ?? user.full_name ?? user.username ?? 'Unbekannt';
+  const ini = initials(displayName);
+  return (
+    <TouchableOpacity
+      style={[s.listRow, selected && s.listRowSel]}
+      onPress={() => onToggle(user.id)}
+      activeOpacity={0.65}
+    >
+      {avatarUri && !imgErr ? (
+        <Image
+          source={{ uri: avatarUri }}
+          style={s.userAvatarImg}
+          onError={() => setImgErr(true)}
+        />
+      ) : (
+        <View style={[s.avatar, s.userAvatarFallback]}>
+          <Text style={s.avatarText}>{ini}</Text>
+        </View>
+      )}
+      <View style={s.listBody}>
+        <Text style={[s.listName, selected && s.listNameSel]} numberOfLines={1}>
+          {displayName}
+        </Text>
+        <Text style={s.listMeta}>ID: {user.id}</Text>
+      </View>
+      <View style={[s.checkbox, selected && s.checkboxOn]}>
+        {selected && <Text style={s.checkTick}>✓</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Team row ─────────────────────────────────────────────────────────────────
+function TeamRow({ team, selected, onToggle }) {
+  const ini = initials(team.name);
+  return (
+    <TouchableOpacity
+      style={[s.listRow, selected && s.listRowSel]}
+      onPress={() => onToggle(team.id)}
+      activeOpacity={0.65}
+    >
+      <View style={s.avatar}>
+        <Text style={s.avatarText}>{ini}</Text>
+      </View>
+      <View style={s.listBody}>
+        <Text style={[s.listName, selected && s.listNameSel]} numberOfLines={1}>
+          {team.name}
+        </Text>
+        {team.memberCount != null && (
+          <Text style={s.listMeta}>{team.memberCount} Mitglieder</Text>
+        )}
+      </View>
+      <View style={[s.checkbox, selected && s.checkboxOn]}>
+        {selected && <Text style={s.checkTick}>✓</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+const PAGE_SIZE = 5;
+
+export default function CreateChallengeScreen() {
+  const router = useRouter();
+
+  // Form state
+  const [name,      setName]      = useState('');
+  const [startLoc,  setStartLoc]  = useState('');
+  const [targetLoc, setTargetLoc] = useState('');
+  const [distance,  setDistance]  = useState('');
+  const [startDate, setStartDate] = useState(null);
+  const [endDate,   setEndDate]   = useState(null);
+
+  // Mode
+  const [mode, setMode] = useState('individual');
+
+  // Users (individual mode)
+  const [users,           setUsers]           = useState([]);
+  const [userQuery,       setUserQuery]       = useState('');
+  const [loadingUsers,    setLoadingUsers]    = useState(false);
+  const [visibleUsers,    setVisibleUsers]    = useState(PAGE_SIZE);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+
+  // Teams (team mode)
+  const [teams,           setTeams]           = useState([]);
+  const [teamQuery,       setTeamQuery]       = useState('');
+  const [loadingTeams,    setLoadingTeams]    = useState(false);
+  const [visibleTeams,    setVisibleTeams]    = useState(PAGE_SIZE);
+  const [selectedTeamIds, setSelectedTeamIds] = useState([]);
+
+  // Form errors + submit
+  const [errors,     setErrors]     = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState(null);
+  const toastAnim  = useRef(new Animated.Value(-140)).current;
+  const toastTimer = useRef(null);
+
+  // Load users on mount
+  useEffect(() => { loadUsers(''); }, []);
+
+  // Load teams on mount
+  useEffect(() => { loadAllTeams(); }, []);
+
+  const loadUsers = async (q = '') => {
+    setLoadingUsers(true);
+    try {
+      const data = q.trim()
+        ? await searchUsers(q, 0, 50)
+        : await getUsers(0, 50);
+      setUsers(data || []);
+    } finally {
+      setVisibleUsers(PAGE_SIZE);
+      setLoadingUsers(false);
+    }
+  };
+
+  const loadAllTeams = async () => {
+    setLoadingTeams(true);
+    try {
+      const data = await getAllTeams(100);
+      const mapped = (Array.isArray(data) ? data : [])
+        .map(t => ({ id: Number(t.id), name: t.name ?? `Team ${t.id}` }))
+        .filter(t => t.id)
+        .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+      setTeams(mapped);
+    } finally {
+      setVisibleTeams(PAGE_SIZE);
+      setLoadingTeams(false);
+    }
+  };
+
+  const filteredTeams = teams.filter(t => {
+    const q = teamQuery.trim().toLowerCase();
+    if (!q) return true;
+    return t.name.toLowerCase().includes(q) || String(t.id).includes(q);
+  });
+
+  const toggleUser = useCallback((id) => {
+    setSelectedUserIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }, []);
+
+  const toggleTeam = useCallback((id) => {
+    setSelectedTeamIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }, []);
+
+  const duration = daysBetween(startDate, endDate);
+
+  const validate = () => {
+    const e = {};
+    if (!name.trim())                                     e.name      = 'Name ist erforderlich';
+    if (!startLoc.trim())                                 e.startLoc  = 'Startort eingeben';
+    if (!targetLoc.trim())                                e.targetLoc = 'Zielort eingeben';
+    if (!distance || isNaN(+distance) || +distance <= 0) e.distance  = 'Gültige Distanz eingeben';
+    if (!startDate)                                       e.startDate = 'Startdatum wählen';
+    if (startDate && startDate < today())                 e.startDate = 'Startdatum darf nicht in der Vergangenheit liegen';
+    if (!endDate)                                         e.endDate   = 'Enddatum wählen';
+    if (startDate && endDate && endDate <= startDate)     e.endDate   = 'Enddatum muss nach Startdatum liegen';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      const payload = {
+        name:            name.trim(),
+        start_location:  startLoc.trim(),
+        target_location: targetLoc.trim(),
+        distance:        parseFloat(distance),
+        start_date:      startDate.toISOString(),
+        end_date:        endDate.toISOString(),
+        mode,
+        team_ids:        mode === 'team' ? selectedTeamIds : [],
+        creator_id:      parseInt(storedUserId || '0', 10),
+      };
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Zeitüberschreitung. Bitte Verbindung prüfen.')), 10000)
+      );
+      const created = await Promise.race([createChallenge(payload), timeout]);
+      if (mode === 'individual' && selectedUserIds.length > 0 && created?.id) {
+        try {
+          await createBulkChallengeInvites(created.id, selectedUserIds);
+        } catch (inviteErr) {
+          console.warn('Invites could not be sent:', inviteErr);
+        }
+      }
+      showToast('success', 'Challenge erfolgreich erstellt!', () => router.replace('/challenges'));
+    } catch (err) {
+      showToast('error', extractErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const clearError = (key) => setErrors(prev => ({ ...prev, [key]: null }));
+
+  function dismissToast() {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    Animated.timing(toastAnim, { toValue: -140, duration: 280, useNativeDriver: true })
+      .start(() => setToast(null));
+  }
+
+  function showToast(type, message, onPress) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ type, message, onPress });
+  }
+
+  useEffect(() => {
+    if (!toast) return;
+    toastAnim.setValue(-140);
+    Animated.spring(toastAnim, { toValue: 0, useNativeDriver: true, tension: 55, friction: 11 }).start();
+    toastTimer.current = setTimeout(dismissToast, 5000);
+  }, [toast]);
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  return (
+    <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={s.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {/* Header */}
+        <View style={s.header}>
+          <Text style={s.headerTitle}>Challenge erstellen</Text>
+        </View>
+
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── 1. Grunddaten ─────────────────────────────────────────── */}
+          <SectionHead title="Grunddaten" subtitle="Name, Strecke und Distanz festlegen" />
+          <Card>
+            <View style={s.fieldWrap}>
+              <Text style={s.label}>Challenge-Name <Text style={{ color: T.primary }}>*</Text></Text>
+              <TextInput
+                style={[s.input, errors.name && s.inputError]}
+                placeholder="z.B. Graz nach Wien 2026"
+                placeholderTextColor={T.textLight}
+                value={name}
+                onChangeText={v => { setName(v); clearError('name'); }}
+                maxLength={80}
+              />
+              {errors.name && <Text style={s.errorMsg}>{errors.name}</Text>}
+            </View>
+
+            <HRule />
+
+            <View style={IS_MOBILE ? s.col : s.row2}>
+              <View style={[s.fieldWrap, !IS_MOBILE && { flex: 1 }]}>
+                <Text style={s.label}>Startort <Text style={{ color: T.primary }}>*</Text></Text>
+                <TextInput
+                  style={[s.input, errors.startLoc && s.inputError]}
+                  placeholder="z.B. Graz"
+                  placeholderTextColor={T.textLight}
+                  value={startLoc}
+                  onChangeText={v => { setStartLoc(v); clearError('startLoc'); }}
+                />
+                {errors.startLoc && <Text style={s.errorMsg}>{errors.startLoc}</Text>}
+              </View>
+              <View style={[s.fieldWrap, !IS_MOBILE && { flex: 1 }]}>
+                <Text style={s.label}>Zielort <Text style={{ color: T.primary }}>*</Text></Text>
+                <TextInput
+                  style={[s.input, errors.targetLoc && s.inputError]}
+                  placeholder="z.B. Wien"
+                  placeholderTextColor={T.textLight}
+                  value={targetLoc}
+                  onChangeText={v => { setTargetLoc(v); clearError('targetLoc'); }}
+                />
+                {errors.targetLoc && <Text style={s.errorMsg}>{errors.targetLoc}</Text>}
+              </View>
+            </View>
+
+            <HRule />
+
+            <View style={s.fieldWrap}>
+              <Text style={s.label}>Distanz <Text style={{ color: T.primary }}>*</Text></Text>
+              <View style={s.distRow}>
+                <TextInput
+                  style={[s.input, s.distInput, errors.distance && s.inputError]}
+                  placeholder="z.B. 200"
+                  placeholderTextColor={T.textLight}
+                  value={distance}
+                  onChangeText={v => { setDistance(v.replace(/[^0-9.]/g, '')); clearError('distance'); }}
+                  keyboardType="numeric"
+                />
+                <View style={s.unitChip}>
+                  <Text style={s.unitText}>km</Text>
+                </View>
+              </View>
+              {errors.distance && <Text style={s.errorMsg}>{errors.distance}</Text>}
+            </View>
+          </Card>
+
+          {/* ── 2. Zeitraum ─────────────────────────────────────────────── */}
+          <SectionHead title="Zeitraum" subtitle="Start- und Enddatum der Challenge" />
+          <Card>
+            <View style={IS_MOBILE ? s.col : s.row2}>
+              <View style={!IS_MOBILE && { flex: 1 }}>
+                <DateField
+                  label="Startdatum"
+                  required
+                  minDate={today()}
+                  value={startDate}
+                  onChange={v => { setStartDate(v); clearError('startDate'); if (endDate && v && endDate <= v) setEndDate(null); }}
+                  error={errors.startDate}
+                />
+              </View>
+              <View style={!IS_MOBILE && { flex: 1 }}>
+                <DateField
+                  label="Enddatum"
+                  required
+                  value={endDate}
+                  minDate={startDate ? new Date(startDate.getTime() + 60000) : undefined}
+                  onChange={v => { setEndDate(v); clearError('endDate'); }}
+                  error={errors.endDate}
+                />
+              </View>
+            </View>
+
+            {duration && (
+              <>
+                <HRule />
+                <View style={s.durationRow}>
+                  <Text style={s.durationLabel}>Gesamtdauer</Text>
+                  <View style={s.durationBadge}>
+                    <Text style={s.durationVal}>{duration} Tage</Text>
+                  </View>
+                </View>
+              </>
+            )}
+          </Card>
+
+          {/* ── 3. Modus wählen ─────────────────────────────────────────── */}
+          <SectionHead title="Modus wählen" subtitle="Einzeln oder Team – wähle wie die Challenge gespielt wird" />
+          <Card>
+            <View style={s.modeRow}>
+              <TouchableOpacity
+                style={[s.modeBtn, mode === 'individual' && s.modeBtnActive]}
+                onPress={() => setMode('individual')}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={28}
+                  color={mode === 'individual' ? T.primaryMid : T.text}
+                />
+                <Text style={[s.modeBtnLabel, mode === 'individual' && s.modeBtnLabelActive]}>Einzeln</Text>
+                <Text style={[s.modeBtnSub, mode === 'individual' && s.modeBtnSubActive]}>Einzel-Modus</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.modeBtn, mode === 'team' && s.modeBtnActive]}
+                onPress={() => setMode('team')}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name="people-outline"
+                  size={28}
+                  color={mode === 'team' ? T.primaryMid : T.text}
+                />
+                <Text style={[s.modeBtnLabel, mode === 'team' && s.modeBtnLabelActive]}>Team</Text>
+                <Text style={[s.modeBtnSub, mode === 'team' && s.modeBtnSubActive]}>Team-Modus</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+
+          {/* ── 4. Users / Teams Widget ─────────────────────────────────── */}
+          {mode === 'individual' ? (
+            <>
+              <SectionHead title="Einladungen" subtitle="Lade Nutzer zur Challenge ein" />
+              <Card style={s.listCard}>
+                <View style={s.widgetSearchWrap}>
+                  <View style={s.searchBox}>
+                    <Text style={s.searchIcon}>⌕</Text>
+                    <TextInput
+                      style={s.searchInput}
+                      placeholder="User suchen…"
+                      placeholderTextColor={T.textMuted}
+                      value={userQuery}
+                      onChangeText={(text) => { setUserQuery(text); loadUsers(text); }}
+                    />
+                    {userQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => { setUserQuery(''); loadUsers(''); }} hitSlop={8}>
+                        <Text style={s.searchClear}>×</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {loadingUsers ? (
+                  <View style={s.widgetCenter}>
+                    <ActivityIndicator color={T.primary} />
+                  </View>
+                ) : users.length === 0 ? (
+                  <View style={s.widgetCenter}>
+                    <Text style={s.emptyText}>Keine User gefunden</Text>
+                  </View>
+                ) : (
+                  <>
+                    {users.slice(0, visibleUsers).map((user, i, arr) => (
+                      <View key={user.id}>
+                        <UserRow
+                          user={user}
+                          selected={selectedUserIds.includes(user.id)}
+                          onToggle={toggleUser}
+                        />
+                        {i < Math.min(arr.length, visibleUsers) - 1 && (
+                          <View style={s.listDivider} />
+                        )}
+                      </View>
+                    ))}
+                    {visibleUsers < users.length && (
+                      <TouchableOpacity
+                        style={s.showMoreBtn}
+                        onPress={() => setVisibleUsers(v => v + PAGE_SIZE)}
+                      >
+                        <Text style={s.showMoreText}>
+                          Mehr Nutzer anzeigen ({users.length - visibleUsers} weitere)
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </Card>
+            </>
+          ) : (
+            <>
+              <SectionHead title="Teams auswählen" subtitle="Wähle Teams für diese Challenge aus" />
+              <Card style={s.listCard}>
+                <View style={s.widgetSearchWrap}>
+                  <View style={s.searchBox}>
+                    <Text style={s.searchIcon}>⌕</Text>
+                    <TextInput
+                      style={s.searchInput}
+                      placeholder="Team suchen…"
+                      placeholderTextColor={T.textMuted}
+                      value={teamQuery}
+                      onChangeText={setTeamQuery}
+                    />
+                    {teamQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setTeamQuery('')} hitSlop={8}>
+                        <Text style={s.searchClear}>×</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {loadingTeams ? (
+                  <View style={s.widgetCenter}>
+                    <ActivityIndicator color={T.primary} />
+                  </View>
+                ) : filteredTeams.length === 0 ? (
+                  <View style={s.widgetCenter}>
+                    <Text style={s.emptyText}>Keine Teams gefunden</Text>
+                  </View>
+                ) : (
+                  <>
+                    {filteredTeams.slice(0, visibleTeams).map((team, i, arr) => (
+                      <View key={team.id}>
+                        <TeamRow
+                          team={team}
+                          selected={selectedTeamIds.includes(team.id)}
+                          onToggle={toggleTeam}
+                        />
+                        {i < Math.min(arr.length, visibleTeams) - 1 && (
+                          <View style={s.listDivider} />
+                        )}
+                      </View>
+                    ))}
+                    {visibleTeams < filteredTeams.length && (
+                      <TouchableOpacity
+                        style={s.showMoreBtn}
+                        onPress={() => setVisibleTeams(v => v + PAGE_SIZE)}
+                      >
+                        <Text style={s.showMoreText}>
+                          Mehr Teams anzeigen ({filteredTeams.length - visibleTeams} weitere)
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </Card>
+            </>
+          )}
+
+          {/* ── Submit ──────────────────────────────────────────────────── */}
+          <TouchableOpacity
+            style={[s.submitBtn, submitting && s.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting}
+            activeOpacity={0.85}
+          >
+            {submitting
+              ? <ActivityIndicator color={T.white} />
+              : <Text style={s.submitText}>Challenge erstellen</Text>
+            }
+          </TouchableOpacity>
+
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ── Toast ── */}
+      {toast && (
+        <Animated.View
+          style={[ts.wrap, { transform: [{ translateY: toastAnim }] }]}
+          pointerEvents="box-none"
+        >
+          <TouchableOpacity
+            style={[ts.inner, toast.type === 'success' ? ts.success : ts.error]}
+            onPress={() => { toast.onPress?.(); dismissToast(); }}
+            activeOpacity={1}
+            pointerEvents="auto"
+          >
+            <View style={ts.iconWrap}>
+              <Text style={ts.iconText}>{toast.type === 'success' ? '✓' : '!'}</Text>
+            </View>
+            <Text style={ts.message} numberOfLines={3}>{toast.message}</Text>
+            <TouchableOpacity onPress={dismissToast} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={ts.close}>×</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const INPUT_RADIUS = 12;
+const CARD_RADIUS  = 16;
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.bg },
+
+  header: {
+    paddingTop: Platform.OS === 'ios' ? 74 : 24,
+    paddingBottom: 22,
+    paddingHorizontal: 20,
+    backgroundColor: T.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: T.border,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: 0.2,
+  headerTitle: {
+    fontSize: IS_MOBILE ? 24 : 30,
+    fontWeight: '600',
+    color: T.primary,
+    letterSpacing: 1.5,
+    lineHeight: IS_MOBILE ? 34 : 40,
     textAlign: 'center',
   },
 
-  formCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    padding: 16,
+  scroll: { flex: 1 },
+  scrollContent: {
+    padding: IS_MOBILE ? 16 : 24,
+    paddingBottom: 40,
+    maxWidth: 740,
+    width: '100%',
+    alignSelf: 'center',
+  },
+
+  secHead:  { marginBottom: 10, marginTop: 20, paddingLeft: 12, borderLeftWidth: 3, borderLeftColor: T.primaryLight },
+  secTitle: { fontSize: 17, fontWeight: '700', color: T.text, letterSpacing: -0.2 },
+  secSub:   { fontSize: 13, color: T.textMuted, marginTop: 2 },
+
+  card: {
+    backgroundColor: T.white,
+    borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 3,
+    borderColor: T.border,
+    padding: IS_MOBILE ? 16 : 20,
+    marginBottom: 4,
+    ...(IS_WEB
+      ? { boxShadow: '0 1px 6px rgba(15,31,23,0.08)' }
+      : { shadowColor: '#0F1F17', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 1 }, elevation: 1 }),
   },
 
-  label: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: COLORS.sub,
-    marginBottom: 8,
-    marginLeft: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-
+  fieldWrap: { marginBottom: 0 },
+  label: { fontSize: 13, fontWeight: '600', color: T.textSec, marginBottom: 7, letterSpacing: 0.1 },
   input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: COLORS.text,
-    marginBottom: 14,
+    backgroundColor: T.surfaceAlt,
+    borderWidth: 1.5, borderColor: T.border,
+    borderRadius: INPUT_RADIUS,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 13 : 11,
+    fontSize: 15, color: T.text,
+    ...(IS_WEB ? { outlineStyle: 'none', transition: 'border-color 0.15s' } : {}),
   },
+  inputError: { borderColor: T.danger, backgroundColor: T.dangerSoft },
+  errorMsg:   { fontSize: 12, color: T.danger, marginTop: 5, fontWeight: '500' },
+  hrule:      { height: StyleSheet.hairlineWidth, backgroundColor: T.border, marginVertical: 16 },
 
-  selectorPill: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 18,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  row2: { flexDirection: 'row', gap: 14 },
+  col:  { flexDirection: 'column', gap: 14 },
+
+  distRow:   { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  distInput: { flex: 1, maxWidth: IS_MOBILE ? undefined : 200 },
+  unitChip: {
+    paddingHorizontal: 18,
+    paddingVertical: Platform.OS === 'ios' ? 13 : 11,
+    borderRadius: INPUT_RADIUS,
+    backgroundColor: T.primarySoft,
+    borderWidth: 1.5, borderColor: T.accentLight,
   },
-  selectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  unitText: { fontSize: 15, fontWeight: '700', color: T.primary },
+
+  dateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: T.surfaceAlt,
+    borderWidth: 1.5, borderColor: T.border,
+    borderRadius: INPUT_RADIUS,
+    paddingHorizontal: 16, paddingVertical: 12,
+    ...(IS_WEB ? { cursor: 'pointer', transition: 'border-color 0.15s' } : {}),
+  },
+  dateBtnFilled:      { borderColor: T.accentLight, backgroundColor: T.primarySofter },
+  dateBtnError:       { borderColor: T.danger, backgroundColor: T.dangerSoft },
+  dateBtnInner:       { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  dateBtnIcon:        { fontSize: 16, color: T.textLight },
+  dateBtnText:        { fontSize: 15, color: T.text, fontWeight: '500' },
+  dateBtnPlaceholder: { color: T.textLight, fontWeight: '400' },
+  dateBtnClear:       { fontSize: 22, color: T.textMuted, paddingLeft: 8, lineHeight: 24 },
+
+  durationRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  durationLabel: { fontSize: 15, fontWeight: '600', color: T.textSec },
+  durationBadge: {
+    backgroundColor: T.successSoft, paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 20, borderWidth: 1, borderColor: T.accentLight,
+  },
+  durationVal: { fontSize: 14, fontWeight: '700', color: T.success },
+
+  // Mode toggle
+  modeRow: { flexDirection: 'row', gap: 12 },
+  modeBtn: {
     flex: 1,
-    paddingRight: 10,
-  },
-  selectorText: {
-    fontSize: 15,
-    color: COLORS.text,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 14,
-  },
-  chip: {
-    flexDirection: 'row',
+    paddingVertical: 22,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: T.border,
+    backgroundColor: T.surfaceAlt,
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.accentSoft,
-    borderWidth: 1,
-    borderColor: COLORS.accentBorder,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    maxWidth: '100%',
+    ...(IS_WEB ? { cursor: 'pointer', transition: 'border-color 0.15s, background-color 0.15s' } : {}),
   },
-  chipText: {
-    color: COLORS.text,
-    fontWeight: '700',
-    fontSize: 13,
-    maxWidth: 180,
+  modeBtnActive: {
+    borderColor: T.primaryLight,
+    backgroundColor: T.primarySoft,
+    ...(IS_WEB ? { boxShadow: '0 2px 14px rgba(30,92,58,0.18)' } : {}),
   },
+  modeBtnLabel:      { fontSize: 18, fontWeight: '700', color: T.textSec, letterSpacing: 0.2 },
+  modeBtnLabelActive:{ color: T.text },
+  modeBtnSub:        { fontSize: 12, fontWeight: '500', color: T.textMuted },
+  modeBtnSubActive:  { color: T.textSec },
 
-  twoCol: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-
-  datePill: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 18,
-    paddingVertical: 12,
+  // List widget (users/teams)
+  listCard: { padding: 0, overflow: 'hidden', marginBottom: 4 },
+  widgetSearchWrap: {
     paddingHorizontal: 14,
-    marginBottom: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
-  datePillLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: T.white,
+    borderWidth: 1.5, borderColor: T.border,
+    borderRadius: INPUT_RADIUS,
+    paddingHorizontal: 14, gap: 8,
+    marginBottom: 10,
+    ...(IS_WEB ? { boxShadow: '0 1px 4px rgba(15,31,23,0.07)' } : {}),
   },
-  dateText: {
-    fontSize: 14,
-    color: COLORS.text,
-    fontWeight: '700',
-  },
-  placeholderText: {
-    color: '#8A9590',
-  },
-
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 6,
-  },
-  primaryBtn: {
-    flex: 1,
-    backgroundColor: COLORS.accent,
-    paddingVertical: 14,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: 0.2,
-  },
-  secondaryBtn: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingVertical: 14,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryBtnText: {
-    color: COLORS.text,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  loadingBtnContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-
-  teamModalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    padding: 16,
-    width: '100%',
-    maxWidth: 420,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  modalTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  teamModalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-
-  searchBoxWrap: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    minHeight: 46,
-    marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  searchIcon:  { fontSize: 18, color: T.textMuted },
   searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.text,
-    paddingVertical: 10,
+    flex: 1, fontSize: 15, color: T.text, paddingVertical: 12,
+    ...(IS_WEB ? { outlineStyle: 'none', border: 'none', background: 'transparent' } : {}),
   },
+  searchClear: { fontSize: 22, color: T.textMuted, paddingHorizontal: 4, lineHeight: 24 },
 
-  modalCenterState: {
-    paddingVertical: 24,
+  widgetCenter: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
   },
-  stateText: {
-    color: COLORS.sub,
+  emptyText: { fontSize: 14, color: T.textMuted, textAlign: 'center', paddingVertical: 32 },
+
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    gap: 12,
+    backgroundColor: T.white,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+  },
+  listRowSel: { borderLeftColor: T.primaryLight },
+  listDivider: { height: StyleSheet.hairlineWidth, backgroundColor: T.border, marginLeft: 70 },
+  listBody: { flex: 1 },
+  listName: { fontSize: 15, fontWeight: '600', color: T.text },
+  listNameSel: { color: T.primaryMid },
+  listMeta: { fontSize: 12, color: T.textMuted, marginTop: 2 },
+
+  avatar: {
+    width: 42, height: 42, borderRadius: 11,
+    backgroundColor: T.surfaceAlt,
+    borderWidth: 1, borderColor: T.border,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  avatarText: { fontSize: 13, fontWeight: '700', color: T.textSec },
+
+  userAvatarImg: {
+    width: 42, height: 42, borderRadius: 21, flexShrink: 0,
+  },
+  userAvatarFallback: {
+    backgroundColor: T.primarySofter,
+    borderColor: T.accentLight,
+    borderRadius: 21,
+  },
+
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 2, borderColor: T.border,
+    backgroundColor: T.white,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  checkboxOn:  { backgroundColor: T.primaryLight, borderColor: T.primaryLight },
+  checkTick:   { color: T.white, fontSize: 13, fontWeight: '800', lineHeight: 14 },
+
+  showMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: T.border,
+    backgroundColor: T.white,
+  },
+  showMoreText: {
     fontSize: 14,
     fontWeight: '600',
+    color: T.primaryMid,
   },
 
-  teamRow: {
-    minHeight: 56,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 16,
+  submitBtn: {
+    backgroundColor: T.primaryLight,
+    borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 20,
+    ...(IS_WEB ? { cursor: 'pointer', boxShadow: '0 4px 18px rgba(74,158,110,0.35)' } : {
+      shadowColor: T.primaryLight, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 5,
+    }),
+  },
+  submitBtnDisabled: { backgroundColor: T.textLight },
+  submitText: { fontSize: 17, fontWeight: '700', color: T.white, letterSpacing: 0.1 },
+});
+
+// ─── Toast styles ─────────────────────────────────────────────────────────────
+const ts = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    zIndex: 9999,
+    elevation: 20,
+    paddingTop: Platform.OS === 'ios' ? 58 : 28,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 10,
-    backgroundColor: COLORS.inputBg,
+    paddingBottom: 10,
+  },
+  inner: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  teamRowSelected: {
-    borderColor: 'rgba(85,128,92,0.35)',
-    backgroundColor: 'rgba(85,128,92,0.08)',
-  },
-  teamRowText: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: '700',
-    flex: 1,
-    paddingRight: 8,
-  },
-
-  calendarCard: {
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    padding: 16,
-    width: '100%',
-    maxWidth: 420,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 22,
-    elevation: 6,
-  },
-
-  calHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  navPill: {
-    width: 36,
-    height: 36,
-    borderRadius: 14,
-    backgroundColor: 'rgba(15,20,17,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navDisabled: {
-    opacity: 0.35,
-  },
-  calHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-
-  weekRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  weekCell: {
-    flex: 1,
-    textAlign: 'center',
-    fontWeight: '800',
-    color: COLORS.sub,
-    fontSize: 12,
-  },
-
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCellWrap: {
-    width: '14.28%',
-    aspectRatio: 1,
-    padding: 4,
-  },
-  dayDisabled: {
-    opacity: 0.35,
-  },
-  dayCellInner: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 16,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.06)',
-  },
-  dayCellInnerOutMonth: {
-    backgroundColor: 'rgba(15,20,17,0.02)',
-  },
-  dayCellInnerToday: {
-    borderColor: 'rgba(85,128,92,0.30)',
-    backgroundColor: 'rgba(85,128,92,0.06)',
-  },
-  dayCellInnerSelected: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
-  },
-  dayCellText: {
-    fontSize: 13,
-    color: COLORS.text,
-    fontWeight: '800',
-  },
-  dayOutText: {
-    color: 'rgba(15,20,17,0.25)',
-  },
-  dayTodayText: {
-    color: COLORS.accent,
-  },
-  daySelectedText: {
-    color: '#fff',
-  },
-
-  applyBtn: {
-    backgroundColor: COLORS.accent,
     paddingVertical: 14,
-    borderRadius: 18,
-    alignItems: 'center',
-    marginTop: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+    ...(IS_WEB
+      ? { boxShadow: '0 6px 24px rgba(10,25,18,0.35)' }
+      : { shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 12 }),
   },
-  applyBtnText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 15,
+  success: { backgroundColor: '#1E5C3A' },
+  error:   { backgroundColor: '#B83232' },
+  iconWrap: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  cancelBtn: {
-    paddingVertical: 13,
-    borderRadius: 18,
-    alignItems: 'center',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: '#F9FAFB',
-  },
-  cancelBtnText: {
-    color: COLORS.sub,
-    fontSize: 14,
-    fontWeight: '800',
-  },
+  iconText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  message:  { flex: 1, color: '#fff', fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  close:    { fontSize: 24, color: 'rgba(255,255,255,0.75)', lineHeight: 26, paddingLeft: 4 },
 });

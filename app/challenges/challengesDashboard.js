@@ -17,6 +17,7 @@ import {
   declineChallengeInvite,
   getChallengeById,
   getChallengeTeams,
+  getMyChallenges,
   getMyActiveChallenges,
   getMyInvites,
 } from '../../services/challengeService';
@@ -180,23 +181,19 @@ export default function AllChallengesScreen() {
 
   const router = useRouter();
 
-  const visible = useMemo(
-    () => challenges.filter((c) => {
-      const s = String(c?.state ?? '').toLowerCase();
-      return s === 'open' || s === 'active';
-    }),
-    [challenges]
-  );
+  const visible = challenges;
 
   const loadChallenges = useCallback(async () => {
     setLoadingInit(true);
     try {
-        const [rawChallenges, rawInvites] = await Promise.all([
+        const [rawChallenges, rawInvites, rawCreated] = await Promise.all([
         getMyActiveChallenges(),
         getMyInvites(),
+        getMyChallenges(),
       ]);
 
       const activeList = asArray(rawChallenges);
+      const createdList = asArray(rawCreated);
       const invites = asArray(rawInvites);
       const activeIds = new Set(activeList.map((c) => Number(c.id)));
 
@@ -209,7 +206,10 @@ export default function AllChallengesScreen() {
           })
       );
 
-      const safe = [...activeList, ...pendingExtras.filter(Boolean)];
+      // Eigene erstellte Challenges die noch nicht in der aktiven Liste sind hinzufügen
+      const createdExtras = createdList.filter((c) => !activeIds.has(Number(c.id)));
+
+      const safe = [...activeList, ...createdExtras, ...pendingExtras.filter(Boolean)];
 
       const enriched = await Promise.all(
         safe.map(async (ch) => {

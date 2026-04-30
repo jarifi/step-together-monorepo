@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { getChallengeHistory } from './../services/challengeService.js';
+import { getChallengeHistory, getMyChallenges } from './../services/challengeService.js';
 
 type ModeFilter = 'all' | 'team' | 'individual';
 
@@ -49,8 +49,28 @@ export default function ChallengeHistoryScreen() {
       const load = async () => {
         try {
           setLoading(true);
-          const data = await getChallengeHistory();
-          setHistory(data ?? []);
+          const [historyData, createdData] = await Promise.all([
+            getChallengeHistory(),
+            getMyChallenges(),
+          ]);
+
+          const now = new Date();
+          const merged = new Map<number, any>();
+
+          // Add participated history
+          for (const c of (historyData ?? [])) {
+            merged.set(Number(c.id), c);
+          }
+
+          // Add created challenges whose end date has passed
+          for (const c of (createdData ?? [])) {
+            const endDate = c.end_date ?? c.endDate;
+            if (endDate && new Date(endDate) < now) {
+              merged.set(Number(c.id), c);
+            }
+          }
+
+          setHistory(Array.from(merged.values()));
         } catch (err) {
           console.error('Failed to load challenge history:', err);
           setHistory([]);
@@ -141,9 +161,10 @@ export default function ChallengeHistoryScreen() {
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={!hasHistory ? Empty : null}
         renderItem={({ item }) => {
-          const endLabel = item.endDate
-            ? new Date(item.endDate).toLocaleDateString()
-            : '-';
+          const endRaw = item.endDate ?? item.end_date;
+          const endLabel = endRaw ? new Date(endRaw).toLocaleDateString('de-DE') : '-';
+          const startLoc = item.startLocation ?? item.start_location ?? '-';
+          const targetLoc = item.targetLocation ?? item.target_location ?? '-';
 
           return (
             <View style={styles.centered}>
@@ -166,13 +187,13 @@ export default function ChallengeHistoryScreen() {
                   </Text>
 
                   <View style={styles.statusPill}>
-                    <Text style={styles.statusText}>{item.state}</Text>
+                    <Text style={styles.statusText}>{item.state ?? 'closed'}</Text>
                   </View>
                 </View>
 
                 <Text style={styles.cardLine} numberOfLines={2}>
-                  {item.startLocation} <Text style={styles.dim}>→</Text>{' '}
-                  {item.targetLocation}
+                  {startLoc} <Text style={styles.dim}>→</Text>{' '}
+                  {targetLoc}
                 </Text>
 
                 <View style={styles.metaRow}>
@@ -189,7 +210,7 @@ export default function ChallengeHistoryScreen() {
                   </View>
                 </View>
 
-                <Text style={styles.cardLink}>Teams & Ranking anzeigen ›</Text>
+                <Text style={styles.cardLink}>Details anzeigen ›</Text>
               </Pressable>
             </View>
           );

@@ -12,7 +12,12 @@ import {
 } from 'react-native';
 
 import ChallengeCard from '../../components/ChallengeCard';
-import { getChallenges, getChallengeTeams } from '../../services/challengeService';
+import {
+  getChallengeHistory,
+  getChallenges,
+  getChallengeTeams,
+  getMyChallenges,
+} from '../../services/challengeService';
 
 type Challenge = {
   id: number | string;
@@ -119,14 +124,41 @@ export default function OpenChallengesScreen() {
       else setLoadingMore(true);
 
       try {
-        const data = await getChallenges(skipRef.current, limit);
+        const [data, myData, historyData] = await Promise.all([
+          getChallenges(skipRef.current, limit),
+          isInitial ? getMyChallenges() : Promise.resolve([]),
+          isInitial ? getChallengeHistory() : Promise.resolve([]),
+        ]);
         const safe: Challenge[] = Array.isArray(data) ? data : [];
+        const mine: Challenge[] = Array.isArray(myData) ? myData : [];
+        const history: Challenge[] = Array.isArray(historyData) ? historyData : [];
 
-        const enrichedChallenges = await enrichChallengesWithTeamCount(safe);
+        const enrichedPage = await enrichChallengesWithTeamCount(safe);
 
-        setChallenges((prev) =>
-          isInitial ? enrichedChallenges : [...prev, ...enrichedChallenges]
-        );
+        const now = new Date();
+
+        // Own created challenges: derive 'closed' state from end_date when state is missing
+        const normalizedMine = mine.map((c) => {
+          const endDate = c.end_date ?? c.endDate;
+          const expired = endDate && new Date(endDate) < now;
+          const state = c.state ?? (expired ? 'closed' : 'incoming');
+          return { ...c, state };
+        });
+
+        // History challenges from the dedicated endpoint are always closed
+        const normalizedHistory = history.map((c) => ({ ...c, state: c.state ?? 'closed' }));
+
+        setChallenges((prev) => {
+          if (isInitial) {
+            // Merge all sources, page result wins on duplicates
+            const merged = new Map<number, Challenge>();
+            for (const c of normalizedHistory) merged.set(Number(c.id), c);
+            for (const c of normalizedMine) merged.set(Number(c.id), c);
+            for (const c of enrichedPage) merged.set(Number(c.id), c);
+            return Array.from(merged.values());
+          }
+          return [...prev, ...enrichedPage];
+        });
 
         skipRef.current += safe.length;
 
@@ -272,6 +304,9 @@ export default function OpenChallengesScreen() {
                 onPress={() => goToDetails(String(item.id))}
                 onUpdate={() => {}}
                 onDelete={() => {}}
+                onAccept={() => {}}
+                onDecline={() => {}}
+                isPending={false}
                 showActions={false}
               />
             </View>
