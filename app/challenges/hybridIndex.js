@@ -16,7 +16,7 @@ import ChallengeCard from '../../components/ChallengeCard';
 import {
   deleteChallenge,
   getActiveParticipantsCounts,
-  getChallengeInvites,
+  getChallengeParticipants,
   getChallengeTeams,
   getMyChallenges,
 } from '../../services/challengeService';
@@ -85,10 +85,10 @@ export default function AllChallengesScreen() {
 
           if (challenge.mode === 'individual') {
             try {
-              const invites = await getChallengeInvites(challenge.id);
-              return { ...base, inviteCount: Array.isArray(invites) ? invites.length : 0 };
+              const participants = await getChallengeParticipants(challenge.id);
+              return { ...base, participantCount: Array.isArray(participants) ? participants.length : 0 };
             } catch {
-              return { ...base, inviteCount: 0 };
+              return { ...base, participantCount: 0 };
             }
           }
 

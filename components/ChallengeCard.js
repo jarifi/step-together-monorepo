@@ -93,6 +93,25 @@ const ChallengeCard = ({
           </View>
           <Text style={styles.infoText}>{challenge.distance ?? 0} km</Text>
         </View>
+
+        {isInd
+          ? challenge.participantCount != null && (
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconWrap}>
+                  <MaterialIcons name="person" size={14} color={color} />
+                </View>
+                <Text style={styles.infoText}>{challenge.participantCount} Teilnehmer</Text>
+              </View>
+            )
+          : challenge.teamCount != null && (
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconWrap}>
+                  <MaterialIcons name="group" size={14} color={color} />
+                </View>
+                <Text style={styles.infoText}>{challenge.teamCount} {challenge.teamCount === 1 ? 'Team' : 'Teams'}</Text>
+              </View>
+            )
+        }
       </View>
 
       {/* Footer / Actions */}

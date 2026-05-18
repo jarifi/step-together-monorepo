@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import UserCard from '../../components/UserCard';
-import { deleteUser, getUsers, searchUsers, verifyUser } from '../../services/userService';
+import { deleteUser, getUsers, searchUsers, unlockUser, verifyUser } from '../../services/userService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -206,6 +206,24 @@ export default function UsersScreen() {
     }
   };
 
+  const handleUnlockUser = async (user) => {
+    try {
+      await unlockUser(user.id);
+      const update = (list) =>
+        list.map((u) =>
+          u.id === user.id
+            ? { ...u, failedLoginAttempts: 0, failed_login_attempts: 0 }
+            : u
+        );
+      setUsers(update);
+      setSearchResults(update);
+      Alert.alert('Erfolg', 'Konto wurde entsperrt.');
+    } catch (error) {
+      console.error('Unlock failed:', error);
+      Alert.alert('Fehler', 'Konto konnte nicht entsperrt werden.');
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       setSearchQuery('');
@@ -313,6 +331,7 @@ export default function UsersScreen() {
             <UserCard
               user={item}
               onVerify={handleVerifyUser}
+              onUnlock={handleUnlockUser}
               onUpdate={() =>
                 router.push({
                   pathname: '/users/update',

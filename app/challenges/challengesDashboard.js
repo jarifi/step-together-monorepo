@@ -1,7 +1,7 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,7 @@ import {
 import {
   acceptChallengeInvite,
   declineChallengeInvite,
+  getChallengeParticipants,
   getChallengeTeams,
   getMyActiveChallenges,
   getMyInvites,
@@ -145,6 +146,21 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
             )}
           </View>
 
+          {isInd
+            ? item.participantCount != null && (
+                <View style={styles.countRow}>
+                  <MaterialIcons name="person" size={13} color={color} />
+                  <Text style={[styles.countTxt, { color }]}>{item.participantCount} Teilnehmer</Text>
+                </View>
+              )
+            : item.teamCount != null && (
+                <View style={styles.countRow}>
+                  <MaterialIcons name="group" size={13} color={color} />
+                  <Text style={[styles.countTxt, { color }]}>{item.teamCount} {item.teamCount === 1 ? 'Team' : 'Teams'}</Text>
+                </View>
+              )
+          }
+
           {isPend && (
             <View style={styles.pendBtns}>
               <Pressable
@@ -205,26 +221,24 @@ export default function AllChallengesScreen() {
       const enriched = await Promise.all(
         activeList.map(async (ch) => {
           const inv = invites.find((i) => sameId(i.challengeId ?? i.challenge_id, ch.id));
+          const base = {
+            inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
+            inviteId: inv?.id ?? null,
+          };
+          const mode = resolveMode(ch);
           try {
-            const teams = asArray(await getChallengeTeams(ch.id));
-            const teamIds = teams
-              .map((t) => Number(t.id ?? t.teamId ?? t.team_id ?? t.team?.id ?? 0))
-              .filter(Boolean);
-            return {
-              ...ch,
-              teamCount: teamIds.length,
-              teamIds,
-              inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
-              inviteId: inv?.id ?? null,
-            };
+            if (mode === 'individual') {
+              const participants = asArray(await getChallengeParticipants(ch.id));
+              return { ...ch, ...base, participantCount: participants.length };
+            } else {
+              const teams = asArray(await getChallengeTeams(ch.id));
+              const teamIds = teams
+                .map((t) => Number(t.id ?? t.teamId ?? t.team_id ?? t.team?.id ?? 0))
+                .filter(Boolean);
+              return { ...ch, ...base, teamCount: teamIds.length, teamIds };
+            }
           } catch {
-            return {
-              ...ch,
-              teamCount: 0,
-              teamIds: [],
-              inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
-              inviteId: inv?.id ?? null,
-            };
+            return { ...ch, ...base, teamCount: 0, teamIds: [], participantCount: 0 };
           }
         })
       );
@@ -508,6 +522,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  countRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  countTxt: { fontSize: 12, fontWeight: '600' },
 
   pendBtns: { flexDirection: 'row', gap: 8 },
   btnNo: {
