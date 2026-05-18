@@ -1,5 +1,5 @@
 # File: app/schema/user.py
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator, StringConstraints
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator, StringConstraints, field_validator
 from pydantic.functional_validators import AfterValidator
 from datetime import datetime
 from typing import Optional, Annotated
@@ -10,19 +10,19 @@ from app.models.base import CamelCaseBaseModel
 def validate_password_complexity(password: str) -> str:
     """Enforces password complexity rules."""
     if len(password) < 12:
-        raise ValueError("Password must be at least 12 characters long")
+        raise ValueError("Das Passwort muss mindestens 12 Zeichen lang sein.")
     if len(password) > 20:
-        raise ValueError("Password must be at most 20 characters long")
+        raise ValueError("Das Passwort darf maximal 20 Zeichen lang sein.")
     if not re.search(r"[A-Z]", password):
-        raise ValueError("Password must contain at least one uppercase letter")
+        raise ValueError("Das Passwort muss mindestens einen Großbuchstaben enthalten.")
     if not re.search(r"[a-z]", password):
-        raise ValueError("Password must contain at least one lowercase letter")
+        raise ValueError("Das Passwort muss mindestens einen Kleinbuchstaben enthalten.")
     if not re.search(r"\d", password):
-        raise ValueError("Password must contain at least one digit")
+        raise ValueError("Das Passwort muss mindestens eine Zahl enthalten.")
     if " " in password:
-        raise ValueError("Password must not contain spaces.")
+        raise ValueError("Das Passwort darf keine Leerzeichen enthalten.")
     if not re.match(r"^[a-zA-Z0-9!.#$%&*(),?/\-_@#]+$", password):
-        raise ValueError("Password contains forbidden characters. Allowed characters: ! . $ % & * ( ) , ? /  - _ @ #")
+        raise ValueError("Das Passwort enthält unerlaubte Zeichen. Erlaubt sind: ! . $ % & * ( ) , ? / - _ @ #")
     return password
 
 # Reusable password type
@@ -88,14 +88,18 @@ class UserResponse(CamelCaseBaseModel):
     is_deleted: bool = False
     is_verified: bool = False
     avatar_url: Optional[str] = None
+    failed_login_attempts: int = 0
 
 class UserLogin(CamelCaseBaseModel):
     email: EmailStr = Field(json_schema_extra={"example": "user@example.com"})
-    password: str = Field(
-        ...,
-        min_length=8,
-        json_schema_extra={"example": "Str0ngPass!"}
-    )
+    password: str = Field(..., json_schema_extra={"example": "Str0ngPass!"})
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Das Passwort muss mindestens 8 Zeichen lang sein.")
+        return v
 
 class UserUpdate(CamelCaseBaseModel):
     name: Optional[
