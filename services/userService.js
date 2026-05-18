@@ -215,6 +215,18 @@ export const deleteOwnAccount = async (password) => {
 };
 
 // ---------------------------------------------------------------------------
+// UNLOCK USER (admin)
+// ---------------------------------------------------------------------------
+export const unlockUser = async (id) => {
+  try {
+    return await apiPost(`/auth/unlock/${id}`);
+  } catch (err) {
+    console.error('Error unlocking user:', err);
+    throw err;
+  }
+};
+
+// ---------------------------------------------------------------------------
 // CHANGE PASSWORD
 // ---------------------------------------------------------------------------
 export const changePassword = async (oldPassword, newPassword) => {

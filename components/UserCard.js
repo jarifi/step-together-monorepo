@@ -3,134 +3,125 @@ import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Avatar from '../components/Avatar';
 
-const BTN = 38;
-const R = 12;
-
-export default function UserCard({ user, onUpdate, onDelete, onVerify }) {
+export default function UserCard({ user, onUpdate, onDelete, onVerify, onUnlock }) {
   const [modalVisible, setModalVisible] = useState(false);
 
   const name = user?.name ?? '—';
   const email = user?.email ?? '—';
   const userId = user?.id ?? '—';
 
-  const isVerified = useMemo(() => {
-    return Boolean(
-      user?.isVerified ??
-      user?.is_verified ??
-      user?.verified ??
-      false
-    );
+  const isVerified = useMemo(() => Boolean(
+    user?.isVerified ?? user?.is_verified ?? user?.verified ?? false
+  ), [user]);
+
+  const isLocked = useMemo(() => {
+    const attempts = user?.failedLoginAttempts ?? user?.failed_login_attempts ?? 0;
+    return attempts >= 3;
   }, [user]);
 
-  const openDelete = () => setModalVisible(true);
-  const closeDelete = () => setModalVisible(false);
-
   const confirmDelete = () => {
-    closeDelete();
+    setModalVisible(false);
     onDelete?.();
   };
 
   return (
     <>
-      <View style={styles.card}>
-        <Avatar user={user} name={name} size={44} />
+      <View style={[styles.card, isLocked && styles.cardLocked]}>
 
-        <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={2}>
-            {name}
-          </Text>
+        {isLocked && (
+          <View style={styles.lockedBanner}>
+            <MaterialIcons name="lock" size={13} color="#92400E" />
+            <Text style={styles.lockedBannerText}>Konto gesperrt</Text>
+          </View>
+        )}
 
-          <Text style={styles.email} numberOfLines={2}>
-            {email}
-          </Text>
+        <View style={styles.header}>
+          <Avatar user={user} name={name} size={50} />
 
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>User ID: {userId}</Text>
+          <View style={styles.info}>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            <Text style={styles.email} numberOfLines={1}>{email}</Text>
+            <Text style={styles.userId}>ID #{userId}</Text>
           </View>
 
-          <View style={styles.statusRow}>
-            <View
-              style={[
-                styles.statusBadge,
-                isVerified ? styles.verifiedBadge : styles.unverifiedBadge,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusText,
-                  isVerified ? styles.verifiedText : styles.unverifiedText,
-                ]}
-              >
-                {isVerified ? 'Verifiziert' : 'Nicht verifiziert'}
-              </Text>
-            </View>
+          <View style={[styles.badge, isVerified ? styles.badgeVerified : styles.badgeUnverified]}>
+            <MaterialIcons
+              name={isVerified ? 'verified-user' : 'person-outline'}
+              size={12}
+              color={isVerified ? '#166534' : '#9B1C1C'}
+            />
+            <Text style={[styles.badgeText, isVerified ? styles.badgeTextVerified : styles.badgeTextUnverified]}>
+              {isVerified ? 'Verifiziert' : 'Ausstehend'}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.buttonStack}>
+        <View style={styles.divider} />
+
+        <View style={styles.actions}>
+          {isLocked && onUnlock && (
+            <ActionButton
+              icon="lock-open"
+              label="Entsperren"
+              color="#D97706"
+              bg="rgba(217,119,6,0.10)"
+              onPress={() => onUnlock(user)}
+            />
+          )}
+
           {!isVerified && onVerify && (
-            <Pressable
+            <ActionButton
+              icon="verified-user"
+              label="Verifizieren"
+              color="#166534"
+              bg="rgba(22,101,52,0.09)"
               onPress={() => onVerify(user)}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.verifyButton,
-                pressed && styles.pressedBtn,
-              ]}
-              hitSlop={8}
-            >
-              <MaterialIcons name="verified-user" size={20} color="#fff" />
-            </Pressable>
+            />
           )}
 
           {onUpdate && (
-            <Pressable
+            <ActionButton
+              icon="edit"
+              label="Bearbeiten"
+              color="#1D4ED8"
+              bg="rgba(29,78,216,0.09)"
               onPress={onUpdate}
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.updateButton,
-                !isVerified && onVerify ? styles.stackSpace : null,
-                pressed && styles.pressedBtn,
-              ]}
-              hitSlop={8}
-            >
-              <MaterialIcons name="edit" size={20} color="#fff" />
-            </Pressable>
+            />
           )}
 
-          <Pressable
-            onPress={openDelete}
-            style={({ pressed }) => [
-              styles.iconButton,
-              styles.deleteButton,
-              onUpdate || (!isVerified && onVerify) ? styles.stackSpace : null,
-              pressed && styles.pressedBtn,
-            ]}
-            hitSlop={8}
-          >
-            <MaterialIcons name="delete" size={20} color="#fff" />
-          </Pressable>
+          <ActionButton
+            icon="delete-outline"
+            label="Löschen"
+            color="#B91C1C"
+            bg="rgba(185,28,28,0.09)"
+            onPress={() => setModalVisible(true)}
+          />
         </View>
       </View>
 
-      <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={closeDelete}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Möchten Sie diesen Benutzer wirklich löschen?
+      <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalIcon}>
+              <MaterialIcons name="delete-forever" size={32} color="#B91C1C" />
+            </View>
+            <Text style={styles.modalTitle}>Benutzer löschen?</Text>
+            <Text style={styles.modalSub}>
+              <Text style={{ fontWeight: '700' }}>{name}</Text> wird unwiderruflich gelöscht.
             </Text>
 
             <Pressable
-              style={({ pressed }) => [styles.modalDanger, pressed && styles.modalPressed]}
+              style={({ pressed }) => [styles.btnDanger, pressed && styles.btnPressed]}
               onPress={confirmDelete}
             >
-              <Text style={styles.modalDangerText}>Benutzer löschen</Text>
+              <Text style={styles.btnDangerText}>Ja, löschen</Text>
             </Pressable>
 
             <Pressable
-              style={({ pressed }) => [styles.modalCancel, pressed && styles.modalPressed]}
-              onPress={closeDelete}
+              style={({ pressed }) => [styles.btnCancel, pressed && styles.btnPressed]}
+              onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.modalCancelText}>Abbrechen</Text>
+              <Text style={styles.btnCancelText}>Abbrechen</Text>
             </Pressable>
           </View>
         </View>
@@ -139,177 +130,231 @@ export default function UserCard({ user, onUpdate, onDelete, onVerify }) {
   );
 }
 
+function ActionButton({ icon, label, color, bg, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionBtn, { backgroundColor: bg }, pressed && styles.actionBtnPressed]}
+      hitSlop={4}
+    >
+      <MaterialIcons name={icon} size={17} color={color} />
+      <Text style={[styles.actionLabel, { color }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    padding: 14,
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(15,20,17,0.08)',
-    elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+    overflow: 'hidden',
+  },
+
+  cardLocked: {
+    borderColor: 'rgba(217,119,6,0.35)',
+  },
+
+  lockedBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(217,119,6,0.10)',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(217,119,6,0.15)',
+  },
+
+  lockedBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+    letterSpacing: 0.2,
+  },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
   },
 
   info: {
     flex: 1,
-    paddingRight: 10,
-    marginLeft: 12,
   },
 
   name: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#101613',
-    marginBottom: 4,
+    color: '#0F1411',
+    marginBottom: 2,
   },
 
   email: {
-    fontSize: 13.5,
-    color: '#4B5563',
-  },
-
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-
-  metaText: {
     fontSize: 13,
     color: '#4B5563',
+    marginBottom: 4,
   },
 
-  statusRow: {
-    marginTop: 10,
+  userId: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 
-  statusBadge: {
-    alignSelf: 'flex-start',
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     borderRadius: 999,
     borderWidth: 1,
+    alignSelf: 'flex-start',
   },
 
-  verifiedBadge: {
-    backgroundColor: 'rgba(47,107,69,0.10)',
-    borderColor: 'rgba(47,107,69,0.20)',
+  badgeVerified: {
+    backgroundColor: 'rgba(22,101,52,0.08)',
+    borderColor: 'rgba(22,101,52,0.20)',
   },
 
-  unverifiedBadge: {
-    backgroundColor: 'rgba(229,115,115,0.10)',
-    borderColor: 'rgba(229,115,115,0.20)',
+  badgeUnverified: {
+    backgroundColor: 'rgba(155,28,28,0.08)',
+    borderColor: 'rgba(155,28,28,0.18)',
   },
 
-  statusText: {
-    fontSize: 12,
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+
+  badgeTextVerified: {
+    color: '#166534',
+  },
+
+  badgeTextUnverified: {
+    color: '#9B1C1C',
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(15,20,17,0.06)',
+    marginHorizontal: 16,
+  },
+
+  actions: {
+    flexDirection: 'row',
+    padding: 10,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    borderRadius: 10,
+  },
+
+  actionBtnPressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.97 }],
+  },
+
+  actionLabel: {
+    fontSize: 13,
     fontWeight: '700',
   },
 
-  verifiedText: {
-    color: '#2F6B45',
-  },
-
-  unverifiedText: {
-    color: '#C05757',
-  },
-
-  buttonStack: {
-    alignItems: 'center',
-    paddingLeft: 8,
-    paddingTop: 2,
-  },
-
-  stackSpace: {
-    marginTop: 8,
-  },
-
-  iconButton: {
-    width: BTN,
-    height: BTN,
-    borderRadius: R,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  verifyButton: {
-    backgroundColor: '#2F6B45',
-  },
-
-  updateButton: {
-    backgroundColor: '#5B8EDB',
-  },
-
-  deleteButton: {
-    backgroundColor: '#E57373',
-  },
-
-  pressedBtn: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
-  },
-
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
 
-  modalContent: {
+  modal: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 18,
-    width: '88%',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.08)',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+
+  modalIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 999,
+    backgroundColor: 'rgba(185,28,28,0.09)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
   },
 
   modalTitle: {
-    fontWeight: '600',
-    fontSize: 16,
-    marginBottom: 14,
-    textAlign: 'center',
-    color: '#111827',
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F1411',
+    marginBottom: 6,
   },
 
-  modalDanger: {
-    backgroundColor: '#E53935',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 12,
+  modalSub: {
+    fontSize: 14,
+    color: '#4B5563',
+    textAlign: 'center',
+    marginBottom: 22,
+    lineHeight: 20,
+  },
+
+  btnDanger: {
+    backgroundColor: '#B91C1C',
+    paddingVertical: 13,
+    borderRadius: 14,
     width: '100%',
     alignItems: 'center',
     marginBottom: 10,
   },
 
-  modalDangerText: {
+  btnDangerText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 15,
   },
 
-  modalCancel: {
+  btnCancel: {
     backgroundColor: '#F3F4F6',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 12,
+    paddingVertical: 13,
+    borderRadius: 14,
     width: '100%',
     alignItems: 'center',
   },
 
-  modalCancelText: {
-    fontWeight: '600',
-    color: '#111827',
+  btnCancelText: {
+    fontWeight: '700',
+    color: '#374151',
+    fontSize: 15,
   },
 
-  modalPressed: {
-    opacity: 0.9,
+  btnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
   },
 });

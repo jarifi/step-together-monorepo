@@ -50,8 +50,12 @@ async function loginRequest(params: {
   }
 
   if (!res.ok) {
-    const detail =
-      data?.detail ?? data?.message ?? text ?? `Login failed (${res.status})`;
+    let detail: string;
+    if (Array.isArray(data?.detail)) {
+      detail = data.detail.map((d: any) => d.msg ?? String(d)).join('\n');
+    } else {
+      detail = data?.detail ?? data?.message ?? text ?? `Login failed (${res.status})`;
+    }
     const err: any = new Error(detail);
     err.status = res.status;
     err.data = data;
@@ -80,10 +84,12 @@ export default function LoginScreen() {
     errorTimerRef.current = null;
   };
 
-  const showError = (message: string) => {
+  const showError = (message: string, persistent = false) => {
     setErrorMessage(message);
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    errorTimerRef.current = setTimeout(() => setErrorMessage(null), 3000);
+    if (!persistent) {
+      errorTimerRef.current = setTimeout(() => setErrorMessage(null), 3000);
+    }
   };
 
   const handleLogin = async () => {
@@ -141,7 +147,20 @@ export default function LoginScreen() {
         console.log("LOGIN ERROR data:", err?.data);
       }
 
-      showError(err?.message ?? "Unbekannter Fehler");
+      const status = err?.status;
+      const msg: string = err?.message ?? "";
+      const isLocked =
+        status === 429 ||
+        status === 423 ||
+        /gesperrt|locked|banned|suspended|zu viele/i.test(msg);
+
+      if (isLocked) {
+        showError(msg || "Ihr Konto wurde gesperrt. Bitte kontaktieren Sie den Support.", true);
+      } else if (status === 401 || status === 403 || status === 400 || status === 422) {
+        showError("Ungültige Anmeldedaten");
+      } else {
+        showError(msg || "Unbekannter Fehler");
+      }
     } finally {
       setIsPending(false);
     }
@@ -256,7 +275,20 @@ export default function LoginScreen() {
       if (__DEV__) {
         console.log("PASSKEY LOGIN ERROR:", err?.message);
       }
-      showError(err?.message ?? "Fehler bei Passkey-Anmeldung");
+      const status = err?.status;
+      const msg: string = err?.message ?? "";
+      const isLocked =
+        status === 429 ||
+        status === 423 ||
+        /gesperrt|locked|banned|suspended|zu viele/i.test(msg);
+
+      if (isLocked) {
+        showError(msg || "Ihr Konto wurde gesperrt. Bitte kontaktieren Sie den Support.", true);
+      } else if (status === 401 || status === 403 || status === 400 || status === 422) {
+        showError("Ungültige Anmeldedaten");
+      } else {
+        showError(msg || "Fehler bei Passkey-Anmeldung");
+      }
     } finally {
       setIsPending(false);
     }
