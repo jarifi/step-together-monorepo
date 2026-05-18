@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { useTeam } from '../../context/TeamContext';
 import { validateTeamName } from '../../lib/teamValidation';
 import { addTeamMember, getTeamMembers, removeTeamMember, updateTeam } from '../../services/teamService';
 import { searchUsers } from '../../services/userService';
@@ -31,7 +30,6 @@ const COLORS = {
 export default function UpdateTeamScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { setTeam } = useTeam();
 
   const teamId = useMemo(() => {
     const raw = Array.isArray(params?.id) ? params.id[0] : params?.id;
