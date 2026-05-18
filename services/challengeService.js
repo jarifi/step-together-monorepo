@@ -186,6 +186,19 @@ export const getMyInvites = async () => {
 
     return Array.isArray(data) ? data : [];
   } catch (err) {
+    const status = err?.status || err?.response?.status;
+    const detail = String(
+      err?.payload?.detail || err?.response?.data?.detail || err?.message || ''
+    ).toLowerCase();
+
+    if (
+      status === 401 ||
+      detail.includes('unauthorized') ||
+      detail.includes('missing access token')
+    ) {
+      return [];
+    }
+
     console.error('Error fetching my invites:', err);
     return [];
   }

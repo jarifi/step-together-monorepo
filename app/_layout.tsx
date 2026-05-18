@@ -56,7 +56,7 @@ function AppContent() {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { setPendingInviteCount } = useUser();
+  const { setPendingInviteCount, token } = useUser();
 
   const isTablet = width >= 768;
 
@@ -184,8 +184,13 @@ function AppContent() {
 
   // The check function lives in a ref so setInterval captures a stable pointer.
   // Re-assigning every render ensures it always closes over fresh values.
-  const checkRef = useRef(async () => {});
+  const checkRef = useRef(async () => { });
   checkRef.current = async () => {
+    if (!token) {
+      setPendingRef.current(0);
+      return;
+    }
+
     if (inviteAlertRef.current) return;
     try {
       const data = await getMyInvites();
@@ -207,22 +212,22 @@ function AppContent() {
         newInvite.id,
         newInvite.inviterName ?? newInvite.inviter_name ?? newInvite.inviter?.name
       );
-    } catch {}
+    } catch { }
   };
 
   // Fire immediately whenever the user navigates to a new screen
   useEffect(() => {
-    if (!showSidebar) return;
+    if (!showSidebar || !token) return;
     checkRef.current();
-  }, [pathname, showSidebar]);
+  }, [pathname, showSidebar, token]);
 
   // Poll every 15 s — only depends on showSidebar so the interval is never
   // accidentally reset by a render or function-reference change.
   useEffect(() => {
-    if (!showSidebar) return;
+    if (!showSidebar || !token) return;
     const id = setInterval(() => checkRef.current(), 15000);
     return () => clearInterval(id);
-  }, [showSidebar]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showSidebar, token]);
 
   if (!authChecked) {
     return (
@@ -294,46 +299,46 @@ function AppContent() {
         ]}
       >
         <Stack initialRouteName="index">
-           <Stack.Screen name="index" options={{ headerShown: false }} /> 
-           <Stack.Screen name="welcome" options={{ headerShown: false }} /> 
-           <Stack.Screen name="login" options={{ headerShown: false }} /> 
-           <Stack.Screen name="register" options={{ headerShown: false }} /> 
-           <Stack.Screen name="users/update" options={{ headerShown: false }} /> 
-           <Stack.Screen name="admin" options={{ headerShown: false }} /> 
-           <Stack.Screen name="teams/index" options={{ headerShown: false }} /> 
-           <Stack.Screen name="teams/create" options={{ headerShown: false }} /> 
-           <Stack.Screen name="teams/members" options={{ headerShown: false }} /> 
-           <Stack.Screen name="users/index" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/challengeTeamDashboardDetails" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/challengeIndividualDashboardDetails" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/index" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/hybridIndex" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/challengesDashboard" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/create" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/update" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/details" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} /> 
-           <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} /> 
-           <Stack.Screen name="userHistory" options={{ headerShown: false }} /> 
-           <Stack.Screen name="profileInfo" options={{ headerShown: false }} /> 
-           <Stack.Screen name="settings/settings" options={{ headerShown: false }} /> 
-           <Stack.Screen name="settings/profile" options={{ headerShown: false }} /> 
-           <Stack.Screen name="settings/password" options={{ headerShown: false }} /> 
-           <Stack.Screen name="settings/userDelete" options={{ headerShown: false }} /> 
-           <Stack.Screen name="users/create" options={{ headerShown: false }} /> 
-           <Stack.Screen name="help/start" options={{ headerShown: false }} /> 
-           <Stack.Screen name="help/help" options={{ headerShown: false }} /> 
-           <Stack.Screen name="help/about" options={{ headerShown: false }} /> 
-           <Stack.Screen name="help/contact" options={{ headerShown: false }} /> 
-           <Stack.Screen name="help/privacy" options={{ headerShown: false }} /> 
-           <Stack.Screen name="help/terms" options={{ headerShown: false }} /> 
-           <Stack.Screen name="teams/update" options={{ headerShown: false }} /> 
-           <Stack.Screen name="verifyInfo" options={{ headerShown: false }} /> 
-           <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} /> 
-           <Stack.Screen name="hybridUpdate" options={{ headerShown: false }} /> 
-           <Stack.Screen name="notifications" options={{ headerShown: false }} /> 
-         </Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="welcome" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="register" options={{ headerShown: false }} />
+          <Stack.Screen name="users/update" options={{ headerShown: false }} />
+          <Stack.Screen name="admin" options={{ headerShown: false }} />
+          <Stack.Screen name="teams/index" options={{ headerShown: false }} />
+          <Stack.Screen name="teams/create" options={{ headerShown: false }} />
+          <Stack.Screen name="teams/members" options={{ headerShown: false }} />
+          <Stack.Screen name="users/index" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/challengeTeamDashboardDetails" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/challengeIndividualDashboardDetails" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/index" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/hybridIndex" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/challengesDashboard" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/create" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/update" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
+          <Stack.Screen name="userHistory" options={{ headerShown: false }} />
+          <Stack.Screen name="profileInfo" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/profile" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/password" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/userDelete" options={{ headerShown: false }} />
+          <Stack.Screen name="users/create" options={{ headerShown: false }} />
+          <Stack.Screen name="help/start" options={{ headerShown: false }} />
+          <Stack.Screen name="help/help" options={{ headerShown: false }} />
+          <Stack.Screen name="help/about" options={{ headerShown: false }} />
+          <Stack.Screen name="help/contact" options={{ headerShown: false }} />
+          <Stack.Screen name="help/privacy" options={{ headerShown: false }} />
+          <Stack.Screen name="help/terms" options={{ headerShown: false }} />
+          <Stack.Screen name="teams/update" options={{ headerShown: false }} />
+          <Stack.Screen name="verifyInfo" options={{ headerShown: false }} />
+          <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} />
+          <Stack.Screen name="hybridUpdate" options={{ headerShown: false }} />
+          <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        </Stack>
 
         {showPill && <BottomBar pathname={pathname} />}
       </Animated.View>
