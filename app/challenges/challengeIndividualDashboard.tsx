@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Pedometer } from 'expo-sensors';
@@ -63,6 +64,7 @@ export type HomeInitDto = {
 const EMPTY_WEEK = [0, 0, 0, 0, 0, 0, 0] as const;
 const FIX_STEP_LENGTH_M = 0.78;
 const MAX_STEP_DELTA = 100000;
+const PENDING_STEPS_KEY = 'step_together_pending_save';
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
     if (!entries || entries.length !== 7) return [...EMPTY_WEEK];
@@ -128,6 +130,7 @@ const IndividualDashboard: React.FC = () => {
     const [vm, setVm] = useState<HomeInitDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [hasPendingSteps, setHasPendingSteps] = useState(false);
 
     const [modalVisible, setModalVisible] = useState(false);
     const [stepInput, setStepInput] = useState('');
@@ -436,16 +439,25 @@ const IndividualDashboard: React.FC = () => {
             setWeekSteps(next);
             setStepsToday(next[idx]);
 
+            // Persist before API call — steps survive token expiry or network failure
+            await AsyncStorage.setItem(
+                PENDING_STEPS_KEY,
+                JSON.stringify({ dateISO, steps: nextValue, challengeId: vm.challenge.id })
+            );
+
             try {
                 await upsertStepsForDate(dateISO, nextValue, {
                     challengeId: vm.challenge.id,
                 });
+                await AsyncStorage.removeItem(PENDING_STEPS_KEY);
+                setHasPendingSteps(false);
                 await refreshWeek();
             } catch (e) {
                 setWeekSteps(prev);
                 setStepsToday(prev[idx] ?? 0);
+                setHasPendingSteps(true);
                 console.warn('Save tracked steps failed:', e);
-                setErrorMsg('Schritte konnten nicht gespeichert werden.');
+                setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
             }
         },
         [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
@@ -483,6 +495,29 @@ const IndividualDashboard: React.FC = () => {
         [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
     );
 
+    const flushPendingSteps = useCallback(async () => {
+        if (!vm?.challenge?.id) return;
+        let pending: { dateISO: string; steps: number; challengeId: number } | null = null;
+        try {
+            const raw = await AsyncStorage.getItem(PENDING_STEPS_KEY);
+            if (!raw) return;
+            pending = JSON.parse(raw);
+        } catch {
+            return;
+        }
+        if (!pending || Number(pending.challengeId) !== Number(vm.challenge.id)) return;
+        try {
+            await upsertStepsForDate(pending.dateISO, pending.steps, {
+                challengeId: pending.challengeId,
+            });
+            await AsyncStorage.removeItem(PENDING_STEPS_KEY);
+            setHasPendingSteps(false);
+            setErrorMsg(null);
+            await refreshWeek();
+        } catch {
+            // Will retry on next focus or foreground event
+        }
+    }, [vm?.challenge?.id, refreshWeek]);
     const applyStepDelta = useCallback(
         async (delta: number) => {
             const dateSafe = clampDate(displayDate, minDate, maxDate);
@@ -605,16 +640,33 @@ const IndividualDashboard: React.FC = () => {
     useFocusEffect(
         useCallback(() => {
             refreshWeek();
+            flushPendingSteps();
             return undefined;
-        }, [refreshWeek])
+        }, [refreshWeek, flushPendingSteps])
     );
 
     useEffect(() => {
         const sub = AppState.addEventListener('change', (state) => {
-            if (state === 'active') refreshWeek();
+            if (state === 'active') {
+                refreshWeek();
+                flushPendingSteps();
+            }
         });
         return () => sub.remove();
-    }, [refreshWeek]);
+    }, [refreshWeek, flushPendingSteps]);
+
+    // On mount: restore pending state from AsyncStorage
+    useEffect(() => {
+        AsyncStorage.getItem(PENDING_STEPS_KEY).then((v) => {
+            if (v) setHasPendingSteps(true);
+        });
+    }, []);
+
+    // Auto-retry flush once vm is ready and there is a pending save
+    useEffect(() => {
+        if (!hasPendingSteps || !vm?.challenge?.id) return;
+        flushPendingSteps();
+    }, [hasPendingSteps, vm?.challenge?.id, flushPendingSteps]);
 
     useEffect(() => {
         if (!vm?.user?.id) return;
@@ -712,7 +764,7 @@ const IndividualDashboard: React.FC = () => {
     const hasSelectedChallenge = selectedChallengeId != null;
     const canShowChallenge = hasSelectedChallenge ? vm?.challenge?.id != null : hasActiveChallenge;
 
-    if (!vm || errorMsg || !canShowChallenge) {
+    if (!vm || !canShowChallenge) {
         return (
             <>
                 <EmptyChallengeCard />
@@ -838,6 +890,20 @@ const IndividualDashboard: React.FC = () => {
                         </Text>
                     ) : null}
 
+                    {hasPendingSteps ? (
+                        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                            <MaterialIcons name="sync" size={16} color="#D97706" />
+                            <Text style={[styles.font, { color: '#D97706', fontSize: 13 }]}>
+                                Schritte ausstehend — werden synchronisiert
+                            </Text>
+                            <TouchableOpacity onPress={flushPendingSteps} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Text style={[styles.font, { color: '#D97706', fontSize: 13, textDecorationLine: 'underline' }]}>
+                                    Jetzt
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : null}
+
                     {isPedometerAvailable === false ? (
                         <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#6B7280' }]}>
                             Pedometer ist auf diesem Gerät nicht verfügbar.
@@ -875,6 +941,29 @@ const IndividualDashboard: React.FC = () => {
                             <Text style={[styles.font, { textAlign: 'center', color: '#6B7280', marginTop: 8 }]}>
                                 Tracking ist nur für den heutigen Tag verfügbar.
                             </Text>
+                        )}
+
+                        {__DEV__ && (
+                            <View style={{ gap: 8 }}>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#fbbf24', padding: 10, borderRadius: 8, alignItems: 'center' }}
+                                    onPress={() => saveTrackedSteps(500)}
+                                >
+                                    <Text style={{ fontWeight: '700' }}>DEV: save 500 steps (success)</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#f87171', padding: 10, borderRadius: 8, alignItems: 'center' }}
+                                    onPress={async () => {
+                                        // Simulate what happens when the API call fails (e.g. token expired after 3h)
+                                        const idx = (new Date().getDay() + 6) % 7;
+                                        const prev = [...weekSteps];
+                                        setWeekSteps(prev); // no optimistic update
+                                        setErrorMsg('Schritte konnten nicht gespeichert werden.');
+                                    }}
+                                >
+                                    <Text style={{ fontWeight: '700', color: '#fff' }}>DEV: simulate save failure</Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
 
                         <TouchableOpacity

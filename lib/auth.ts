@@ -70,9 +70,12 @@ export const refreshAccessToken = async (
 
     if (!res.ok) return null;
 
-    const data = (await res.json()) as { accessToken?: string };
+    const data = (await res.json()) as { accessToken?: string; refreshToken?: string };
     if (data.accessToken) {
       await AsyncStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
+      if (data.refreshToken) {
+        await AsyncStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+      }
       return data.accessToken;
     }
     return null;
