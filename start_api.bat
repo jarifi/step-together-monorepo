@@ -1,2 +1,0 @@
-@echo off
-powershell -NoExit -ExecutionPolicy Bypass -Command "& {cd 'C:\Users\bfi.BFI-255FN73\python-projekte\step_together_api'; .\venv\Scripts\Activate.ps1; uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload}"

@@ -24,7 +24,7 @@ router = APIRouter()
 
 MAX_FAILED_ATTEMPTS = 3
 
-from app.core.security import create_refresh_token, get_refresh_token_expiry, create_db_refresh_token
+from app.core.security import create_db_refresh_token
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -248,11 +248,14 @@ def unlock_user(user_id: int, current_user: Annotated[User, Depends(get_current_
 
 
 from app.schema.token import RefreshTokenRequest, RefreshTokenResponse
-from app.crud.refresh_token import validate_refresh_token
+from app.crud.refresh_token import validate_refresh_token, revoke_refresh_token
 @router.post("/refresh", response_model=RefreshTokenResponse)
 def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
     # Validate refresh token
     db_token = validate_refresh_token(db, request.refresh_token)
+    if not db_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ungültiger oder abgelaufener Refresh-Token.")
+
     user = db_token.user
 
     team = get_team_by_user_id(db, user.id)
@@ -275,15 +278,9 @@ def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
-    # Optionally: rotate refresh token
-    # db_token.revoked = True
-    # db.commit()
-    # new_refresh_token = create_refresh_token()
-    # expires_at = get_refresh_token_expiry()
-    # create_db_refresh_token(db, user.id, new_refresh_token, expires_at)
-    # refresh_token_to_return = new_refresh_token
-
-    refresh_token_to_return = request.refresh_token  # reuse old token
+    # Rotate refresh token on each refresh request
+    revoke_refresh_token(db, request.refresh_token)
+    refresh_token_to_return = create_db_refresh_token(db, user.id)
 
     return {
         "access_token": access_token,
