@@ -453,8 +453,6 @@ const IndividualDashboard: React.FC = () => {
                 setHasPendingSteps(false);
                 await refreshWeek();
             } catch (e) {
-                setWeekSteps(prev);
-                setStepsToday(prev[idx] ?? 0);
                 setHasPendingSteps(true);
                 console.warn('Save tracked steps failed:', e);
                 setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
