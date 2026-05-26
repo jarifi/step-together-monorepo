@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from typing import Annotated
 
 from app.core.security import create_access_token, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash, get_current_user
@@ -136,6 +136,34 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "role": db_user.role,
     }
 
+
+
+@router.post("/accept-privacy-policy", status_code=status.HTTP_200_OK)
+def accept_privacy_policy(user: UserLogin, db: Session = Depends(get_db)):
+    """Accept the privacy policy for a user who was created by an admin without going through registration."""
+    db_user = get_user_by_email(db, user.email)
+
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Benutzer nicht gefunden.")
+
+    if db_user.is_deleted:
+        raise HTTPException(status_code=403, detail="Konto deaktiviert.")
+
+    if not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Ungültige Anmeldedaten.")
+
+    if db_user.privacy_policy_accepted:
+        return {"message": "Datenschutzerklärung bereits akzeptiert."}
+
+    db_user.privacy_policy_accepted = True
+    db_user.privacy_policy_accepted_at = datetime.now(timezone.utc)
+    db.commit()
+
+    auth_logger.info(
+        f"PRIVACY POLICY ACCEPTED | user_id={db_user.id} | email={user.email}"
+    )
+
+    return {"message": "Datenschutzerklärung erfolgreich akzeptiert."}
 
 
 @router.post(

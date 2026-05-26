@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,10 +20,33 @@ import { router } from "expo-router";
 import { useUser } from "../context/UserContext";
 import { authenticateWithPasskey, getLastEmail, getPasswordSecurely, isPasskeySupported, saveLastEmail, savePasswordSecurely, saveTokens, saveUserId, saveUserRole } from "../lib/auth";
 import { isValidEmail } from "../services/authClient";
+import { acceptPrivacyPolicy } from "../services/userService";
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
 if (__DEV__) console.log("DEBUG: Current API URL is:", API_BASE_URL);
+
+const PRIVACY_POLICY_TEXT = `
+1. Verarbeitete Daten
+Wir verarbeiten im Rahmen der App-Nutzung:
+- E-Mail-Adresse
+- Benutzer-ID
+- Team- und Challenge-Daten
+- ggf. Schritt-/Aktivitätsdaten
+- technische Log-Daten
+
+2. Zweck
+Die Verarbeitung dient der Bereitstellung der App, der Durchführung von Challenges, der Benutzerverwaltung sowie der technischen Sicherheit.
+
+3. Speicherung
+Die Speicherung und Verarbeitung der Daten erfolgt auf Servern innerhalb der Europäischen Union (EU). Eine Übermittlung in Drittstaaten erfolgt nicht, sofern dies nicht gesetzlich erforderlich ist.
+
+4. Speicherdauer
+Daten werden nur so lange gespeichert, wie das Benutzerkonto besteht oder gesetzliche Pflichten dies erfordern.
+
+5. Rechte
+Nutzer haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und Widerspruch gemäß DSGVO.
+`;
 
 async function loginRequest(params: {
   baseUrl: string;
@@ -75,6 +100,9 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [isPasskeyAvailable, setIsPasskeyAvailable] = useState(false);
+
+  const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
+  const pendingCredentials = useRef<{ email: string; password: string } | null>(null);
 
   const { setUser, setToken, setUserId } = useUser();
 
@@ -153,8 +181,13 @@ export default function LoginScreen() {
         status === 429 ||
         status === 423 ||
         /gesperrt|locked|banned|suspended|zu viele/i.test(msg);
+      const needsPrivacyAccept =
+        status === 403 && /Datenschutz/i.test(msg);
 
-      if (isLocked) {
+      if (needsPrivacyAccept) {
+        pendingCredentials.current = { email: normalizedEmail, password: rawPassword };
+        setPrivacyModalVisible(true);
+      } else if (isLocked) {
         showError(msg || "Ihr Konto wurde gesperrt. Bitte kontaktieren Sie den Support.", true);
       } else if (status === 401 || status === 403 || status === 400 || status === 422) {
         showError("Ungültige Anmeldedaten");
@@ -281,8 +314,13 @@ export default function LoginScreen() {
         status === 429 ||
         status === 423 ||
         /gesperrt|locked|banned|suspended|zu viele/i.test(msg);
+      const needsPrivacyAccept =
+        status === 403 && /Datenschutz/i.test(msg);
 
-      if (isLocked) {
+      if (needsPrivacyAccept) {
+        pendingCredentials.current = { email: trimmedEmail, password: trimmedPassword };
+        setPrivacyModalVisible(true);
+      } else if (isLocked) {
         showError(msg || "Ihr Konto wurde gesperrt. Bitte kontaktieren Sie den Support.", true);
       } else if (status === 401 || status === 403 || status === 400 || status === 422) {
         showError("Ungültige Anmeldedaten");
@@ -290,6 +328,49 @@ export default function LoginScreen() {
         showError(msg || "Fehler bei Passkey-Anmeldung");
       }
     } finally {
+      setIsPending(false);
+    }
+  };
+
+  const handleAcceptPrivacyPolicy = async () => {
+    const creds = pendingCredentials.current;
+    if (!creds) return;
+
+    setPrivacyModalVisible(false);
+    setIsPending(true);
+
+    try {
+      await acceptPrivacyPolicy(creds.email, creds.password);
+      const data = await loginRequest({
+        baseUrl: API_BASE_URL,
+        email: creds.email,
+        password: creds.password,
+      });
+
+      await saveLastEmail(creds.email);
+      await savePasswordSecurely(creds.password);
+      await saveTokens(data.accessToken, data.refreshToken);
+      await saveUserId(String(data.userId));
+
+      setToken(data.accessToken);
+      setUserId(String(data.userId));
+
+      if (data.role) await saveUserRole(data.role);
+
+      setUser({
+        id: data.userId,
+        email: creds.email,
+        role: data.role,
+        teamId: data.teamId,
+        activeChallengeId: data.activeChallengeId,
+        activeChallenges: data.activeChallenges,
+      });
+
+      router.replace("/challenges/challengesDashboard");
+    } catch (err: any) {
+      showError(err?.message || "Fehler beim Akzeptieren der Datenschutzerklärung.");
+    } finally {
+      pendingCredentials.current = null;
       setIsPending(false);
     }
   };
@@ -427,6 +508,49 @@ export default function LoginScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={privacyModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPrivacyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Datenschutzerklärung</Text>
+              <Pressable onPress={() => setPrivacyModalVisible(false)} hitSlop={10}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
+            </View>
+            <View style={styles.modalIntro}>
+              <Text style={styles.modalIntroText}>
+                Um die App zu nutzen, musst du unsere Datenschutzerklärung akzeptieren.
+              </Text>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalText}>{PRIVACY_POLICY_TEXT.trim()}</Text>
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <Pressable
+                style={styles.modalButtonSecondary}
+                onPress={() => setPrivacyModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Ablehnen</Text>
+              </Pressable>
+              <Pressable
+                style={styles.modalButtonPrimary}
+                onPress={handleAcceptPrivacyPolicy}
+                disabled={isPending}
+              >
+                <Text style={styles.modalButtonText}>
+                  {isPending ? "Wird verarbeitet…" : "Akzeptieren"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -612,5 +736,82 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.88,
     transform: [{ scale: 0.98 }],
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    padding: 20,
+  },
+
+  modalCard: {
+    backgroundColor: "#4a5240",
+    borderRadius: 15,
+    maxHeight: "80%",
+  },
+
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+
+  modalTitle: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+
+  modalIntro: {
+    padding: 15,
+    paddingBottom: 0,
+  },
+
+  modalIntroText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  modalBody: {
+    padding: 15,
+    maxHeight: 300,
+  },
+
+  modalText: {
+    color: "#fff",
+    lineHeight: 20,
+    fontSize: 13,
+  },
+
+  modalFooter: {
+    flexDirection: "row",
+    gap: 10,
+    padding: 15,
+  },
+
+  modalButtonPrimary: {
+    flex: 1,
+    backgroundColor: "#698059ff",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  modalButtonSecondary: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "700",
   },
 });

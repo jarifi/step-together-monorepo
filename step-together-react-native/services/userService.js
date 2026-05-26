@@ -182,6 +182,18 @@ export const registerUser = async (userData) => {
 };
 
 // ---------------------------------------------------------------------------
+// ACCEPT PRIVACY POLICY (for admin-created users on first login)
+// ---------------------------------------------------------------------------
+export const acceptPrivacyPolicy = async (email, password) => {
+  try {
+    return await publicPost('/auth/accept-privacy-policy', { email, password });
+  } catch (err) {
+    console.error('Error accepting privacy policy:', err);
+    throw err;
+  }
+};
+
+// ---------------------------------------------------------------------------
 // CREATE USER
 // ---------------------------------------------------------------------------
 export const createUser = async (userData) => {
