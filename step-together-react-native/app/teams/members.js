@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import Avatar from '../../components/Avatar';
 import { getTeamMembers, removeTeamMember } from '../../services/teamService';
 
 const COLORS = {
@@ -102,9 +103,7 @@ export default function TeamMembersScreen() {
         }
         renderItem={({ item: m }) => (
           <View style={styles.memberCard}>
-            <View style={styles.iconWrapper}>
-              <MaterialIcons name="person" size={22} color="#2f5c3a" />
-            </View>
+            <Avatar user={m} name={m.name ?? ''} size={38} />
             <View style={{ flex: 1 }}>
               <Text style={styles.memberName}>{m.name ?? `User #${m.userId}`}</Text>
               {m.joiningDate ? (

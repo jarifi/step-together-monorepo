@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
 import {
+  getMe,
   makeAbsoluteMediaUrl,
   updateUser,
   uploadMyProfilePicture,
@@ -25,9 +26,7 @@ import {
 type UpdateUserPayload = {
   name: string;
   email: string;
-  avatarUrl?: string;
-  stepLength?: number | null;
-  role?: string | null;
+  step_length?: number | null;
 };
 
 const COLORS = {
@@ -134,39 +133,44 @@ const ProfileUpdateScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const payload: UpdateUserPayload = {
-        name,
-        email,
-        stepLength: parsedStepLength,
-        role: role || null,
-      };
+      const payload: UpdateUserPayload = { name, email };
+      if (parsedStepLength !== null) payload.step_length = parsedStepLength;
+      console.log('[profile] updateUser payload:', JSON.stringify(payload));
 
-      if (imageUri) {
-        if (isPickedLocalUri(imageUri)) {
-          const up = await uploadMyProfilePicture(imageUri);
-          if (!up?.path) throw new Error('Upload did not return a path');
-
-          payload.avatarUrl = up.path;
-          setImageUri(up.path);
-        } else {
-          payload.avatarUrl = imageUri;
-        }
+      if (imageUri && isPickedLocalUri(imageUri)) {
+        await uploadMyProfilePicture(imageUri);
       }
 
-      const updatedUser = await updateUser(userId, payload);
-      setUser(updatedUser);
+      await updateUser(userId, payload);
 
-      const newAvatar = pickAvatarFromUser(updatedUser);
-      if (newAvatar) setImageUri(newAvatar);
+      const freshUser = await getMe();
+      console.log('[profile] freshUser after save:', JSON.stringify({
+        avatar: freshUser?.avatar,
+        avatarUrl: freshUser?.avatarUrl,
+        profile_picture: freshUser?.profile_picture,
+      }));
+      if (freshUser) {
+        setUser(freshUser);
+        const newAvatar = pickAvatarFromUser(freshUser);
+        const absoluteAvatar = newAvatar ? (makeAbsoluteMediaUrl(newAvatar) ?? newAvatar) : null;
+        if (absoluteAvatar) setImageUri(absoluteAvatar);
+      }
 
       Alert.alert('Success', 'Benutzer erfolgreich aktualisiert!');
       router.back();
     } catch (error: any) {
       console.error(error);
-      Alert.alert(
-        'Error',
-        error?.message ?? 'Benutzer konnte nicht aktualisiert werden'
-      );
+      let message = 'Benutzer konnte nicht aktualisiert werden';
+      try {
+        const detail = JSON.parse(error?.message);
+        if (Array.isArray(detail) && detail[0]?.msg) {
+          const field = detail[0]?.loc?.[1] ?? '';
+          message = field ? `Feld „${field}": ${detail[0].msg}` : detail[0].msg;
+        }
+      } catch {
+        if (error?.message && !error.message.startsWith('[')) message = error.message;
+      }
+      Alert.alert('Fehler beim Speichern', message);
     } finally {
       setLoading(false);
     }

@@ -205,6 +205,7 @@ def get_team_members_for_team(
             team_id=tm.team_id,
             joining_date=tm.joining_date,
             name=user.name,
+            avatar_url=user.avatar_url,
         )
         for tm, user in results
     ]

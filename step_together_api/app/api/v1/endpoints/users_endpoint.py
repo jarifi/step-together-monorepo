@@ -3,7 +3,7 @@ import uuid
 import io
 from typing import List, Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from PIL import Image
 from pydantic import BaseModel
@@ -260,6 +260,7 @@ def init_dashboard_data(
 
 @router.post("/me/profile-picture")
 async def upload_profile_picture(
+    request: Request,
     db: Session = Depends(get_db),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -289,7 +290,8 @@ async def upload_profile_picture(
         image.save(file_path, "WEBP", quality=85)
 
     # 4. Update Database
-    public_path = f"{settings.PUBLIC_MEDIA_PATH}/{PROFILE_PICTURES_DIR}/{user_folder}/{filename}"
+    base = str(request.base_url).rstrip("/")
+    public_path = f"{base}/media/{PROFILE_PICTURES_DIR}/{user_folder}/{filename}"
     current_user.avatar_url = public_path
     db.commit()
 

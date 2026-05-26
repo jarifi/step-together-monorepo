@@ -200,6 +200,7 @@ def get_participants_for_challenge(db: Session, challenge_id: int):
         db.query(
             UserModel.id.label("user_id"),
             UserModel.name.label("name"),
+            UserModel.avatar_url.label("avatar_url"),
             func.coalesce(func.sum(StepLog.number_of_steps), 0).label("total_steps"),
         )
         .join(ChallengeParticipant, ChallengeParticipant.user_id == UserModel.id)
@@ -214,7 +215,7 @@ def get_participants_for_challenge(db: Session, challenge_id: int):
             ChallengeParticipant.challenge_id == challenge_id,
             ChallengeParticipant.status == ChallengeParticipant.STATUS_ACTIVE,
         )
-        .group_by(UserModel.id, UserModel.name)
+        .group_by(UserModel.id, UserModel.name, UserModel.avatar_url)
         .order_by(func.sum(StepLog.number_of_steps).desc())
         .all()
     )
@@ -224,6 +225,7 @@ def get_participants_for_challenge(db: Session, challenge_id: int):
             user_id=row.user_id,
             name=row.name,
             total_steps=row.total_steps,
+            avatar_url=row.avatar_url,
         )
         for row in rows
     ]
