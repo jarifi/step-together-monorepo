@@ -68,7 +68,7 @@ const buildRankings = (
             steps: Number(r?.totalSteps ?? r?.numberOfSteps ?? r?.steps ?? 0),
             stepLength: Number.isFinite(sl) && sl > 0 ? sl : fallback,
             email: r?.email ?? r?.user?.email ?? null,
-            userRaw: r?.user ?? r,
+            userRaw: r?.user ? { ...r, ...r.user } : r,
         };
     });
 

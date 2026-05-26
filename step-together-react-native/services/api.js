@@ -188,15 +188,17 @@ const authedFetch = async (path, options = {}, retry = true) => {
 
     const payload = await tryParseJson(retryRes);
     if (!retryRes.ok) {
-      const err = new Error(
-        (payload && (payload.message || payload.detail)) || `HTTP ${retryRes.status}`
-      );
+      const detail = payload?.detail;
+      const detailStr = Array.isArray(detail)
+        ? JSON.stringify(detail)
+        : typeof detail === 'string' ? detail : null;
+      const err = new Error(payload?.message ?? detailStr ?? `HTTP ${retryRes.status}`);
       err.status = retryRes.status;
       err.payload = payload;
       if (isUnauthorizedStatus(err.status)) {
         console.warn('🟠 [API] retry unauthorized:', err.status, payload);
       } else {
-        console.error('🔴 [API] retry failed:', err.status, payload);
+        console.error('🔴 [API] retry failed:', err.status, JSON.stringify(payload));
       }
       throw err;
     }
@@ -207,16 +209,17 @@ const authedFetch = async (path, options = {}, retry = true) => {
   const payload = await tryParseJson(res);
 
   if (!res.ok) {
-    const err = new Error(
-      (payload && (payload.message || payload.detail)) ||
-      (Array.isArray(payload?.detail) ? JSON.stringify(payload.detail) : `HTTP ${res.status}`)
-    );
+    const detail = payload?.detail;
+    const detailStr = Array.isArray(detail)
+      ? JSON.stringify(detail)
+      : typeof detail === 'string' ? detail : null;
+    const err = new Error(payload?.message ?? detailStr ?? `HTTP ${res.status}`);
     err.status = res.status;
     err.payload = payload;
     if (isUnauthorizedStatus(err.status)) {
       console.warn('🟠 [API] unauthorized:', err.status, payload);
     } else {
-      console.error('🔴 [API] request failed:', err.status, payload);
+      console.error('🔴 [API] request failed:', err.status, JSON.stringify(payload));
     }
     throw err;
   }

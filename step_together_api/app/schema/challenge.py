@@ -81,6 +81,7 @@ class ChallengeParticipantWithSteps(CamelCaseBaseModel):
     user_id: int
     name: str
     total_steps: int
+    avatar_url: Optional[str] = None
 
 
 class ActiveChallengeInfo(CamelCaseBaseModel):

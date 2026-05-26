@@ -27,7 +27,8 @@ class TeamMemberSimple(CamelCaseBaseModel):
     user_id: int
     team_id: int
     joining_date: Optional[datetime] = None
-    name: str   
+    name: str
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True

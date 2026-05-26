@@ -57,7 +57,9 @@ const normalizeUser = (u) => {
     isVerified: verified,
     is_verified: verified,
     verified,
-    avatar: makeAbsoluteMediaUrl(u?.avatarUrl ?? u?.avatar_url ?? null),
+    avatar: makeAbsoluteMediaUrl(
+      u?.avatarUrl ?? u?.avatar_url ?? u?.profile_picture ?? u?.profilePicture ?? u?.profile_picture_url ?? null
+    ),
   };
 };
 
@@ -98,6 +100,19 @@ export const uploadMyProfilePicture = async (imageUri) => {
   }
 
   return await apiPost('/users/me/profile-picture', formData);
+};
+
+// ---------------------------------------------------------------------------
+// GET CURRENT USER (/users/me)
+// ---------------------------------------------------------------------------
+export const getMe = async () => {
+  try {
+    const user = await apiGet('/users/me');
+    return user ? normalizeUser(user) : null;
+  } catch (err) {
+    console.error('Error fetching current user:', err);
+    return null;
+  }
 };
 
 // ---------------------------------------------------------------------------

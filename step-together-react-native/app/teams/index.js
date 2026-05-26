@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -5,7 +6,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -36,10 +36,6 @@ const getInitials = (name) =>
     .slice(0, 2)
     .toUpperCase();
 
-const pickAvatarFromMember = (member) => {
-  if (!member) return null;
-  return member.avatarUrl ?? member.avatar_url ?? member.avatar ?? null;
-};
 
 export default function TeamsScreen() {
   const [teams, setTeams] = useState([]);
@@ -224,63 +220,27 @@ export default function TeamsScreen() {
                   pressed && styles.pressed,
                 ]}
               >
+                <View style={styles.cardAccent} />
+
                 <View style={styles.teamCardTop}>
+                  <View style={styles.teamIconWrap}>
+                    <Ionicons name="people" size={20} color={COLORS.accent} />
+                  </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.teamName}>{item?.name ?? 'Ohne Namen'}</Text>
-                    <Text style={styles.teamId}>ID: {String(teamCode ?? '-')}</Text>
-                  </View>
-
-                  <View style={styles.countPill}>
-                    <Text style={styles.countPillText}>
-                      {memberCount}/{maxMembers}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.membersRow}>
-                  {members.length > 0 ? (
-                    <>
-                      <View style={styles.avatarStack}>
-                        {members.slice(0, 5).map((member, index) => {
-                          const avatarUrl = pickAvatarFromMember(member);
-                          const initials = getInitials(member?.name ?? `U${member?.userId ?? ''}`);
-
-                          return (
-                            <View
-                              key={String(member?.id ?? member?.userId ?? index)}
-                              style={[
-                                styles.memberAvatarWrap,
-                                {
-                                  marginLeft: index === 0 ? 0 : -10,
-                                  zIndex: 10 - index,
-                                },
-                              ]}
-                            >
-                              {avatarUrl ? (
-                                <Image
-                                  source={{ uri: avatarUrl }}
-                                  style={styles.memberAvatar}
-                                />
-                              ) : (
-                                <View style={styles.memberAvatarFallback}>
-                                  <Text style={styles.memberAvatarInitials}>
-                                    {initials}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                          );
-                        })}
+                    <Text style={styles.teamName} numberOfLines={1}>{item?.name ?? 'Ohne Namen'}</Text>
+                    <View style={styles.teamMetaRow}>
+                      <Text style={styles.teamId}>ID {String(teamCode ?? '-')}</Text>
+                      <View style={styles.countPill}>
+                        <Ionicons name="person" size={11} color={COLORS.accent} />
+                        <Text style={styles.countPillText}>
+                          {memberCount} {memberCount === 1 ? 'Mitglied' : 'Mitglieder'}
+                        </Text>
                       </View>
-
-                      <Text style={styles.memberInfoText}>
-                        {memberCount} Mitglied{memberCount === 1 ? '' : 'er'}
-                      </Text>
-                    </>
-                  ) : (
-                    <Text style={styles.noMembersText}>Keine Mitglieder im Team</Text>
-                  )}
+                    </View>
+                  </View>
                 </View>
+
+                <View style={styles.divider} />
 
                 <View style={styles.teamActionsRow}>
                   <Pressable
@@ -295,6 +255,7 @@ export default function TeamsScreen() {
                       pressed && styles.pressed,
                     ]}
                   >
+                    <Ionicons name="pencil-outline" size={14} color={COLORS.text} />
                     <Text style={styles.smallSecondaryBtnText}>Bearbeiten</Text>
                   </Pressable>
 
@@ -312,6 +273,7 @@ export default function TeamsScreen() {
                       pressed && styles.pressed,
                     ]}
                   >
+                    <Ionicons name="trash-outline" size={14} color="#D92D20" />
                     <Text style={styles.smallDangerBtnText}>Löschen</Text>
                   </Pressable>
                 </View>
@@ -517,42 +479,74 @@ const styles = StyleSheet.create({
 
   teamCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: 22,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+    overflow: 'hidden',
+  },
+
+  cardAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: COLORS.accent,
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
   },
 
   teamCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 12,
+    paddingLeft: 4,
+  },
+
+  teamIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: COLORS.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   teamName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: COLORS.text,
+    letterSpacing: 0.1,
+  },
+
+  teamMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    flexWrap: 'wrap',
   },
 
   teamId: {
-    marginTop: 4,
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.sub,
     fontWeight: '600',
   },
 
   countPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: COLORS.accentSoft,
     borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: 'rgba(85,128,92,0.18)',
   },
@@ -560,76 +554,33 @@ const styles = StyleSheet.create({
   countPillText: {
     color: COLORS.accent,
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 12,
   },
 
-  membersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 14,
-    minHeight: 44,
-  },
-
-  avatarStack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  memberAvatarWrap: {
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-
-  memberAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-  },
-
-  memberAvatarFallback: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    backgroundColor: '#DDE7DD',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  memberAvatarInitials: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#1F2A22',
-  },
-
-  memberInfoText: {
-    marginLeft: 12,
-    fontSize: 13,
-    color: COLORS.sub,
-    fontWeight: '700',
-  },
-
-  noMembersText: {
-    fontSize: 13,
-    color: COLORS.sub,
-    fontWeight: '600',
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 12,
+    marginLeft: 4,
   },
 
   teamActionsRow: {
     flexDirection: 'row',
-    marginTop: 16,
-    gap: 10,
+    gap: 8,
+    paddingLeft: 4,
   },
 
   smallSecondaryBtn: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingVertical: 11,
-    borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#F4F6F4',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
 
   smallSecondaryBtnText: {
@@ -640,13 +591,15 @@ const styles = StyleSheet.create({
 
   smallDangerBtn: {
     flex: 1,
-    backgroundColor: 'rgba(217,45,32,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(217,45,32,0.18)',
-    paddingVertical: 11,
-    borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(217,45,32,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(217,45,32,0.16)',
+    paddingVertical: 10,
+    borderRadius: 12,
   },
 
   smallDangerBtnText: {
