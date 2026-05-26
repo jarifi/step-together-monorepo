@@ -1,7 +1,7 @@
 // file: services/api.js
 
 import Constants from 'expo-constants';
-import { getAccessToken, getRefreshToken, refreshAccessToken, removeTokens } from '../lib/auth';
+import { getAccessToken, getRefreshToken, refreshAccessToken } from '../lib/auth';
 
 const API_BASE_URL = String(Constants.expoConfig?.extra?.apiBaseUrl ?? '').replace(/\/+$/, '');
 
@@ -67,7 +67,11 @@ const authedFetch = async (path, options = {}, retry = true) => {
 
   const url = path.startsWith('http') ? path : buildUrl(path);
 
-  options.headers = options.headers ? { ...options.headers } : {};
+  const preserveAuthOnRefreshFailure = Boolean(options?.preserveAuthOnRefreshFailure);
+
+  const requestOptions = { ...options };
+  requestOptions.headers = requestOptions.headers ? { ...requestOptions.headers } : {};
+  delete requestOptions.preserveAuthOnRefreshFailure;
 
   // Always load the latest token from storage
   let token = await getAccessToken();
@@ -78,25 +82,25 @@ const authedFetch = async (path, options = {}, retry = true) => {
     console.warn('🟠 [API] missing access token; skipping request:', url);
     throw err;
   }
-  options.headers.Authorization = `Bearer ${token}`;
+  requestOptions.headers.Authorization = `Bearer ${token}`;
 
   // Default headers
-  if (!options.headers['Content-Type'] && !(options.body instanceof FormData)) {
-    options.headers['Content-Type'] = 'application/json';
+  if (!requestOptions.headers['Content-Type'] && !(requestOptions.body instanceof FormData)) {
+    requestOptions.headers['Content-Type'] = 'application/json';
   }
-  if (!options.headers.Accept) {
-    options.headers.Accept = 'application/json';
+  if (!requestOptions.headers.Accept) {
+    requestOptions.headers.Accept = 'application/json';
   }
 
   // Always explicitly follow redirects (default is 'follow', but log clarity helps)
-  if (!options.redirect) options.redirect = 'follow';
+  if (!requestOptions.redirect) requestOptions.redirect = 'follow';
 
   // ---- REQUEST LOG ----
-  logReq(url, options);
+  logReq(url, requestOptions);
 
   let res;
   try {
-    res = await fetch(url, options);
+    res = await fetch(url, requestOptions);
   } catch (fetchErr) {
     if (isAbortError(fetchErr)) {
       console.warn('🟡 [API] request aborted:', url);
@@ -135,7 +139,8 @@ const authedFetch = async (path, options = {}, retry = true) => {
         try {
           const newToken = await refreshAccessToken(API_BASE_URL);
           if (!newToken) {
-            await removeTokens();
+            // Never auto-logout on refresh failure. Keep auth state stable and
+            // let the caller decide how to recover (retry, show warning, manual logout).
             throw new Error('Unable to refresh token');
           }
           console.warn('🟢 [API] token refresh success');
@@ -165,8 +170,8 @@ const authedFetch = async (path, options = {}, retry = true) => {
 
     // Retry the original request exactly once with new token
     const retryOptions = {
-      ...options,
-      headers: { ...options.headers, Authorization: `Bearer ${newToken}` },
+      ...requestOptions,
+      headers: { ...requestOptions.headers, Authorization: `Bearer ${newToken}` },
     };
 
     console.warn('🟡 [API] retrying request once after refresh…');
@@ -228,16 +233,16 @@ const authedFetch = async (path, options = {}, retry = true) => {
 export const apiGet = async (path, options = {}) =>
   authedFetch(path, { ...options, method: 'GET' }, true);
 
-export const apiPost = async (path, bodyObj = {}) => {
+export const apiPost = async (path, bodyObj = {}, options = {}) => {
   const body = bodyObj instanceof FormData ? bodyObj : JSON.stringify(bodyObj);
   const headers = bodyObj instanceof FormData ? {} : { 'Content-Type': 'application/json' };
-  return authedFetch(path, { method: 'POST', headers, body }, true);
+  return authedFetch(path, { ...options, method: 'POST', headers, body }, true);
 };
 
-export const apiPut = async (path, bodyObj = {}) => {
+export const apiPut = async (path, bodyObj = {}, options = {}) => {
   const body = bodyObj instanceof FormData ? bodyObj : JSON.stringify(bodyObj);
   const headers = bodyObj instanceof FormData ? {} : { 'Content-Type': 'application/json' };
-  return authedFetch(path, { method: 'PUT', headers, body }, true);
+  return authedFetch(path, { ...options, method: 'PUT', headers, body }, true);
 };
 
 export const apiDelete = async (path) => authedFetch(path, { method: 'DELETE' }, true);

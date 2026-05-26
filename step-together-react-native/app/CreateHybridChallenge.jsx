@@ -152,6 +152,11 @@ function calFirstWeekday(year, month) {
   return (wd + 6) % 7;
 }
 
+function roundToFive(min) {
+  const rounded = Math.round((Number(min) || 0) / 5) * 5;
+  return Math.min(55, Math.max(0, rounded));
+}
+
 function initials(name) {
   return (name || "?")
     .trim()
@@ -160,6 +165,27 @@ function initials(name) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
+
+function TimeStepper({ value, min, max, step, onChange }) {
+  function applyDelta(delta) {
+    const next = Math.min(max, Math.max(min, value + delta));
+    if (next !== value) onChange(next);
+  }
+
+  return (
+    <View style={tw.stepperWrap}>
+      <TouchableOpacity style={tw.stepBtn} onPress={() => applyDelta(step)}>
+        <Text style={tw.stepBtnText}>+</Text>
+      </TouchableOpacity>
+      <View style={tw.stepValueWrap}>
+        <Text style={tw.stepValueText}>{String(value).padStart(2, "0")}</Text>
+      </View>
+      <TouchableOpacity style={tw.stepBtn} onPress={() => applyDelta(-step)}>
+        <Text style={tw.stepBtnText}>-</Text>
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 // ─── TimeWheel ────────────────────────────────────────────────────────────────
@@ -198,6 +224,43 @@ const tw = StyleSheet.create({
   wheelItemActive: { backgroundColor: T.primarySoft },
   wheelText: { fontSize: 14, color: T.textMuted, fontWeight: "500" },
   wheelTextActive: { fontSize: 16, color: T.primary, fontWeight: "700" },
+  stepperWrap: {
+    width: 66,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    backgroundColor: T.surfaceAlt,
+    alignItems: "center",
+    paddingVertical: 6,
+    gap: 6,
+  },
+  stepBtn: {
+    width: 34,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: T.white,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  stepBtnText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: T.textSec,
+    lineHeight: 20,
+  },
+  stepValueWrap: {
+    width: 46,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: T.primarySofter,
+    borderWidth: 1,
+    borderColor: T.accentLight,
+  },
+  stepValueText: { fontSize: 16, fontWeight: "700", color: T.primary },
 });
 
 // ─── Modern Calendar Picker ───────────────────────────────────────────────────
@@ -218,7 +281,9 @@ function CalendarPicker({
   );
   const [picked, setPicked] = useState(value || null);
   const [hour, setHour] = useState(value ? value.getHours() : 8);
-  const [minute, setMinute] = useState(value ? value.getMinutes() : 0);
+  const [minute, setMinute] = useState(
+    value ? roundToFive(value.getMinutes()) : 0,
+  );
 
   // reset when opening
   useEffect(() => {
@@ -228,7 +293,7 @@ function CalendarPicker({
       setViewMonth(base.getMonth());
       setPicked(value || null);
       setHour(value ? value.getHours() : 8);
-      setMinute(value ? value.getMinutes() : 0);
+      setMinute(value ? roundToFive(value.getMinutes()) : 0);
     }
   }, [visible]);
 
@@ -374,6 +439,14 @@ function CalendarPicker({
                   </option>
                 ))}
               </select>
+            ) : Platform.OS === "android" ? (
+              <TimeStepper
+                value={hour}
+                min={0}
+                max={23}
+                step={1}
+                onChange={setHour}
+              />
             ) : (
               <TimeWheel value={hour} options={HOURS} onChange={setHour} />
             )}
@@ -402,6 +475,14 @@ function CalendarPicker({
                   </option>
                 ))}
               </select>
+            ) : Platform.OS === "android" ? (
+              <TimeStepper
+                value={minute}
+                min={0}
+                max={55}
+                step={5}
+                onChange={setMinute}
+              />
             ) : (
               <TimeWheel
                 value={minute}

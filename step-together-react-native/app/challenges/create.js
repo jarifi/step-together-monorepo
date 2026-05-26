@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -125,6 +126,11 @@ function calFirstWeekday(year, month) {
   return (wd + 6) % 7;
 }
 
+function roundToFive(min) {
+  const rounded = Math.round((Number(min) || 0) / 5) * 5;
+  return Math.min(55, Math.max(0, rounded));
+}
+
 function initials(name) {
   return (name || '?')
     .trim()
@@ -136,17 +142,52 @@ function initials(name) {
 }
 
 // ─── TimeWheel ────────────────────────────────────────────────────────────────
-function TimeWheel({ value, options, onChange }) {
+const TIME_WHEEL_ITEM_HEIGHT = 24;
+
+function TimeStepper({ value, min, max, step, onChange }) {
+  function applyDelta(delta) {
+    const next = Math.min(max, Math.max(min, value + delta));
+    if (next !== value) onChange(next);
+  }
+
   return (
-    <ScrollView
+    <View style={tw.stepperWrap}>
+      <TouchableOpacity style={tw.stepBtn} onPress={() => applyDelta(step)}>
+        <Text style={tw.stepBtnText}>+</Text>
+      </TouchableOpacity>
+      <View style={tw.stepValueWrap}>
+        <Text style={tw.stepValueText}>{String(value).padStart(2, '0')}</Text>
+      </View>
+      <TouchableOpacity style={tw.stepBtn} onPress={() => applyDelta(-step)}>
+        <Text style={tw.stepBtnText}>-</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function TimeWheel({ value, options, onChange }) {
+  const wheelRef = useRef(null);
+
+  useEffect(() => {
+    const idx = Math.max(0, options.indexOf(value));
+    wheelRef.current?.scrollToOffset({ offset: idx * TIME_WHEEL_ITEM_HEIGHT, animated: false });
+  }, [value, options]);
+
+  const syncValueFromOffset = useCallback((offsetY) => {
+    const idx = Math.round(offsetY / TIME_WHEEL_ITEM_HEIGHT);
+    const clampedIdx = Math.min(Math.max(idx, 0), options.length - 1);
+    const next = options[clampedIdx];
+    if (next !== undefined && next !== value) onChange(next);
+  }, [onChange, options, value]);
+
+  return (
+    <FlatList
+      ref={wheelRef}
       style={tw.wheel}
-      showsVerticalScrollIndicator={false}
-      snapToInterval={24}
-      decelerationRate="fast"
-    >
-      {options.map(opt => (
+      data={options}
+      keyExtractor={(opt) => String(opt)}
+      renderItem={({ item: opt }) => (
         <TouchableOpacity
-          key={opt}
           style={[tw.wheelItem, opt === value && tw.wheelItemActive]}
           onPress={() => onChange(opt)}
         >
@@ -154,8 +195,20 @@ function TimeWheel({ value, options, onChange }) {
             {String(opt).padStart(2, '0')}
           </Text>
         </TouchableOpacity>
-      ))}
-    </ScrollView>
+      )}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled={Platform.OS === 'android'}
+      snapToInterval={TIME_WHEEL_ITEM_HEIGHT}
+      decelerationRate="fast"
+      getItemLayout={(_, index) => ({
+        length: TIME_WHEEL_ITEM_HEIGHT,
+        offset: TIME_WHEEL_ITEM_HEIGHT * index,
+        index,
+      })}
+      onMomentumScrollEnd={(e) => syncValueFromOffset(e.nativeEvent.contentOffset.y)}
+      onScrollEndDrag={(e) => syncValueFromOffset(e.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
+    />
   );
 }
 
@@ -165,6 +218,38 @@ const tw = StyleSheet.create({
   wheelItemActive: { backgroundColor: T.primarySoft },
   wheelText:       { fontSize: 14, color: T.textMuted, fontWeight: '500' },
   wheelTextActive: { fontSize: 16, color: T.primary,   fontWeight: '700' },
+  stepperWrap: {
+    width: 66,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    backgroundColor: T.surfaceAlt,
+    alignItems: 'center',
+    paddingVertical: 6,
+    gap: 6,
+  },
+  stepBtn: {
+    width: 34,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: T.white,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  stepBtnText: { fontSize: 18, fontWeight: '700', color: T.textSec, lineHeight: 20 },
+  stepValueWrap: {
+    width: 46,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: T.primarySofter,
+    borderWidth: 1,
+    borderColor: T.accentLight,
+  },
+  stepValueText: { fontSize: 16, fontWeight: '700', color: T.primary },
 });
 
 // ─── Calendar Picker ──────────────────────────────────────────────────────────
@@ -183,7 +268,7 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
       setViewMonth(base.getMonth());
       setPicked(value || null);
       setHour(value ? value.getHours() : 8);
-      setMinute(value ? value.getMinutes() : 0);
+      setMinute(value ? roundToFive(value.getMinutes()) : 0);
     }
   }, [visible]);
 
@@ -232,7 +317,11 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={cal.scrollContent}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={cal.scrollContent}
+            nestedScrollEnabled={Platform.OS === 'android'}
+          >
             <View style={cal.monthNav}>
               <TouchableOpacity onPress={prevMonth} style={cal.navBtn}>
                 <Text style={cal.navArrow}>‹</Text>
@@ -297,6 +386,8 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
                   >
                     {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}</option>)}
                   </select>
+                ) : Platform.OS === 'android' ? (
+                  <TimeStepper value={hour} min={0} max={23} step={1} onChange={setHour} />
                 ) : (
                   <TimeWheel value={hour} options={HOURS} onChange={setHour} />
                 )}
@@ -312,6 +403,8 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
                   >
                     {MINUTES.map(m => <option key={m} value={m}>{String(m).padStart(2,'0')}</option>)}
                   </select>
+                ) : Platform.OS === 'android' ? (
+                  <TimeStepper value={minute} min={0} max={55} step={5} onChange={setMinute} />
                 ) : (
                   <TimeWheel value={minute} options={MINUTES} onChange={setMinute} />
                 )}

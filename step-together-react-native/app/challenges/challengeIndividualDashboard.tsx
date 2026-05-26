@@ -102,6 +102,7 @@ const toIsoUtcMidnight = (d: Date) => {
 };
 
 const isAbortError = (err: any) => err?.name === 'AbortError';
+const isUnauthorizedError = (err: any) => Number(err?.status) === 401;
 
 const firstParam = (value: string | string[] | undefined): string =>
     Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '');
@@ -151,9 +152,11 @@ const IndividualDashboard: React.FC = () => {
     const [showGoalModal, setShowGoalModal] = useState(false);
 
     const [isTracking, setIsTracking] = useState(false);
+    const [isStoppingTracking, setIsStoppingTracking] = useState(false);
     const [sessionSteps, setSessionSteps] = useState(0);
     const [sessionStart, setSessionStart] = useState<number | null>(null);
     const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
+    const [trackingBaseSteps, setTrackingBaseSteps] = useState<number | null>(null);
 
     const subscriptionRef = useRef<any>(null);
     const isMountedRef = useRef(true);
@@ -455,7 +458,11 @@ const IndividualDashboard: React.FC = () => {
             } catch (e) {
                 setHasPendingSteps(true);
                 console.warn('Save tracked steps failed:', e);
-                setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
+                if (isUnauthorizedError(e)) {
+                    setErrorMsg('Session bleibt aktiv. Schritte werden später automatisch synchronisiert.');
+                } else {
+                    setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
+                }
             }
         },
         [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
@@ -566,6 +573,10 @@ const IndividualDashboard: React.FC = () => {
             setErrorMsg(null);
             setSessionSteps(0);
             setSessionStart(null);
+            const dateSafe = clampDate(displayDate, minDate, maxDate);
+            const idx = (dateSafe.getDay() + 6) % 7;
+            const base = Number(weekSteps[idx] ?? stepsToday ?? 0);
+            setTrackingBaseSteps(base);
             setIsTracking(true);
 
             subscriptionRef.current = Pedometer.watchStepCount((result) => {
@@ -586,7 +597,15 @@ const IndividualDashboard: React.FC = () => {
     };
 
     const stopTracking = async () => {
+        if (isStoppingTracking) return;
+        const stepsToSave = Math.max(0, Math.floor(sessionSteps));
+        const dateSafe = clampDate(displayDate, minDate, maxDate);
+        const idx = (dateSafe.getDay() + 6) % 7;
+        const base = Number(trackingBaseSteps ?? weekSteps[idx] ?? stepsToday ?? 0);
+
         try {
+            setIsStoppingTracking(true);
+
             if (subscriptionRef.current) {
                 subscriptionRef.current.remove();
                 subscriptionRef.current = null;
@@ -594,8 +613,8 @@ const IndividualDashboard: React.FC = () => {
 
             setIsTracking(false);
 
-            if (sessionSteps > 0) {
-                await saveTrackedSteps(sessionSteps);
+            if (stepsToSave > 0) {
+                await saveAbsoluteStepsForSelectedDay(base + stepsToSave);
             }
         } catch (e) {
             console.warn('stopTracking failed:', e);
@@ -603,12 +622,18 @@ const IndividualDashboard: React.FC = () => {
         } finally {
             setSessionSteps(0);
             setSessionStart(null);
+            setTrackingBaseSteps(null);
+            setIsStoppingTracking(false);
         }
     };
 
     const liveStepsToday = useMemo(() => {
-        return stepsToday + (isTracking ? sessionSteps : 0);
-    }, [stepsToday, isTracking, sessionSteps]);
+        if (isTracking) {
+            const base = Number(trackingBaseSteps ?? stepsToday ?? 0);
+            return base + sessionSteps;
+        }
+        return stepsToday;
+    }, [stepsToday, isTracking, sessionSteps, trackingBaseSteps]);
 
     const weeklyMax = useMemo(() => Math.max(1, ...weekSteps), [weekSteps]);
     const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
@@ -637,21 +662,23 @@ const IndividualDashboard: React.FC = () => {
 
     useFocusEffect(
         useCallback(() => {
-            refreshWeek();
-            flushPendingSteps();
+            if (!isTracking && !isStoppingTracking) {
+                refreshWeek();
+                flushPendingSteps();
+            }
             return undefined;
-        }, [refreshWeek, flushPendingSteps])
+        }, [refreshWeek, flushPendingSteps, isTracking, isStoppingTracking])
     );
 
     useEffect(() => {
         const sub = AppState.addEventListener('change', (state) => {
-            if (state === 'active') {
+            if (state === 'active' && !isTracking && !isStoppingTracking) {
                 refreshWeek();
                 flushPendingSteps();
             }
         });
         return () => sub.remove();
-    }, [refreshWeek, flushPendingSteps]);
+    }, [refreshWeek, flushPendingSteps, isTracking, isStoppingTracking]);
 
     // On mount: restore pending state from AsyncStorage
     useEffect(() => {
@@ -662,15 +689,16 @@ const IndividualDashboard: React.FC = () => {
 
     // Auto-retry flush once vm is ready and there is a pending save
     useEffect(() => {
+        if (isTracking || isStoppingTracking) return;
         if (!hasPendingSteps || !vm?.challenge?.id) return;
         flushPendingSteps();
-    }, [hasPendingSteps, vm?.challenge?.id, flushPendingSteps]);
+    }, [hasPendingSteps, vm?.challenge?.id, flushPendingSteps, isTracking, isStoppingTracking]);
 
     useEffect(() => {
-        if (!vm?.user?.id) return;
+        if (!vm?.user?.id || isTracking || isStoppingTracking) return;
         const id = setInterval(() => refreshWeek(), 30000);
         return () => clearInterval(id);
-    }, [vm?.user?.id, vm?.challenge?.id, refreshWeek]);
+    }, [vm?.user?.id, vm?.challenge?.id, refreshWeek, isTracking, isStoppingTracking]);
 
     const EmptyChallengeCard = () => (
         <View style={{ flex: 1, backgroundColor: '#F5F7F4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
@@ -892,7 +920,7 @@ const IndividualDashboard: React.FC = () => {
                         <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                             <MaterialIcons name="sync" size={16} color="#D97706" />
                             <Text style={[styles.font, { color: '#D97706', fontSize: 13 }]}>
-                                Schritte ausstehend — werden synchronisiert
+                                Schritte ausstehend — werden synchronisiert (Session bleibt aktiv)
                             </Text>
                             <TouchableOpacity onPress={flushPendingSteps} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                 <Text style={[styles.font, { color: '#D97706', fontSize: 13, textDecorationLine: 'underline' }]}>
@@ -925,14 +953,16 @@ const IndividualDashboard: React.FC = () => {
                         <TouchableOpacity
                             style={[
                                 styles.dangerActionBtn,
-                                (!isTracking || !isTodaySelected) && styles.buttonDisabled,
+                                (!isTracking || !isTodaySelected || isStoppingTracking) && styles.buttonDisabled,
                             ]}
-                            disabled={!isTracking || !isTodaySelected}
+                            disabled={!isTracking || !isTodaySelected || isStoppingTracking}
                             onPress={stopTracking}
                             activeOpacity={0.9}
                         >
                             <Ionicons name="stop" size={18} color="#fff" />
-                            <Text style={[styles.dangerActionBtnText, styles.font]}>Stopp & speichern</Text>
+                            <Text style={[styles.dangerActionBtnText, styles.font]}>
+                                {isStoppingTracking ? 'Speichert…' : 'Stopp & speichern'}
+                            </Text>
                         </TouchableOpacity>
 
                         {!isTodaySelected && (

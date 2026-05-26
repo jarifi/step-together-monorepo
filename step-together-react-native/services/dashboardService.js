@@ -10,6 +10,7 @@ import {
 
 const isUnauthorizedError = (err) => Number(err?.status) === 401;
 const isAbortError = (err) => err?.name === "AbortError";
+const AUTH_TOLERANT_OPTIONS = { preserveAuthOnRefreshFailure: true };
 
 // ---------------------------------------------------------------------------
 // SAFE HELPERS
@@ -51,7 +52,7 @@ const toIsoUtcMidnight = (isoLike) => {
 
 export const getHomeInit = async (signal) => {
   try {
-    return await apiGet("/users/user/dashboard/init", { signal });
+    return await apiGet("/users/user/dashboard/init", { ...AUTH_TOLERANT_OPTIONS, signal });
   } catch (err) {
     if (isAbortError(err)) {
       throw err;
@@ -68,7 +69,7 @@ export const getHomeInit = async (signal) => {
 // ---------------------------------------------------------------------------
 
 export const listMyStepLogs = async () => {
-  return await apiGet(`/step_logs/user`);
+  return await apiGet(`/step_logs/user`, AUTH_TOLERANT_OPTIONS);
 };
 
 export const getMyWeekStepLogs = async (challengeId, fromISO, toISO, signal) => {
@@ -76,7 +77,7 @@ export const getMyWeekStepLogs = async (challengeId, fromISO, toISO, signal) => 
   if (!fromISO || !toISO) throw new Error("from/to ISO required");
 
   const path = `/step_logs/challenge/${challengeId}/user?from=${fromISO}&to=${toISO}`;
-  return await apiGet(path, { signal });
+  return await apiGet(path, { ...AUTH_TOLERANT_OPTIONS, signal });
 };
 
 // ---------------------------------------------------------------------------
@@ -132,10 +133,10 @@ const isRedirectStatus = (status) => status === 307 || status === 308;
 
 const putNoRedirect = async (pathNoSlash, body) => {
   try {
-    return await apiPut(pathNoSlash, body);
+    return await apiPut(pathNoSlash, body, AUTH_TOLERANT_OPTIONS);
   } catch (e) {
     if (isRedirectStatus(e?.status)) {
-      return await apiPut(`${pathNoSlash}/`, body);
+      return await apiPut(`${pathNoSlash}/`, body, AUTH_TOLERANT_OPTIONS);
     }
     throw e;
   }
@@ -143,10 +144,10 @@ const putNoRedirect = async (pathNoSlash, body) => {
 
 const postNoRedirect = async (pathNoSlash, body) => {
   try {
-    return await apiPost(pathNoSlash, body);
+    return await apiPost(pathNoSlash, body, AUTH_TOLERANT_OPTIONS);
   } catch (e) {
     if (isRedirectStatus(e?.status)) {
-      return await apiPost(`${pathNoSlash}/`, body);
+      return await apiPost(`${pathNoSlash}/`, body, AUTH_TOLERANT_OPTIONS);
     }
     throw e;
   }
