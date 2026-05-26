@@ -16,7 +16,7 @@ import {
   getChallengeInvites,
   getChallengeTeams,
 } from '../../services/challengeService';
-import { getDisplayAvatarUri, getUserById } from '../../services/userService';
+import { getDisplayAvatarUri, getMe, getUserById } from '../../services/userService';
 
 const C = {
   bg: '#F2F5F3',
@@ -81,6 +81,7 @@ export default function ChallengeDetailsScreen() {
   const [inviteRows, setInviteRows] = useState([]);
   const [invitesError, setInvitesError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     if (!id) {
@@ -93,8 +94,9 @@ export default function ChallengeDetailsScreen() {
     const load = async () => {
       setLoading(true);
       try {
-        const challengeData = await getChallengeById(challengeId);
+        const [challengeData, me] = await Promise.all([getChallengeById(challengeId), getMe()]);
         setChallenge(challengeData);
+        setCurrentUserId(me?.id ?? null);
 
         if (challengeData?.mode === 'individual') {
           try {
@@ -241,7 +243,11 @@ export default function ChallengeDetailsScreen() {
       {/* INDIVIDUAL — INVITED USERS */}
       {isIndividual && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Eingeladene Teilnehmer</Text>
+          <Text style={styles.cardTitle}>
+            {currentUserId === (challenge?.creator_id ?? challenge?.creatorId)
+              ? 'Eingeladene Teilnehmer'
+              : 'Teilnehmer'}
+          </Text>
           {invitesError ? (
             <Text style={styles.errorNote}>{invitesError}</Text>
           ) : inviteRows.length === 0 ? (

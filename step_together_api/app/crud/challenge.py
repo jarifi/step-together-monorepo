@@ -438,15 +438,14 @@ def get_challenge_invites(
     if not challenge:
         raise HTTPException(status_code=404, detail="Challenge not found")
 
-    if challenge.creator_id != requester_user_id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only the challenge creator can view invites",
-        )
+    is_creator = challenge.creator_id == requester_user_id
 
     query = db.query(ChallengeInvite).filter(ChallengeInvite.challenge_id == challenge_id)
-    if status:
-        query = query.filter(ChallengeInvite.status == status)
+    if is_creator:
+        if status:
+            query = query.filter(ChallengeInvite.status == status)
+    else:
+        query = query.filter(ChallengeInvite.status == "accepted")
     return query.all()
 
 

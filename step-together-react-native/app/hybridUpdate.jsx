@@ -608,10 +608,15 @@ export default function UpdateHybridChallenge() {
       try {
         const invites = await getChallengeInvites(id);
         const userIds = Array.isArray(invites)
-          ? invites.map(inv =>
-              inv?.inviteeUserId ?? inv?.invitee_user_id ??
-              inv?.inviteeId ?? inv?.invitee_id
-            ).filter(Boolean)
+          ? invites
+              .filter(inv => {
+                const status = (inv?.status ?? '').toLowerCase();
+                return status !== 'declined' && status !== 'cancelled';
+              })
+              .map(inv =>
+                inv?.inviteeUserId ?? inv?.invitee_user_id ??
+                inv?.inviteeId ?? inv?.invitee_id
+              ).filter(Boolean)
           : [];
         setSelectedUserIds(userIds);
       } catch (err) {
