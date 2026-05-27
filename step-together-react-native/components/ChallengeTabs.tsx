@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   wrap: {
     backgroundColor: '#F5F7F4',
     paddingHorizontal: 18,
-    paddingBottom: 4,
+    paddingBottom: 2,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     ...Platform.select({

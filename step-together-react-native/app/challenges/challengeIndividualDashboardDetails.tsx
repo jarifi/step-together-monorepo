@@ -420,7 +420,7 @@ const challengeIndividualDashboardDetailsScreen: React.FC = () => {
     return (
         <View style={{ flex: 1 }}>
         <ChallengeTabs active="ranking" overviewPath={overviewPath} rankingPath={rankingPath} />
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 12 }}>
+        <ScrollView style={[styles.container, { paddingTop: 0 }]} contentContainerStyle={{ paddingBottom: 120, paddingTop: 4 }}>
             <View style={styles.progressCard}>
                 <View style={{ marginBottom: 12 }}>
                     <Text
