@@ -133,7 +133,7 @@ export default function Sidebar({
       {!isTablet && (
         <View style={[styles.headerContainer, { paddingTop: topInset }]}>
           <Pressable onPress={toggleSidebar} style={styles.burgerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ color: 'white', fontSize: 45 }}>☰</Text>
+            <MaterialIcons name="menu" size={45} color="white" />
           </Pressable>
         </View>
       )}
