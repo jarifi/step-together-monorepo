@@ -1103,7 +1103,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
 
   header: {
-    paddingTop: Platform.OS === 'ios' ? 74 : 24,
+    paddingTop: 74,
     paddingBottom: 22,
     paddingHorizontal: 20,
     backgroundColor: T.white,
