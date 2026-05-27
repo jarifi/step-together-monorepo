@@ -11,7 +11,6 @@
    - https://code.visualstudio.com/docs/?dv=win64user
 
 4. Install/create a github account (if you don't have one) and open our project in Github:
-
    - Click on the "<> Code" button there and copy the HTTPS provided.
 
    - Open a new Window in Visual Studio Code and click on "Clone Git Repository" and paste the HTTPS - Select a Repository
@@ -26,8 +25,8 @@
 - Send there a Request (= Send Request) to see if you'll get a response
 
 7. Open a new terminal and write/copy these following commands:<br>
-   *Note: it is necessary to follow these steps only when trying to start the project for the first time!*<br>
-   *If this isn't the first time you are starting the project, jump to step 8 instead.*
+   _Note: it is necessary to follow these steps only when trying to start the project for the first time!_<br>
+   _If this isn't the first time you are starting the project, jump to step 8 instead._
    1. `py -m venv venv OR py -m venv venv`
    2. `(Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)`
    3. `.\venv\Scripts\Activate.ps1`
@@ -43,7 +42,6 @@
 
 <br>
 
-
 # SERVER & DATABASE
 
 ### Remote Server
@@ -53,11 +51,11 @@
 ### Run, stop and check status as Service
 
 - Stop:<br>
-`sudo systemctl stop step_together_api.service`
+  `sudo systemctl stop step_together_api.service`
 - Check status:<br>
-`sudo systemctl status step_together_api.service`
+  `sudo systemctl status step_together_api.service`
 - Run:<br>
-`sudo systemctl start step_together_api.service`
+  `sudo systemctl start step_together_api.service`
 
 ## Update Database
 
@@ -76,9 +74,11 @@ source /pfad/zu/deiner/dateiname.sql;
 # TESTING
 
 ### UNIT Tests
-*Note: make sure the project isn't running when testing!*<br>
+
+_Note: make sure the project isn't running when testing!_<br>
 
 #### Test individual test
+
 pytest tests/api/v1/endpoints/test_endpoint_name.py
 
 **Example:**<br>
@@ -86,6 +86,7 @@ pytest tests/api/v1/endpoints/test_endpoint_name.py
 `pytest tests/api/v1/endpoints/test_challenges.py`
 
 #### Test everything
+
 `pytest`
 
 ### rest_client.http
@@ -102,3 +103,8 @@ In case you do not see the "Send Request" line, you can also start a test by cli
 
 1. cd /srv/step_together_api/
 2. ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 3000
+
+### Deploy to Remote Server
+
+1. cd step_together_api
+2. .\scripts\deploy_app.ps1 -ServerUser root
