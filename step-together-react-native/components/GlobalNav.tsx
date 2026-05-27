@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import React, { useRef } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Avatar from './Avatar';
 import { useUser } from '../context/UserContext';
@@ -17,7 +17,7 @@ const HOME_PATH = '/challenges/challengesDashboard';
 export default function GlobalNav({ pathname }: Props) {
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 8) + 16;
-  const { user, setUser, setToken, setUserId } = useUser();
+  const { user, setUser, setToken, setUserId, pendingInviteCount } = useUser();
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path + '/');
@@ -76,11 +76,20 @@ export default function GlobalNav({ pathname }: Props) {
 
           {/* Notifications */}
           <Pressable style={styles.tab} onPress={() => go('/notifications')}>
-            <MaterialIcons
-              name="notifications"
-              size={26}
-              color={notificationsActive ? '#6B8F71' : '#9CA3AF'}
-            />
+            <View style={styles.iconWrap}>
+              <MaterialIcons
+                name="notifications"
+                size={26}
+                color={notificationsActive ? '#6B8F71' : '#9CA3AF'}
+              />
+              {pendingInviteCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {pendingInviteCount > 9 ? '9+' : String(pendingInviteCount)}
+                  </Text>
+                </View>
+              )}
+            </View>
           </Pressable>
 
           {/* Home center button */}
@@ -160,6 +169,29 @@ const styles = StyleSheet.create({
   },
   avatarRingActive: {
     borderColor: '#6B8F71',
+  },
+  iconWrap: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
   },
   centerSlot: {
     width: 72,

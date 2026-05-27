@@ -106,7 +106,7 @@ export default function About() {
 
 const styles = StyleSheet.create({
   scroll: { backgroundColor: BG },
-  container: { padding: 16, paddingBottom: 40, backgroundColor: BG },
+  container: { padding: 16, paddingBottom: 100, backgroundColor: BG },
 
   header: { alignItems: "center", paddingTop: 40, paddingBottom: 18 },
 

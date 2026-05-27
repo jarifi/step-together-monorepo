@@ -230,7 +230,7 @@ const contentTopPadding = useMemo(
     );
   }
 
-  const alertTop = showSidebar && !isTablet ? PHONE_HEADER_HEIGHT + 8 : insets.top + 8;
+  const alertTop = insets.top + 8;
   const alertLeft = isTablet ? sidebarWidth + 12 : 12;
 
   return (

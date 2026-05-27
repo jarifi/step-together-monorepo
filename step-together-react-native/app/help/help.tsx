@@ -104,7 +104,7 @@ export default function Help() {
 
 const styles = StyleSheet.create({
   scroll: { backgroundColor: BG },
-  container: { padding: 16, paddingBottom: 40, backgroundColor: BG },
+  container: { padding: 16, paddingBottom: 100, backgroundColor: BG },
 
   // One row: left back button + centered icon
   headerTopRow: {

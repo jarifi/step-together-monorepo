@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '../context/UserContext';
-import { removeTokens } from '../lib/auth';
+import { getUserRole, removeTokens } from '../lib/auth';
 import { getMe, makeAbsoluteMediaUrl, uploadMyProfilePicture } from '../services/userService';
 
 const pickAvatar = (u: any): string | null =>
@@ -41,6 +41,11 @@ export default function ProfileInfoScreen() {
   const { user, setUser, setToken, setUserId } = useUser();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    getUserRole().then(role => setIsAdmin(role === 'admin'));
+  }, []);
 
   const handleLogout = async () => {
     await removeTokens();
@@ -110,7 +115,7 @@ export default function ProfileInfoScreen() {
     <View style={styles.root}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 160 }}
       >
         {/* ── Hero cover ── */}
         <View style={[styles.hero, { paddingTop: insets.top + 10 }]}>
@@ -193,6 +198,22 @@ export default function ProfileInfoScreen() {
             />
           </View>
         </View>
+
+        {/* ── Admin ── */}
+        {isAdmin && (
+          <View style={[styles.section, { marginTop: 4 }]}>
+            <Text style={styles.sectionTitle}>Administration</Text>
+            <View style={styles.actionCard}>
+              <ActionRow
+                icon="admin-panel-settings"
+                iconColor="#5A7D60"
+                iconBg="rgba(90,125,96,0.12)"
+                label="Admin Bereich"
+                onPress={() => router.push('/admin' as any)}
+              />
+            </View>
+          </View>
+        )}
 
         {/* ── Danger zone ── */}
         <View style={[styles.section, { marginTop: 4 }]}>

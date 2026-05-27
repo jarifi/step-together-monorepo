@@ -245,7 +245,7 @@ export default function AllChallengesScreen() {
             </View>
           }
           contentContainerStyle={{
-            paddingBottom: 110,
+            paddingBottom: 150,
             flexGrow: 1,
             minHeight: screenHeight - 180,
           }}

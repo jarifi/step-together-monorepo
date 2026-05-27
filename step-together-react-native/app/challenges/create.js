@@ -787,7 +787,16 @@ export default function CreateChallengeScreen() {
       >
         {/* Header */}
         <View style={s.header}>
+          <TouchableOpacity
+            style={s.backBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={20} color={T.text} />
+          </TouchableOpacity>
           <Text style={s.headerTitle}>Challenge erstellen</Text>
+          <View style={{ width: 40 }} />
         </View>
 
         <ScrollView
@@ -1065,7 +1074,6 @@ export default function CreateChallengeScreen() {
             }
           </TouchableOpacity>
 
-          <View style={{ height: 32 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -1109,7 +1117,19 @@ const s = StyleSheet.create({
     backgroundColor: T.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: T.border,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F2F5F3',
+    borderWidth: 1,
+    borderColor: T.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: IS_MOBILE ? 24 : 30,
@@ -1123,7 +1143,7 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     padding: IS_MOBILE ? 16 : 24,
-    paddingBottom: 40,
+    paddingBottom: 140,
     maxWidth: 740,
     width: '100%',
     alignSelf: 'center',
