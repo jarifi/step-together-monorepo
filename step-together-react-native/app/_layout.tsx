@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
-import BottomBar from '../components/BottomBar';
+import GlobalNav from '../components/GlobalNav';
 import Sidebar from '../components/Sidebar';
 import { UserProvider, useUser } from '../context/UserContext';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -29,7 +29,7 @@ import {
 } from '../services/challengeService';
 
 const queryClient = new QueryClient();
-const PHONE_HEADER_HEIGHT = 52;
+const PHONE_HEADER_HEIGHT = 0;
 const PUBLIC_ROUTES = ['/', '/login', '/register', '/welcome', '/verifyInfo'];
 const SHOWN_POPUP_KEY = 'shown_invite_popup_ids';
 
@@ -129,19 +129,7 @@ function AppContent() {
     if (isTablet) setSidebarOpen(false);
   }, [isTablet]);
 
-  const showPill = useMemo(() => {
-    if (!showSidebar) return false;
-    return (
-      pathname === '/dashboard' ||
-      pathname.startsWith('/dashboard/') ||
-      pathname === '/challenges/challengeTeamDashboardDetails' ||
-      pathname.startsWith('/challenges/challengeTeamDashboardDetails/') ||
-      pathname === '/challenges/challengeIndividualDashboardDetails' ||
-      pathname.startsWith('/challenges/challengeIndividualDashboardDetails/')
-    );
-  }, [showSidebar, pathname]);
-
-  const contentTopPadding = useMemo(
+const contentTopPadding = useMemo(
     () => (showSidebar && !isTablet ? PHONE_HEADER_HEIGHT : 0),
     [showSidebar, isTablet]
   );
@@ -341,7 +329,7 @@ function AppContent() {
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
         </Stack>
 
-        {showPill && <BottomBar pathname={pathname} />}
+        {showSidebar && !isTablet && <GlobalNav pathname={pathname} />}
       </Animated.View>
 
       <StatusBar style="light" />

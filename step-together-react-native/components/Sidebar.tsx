@@ -77,11 +77,6 @@ export default function Sidebar({
     return 20;
   }, [insets.top]);
 
-  const toggleSidebar = () => {
-    if (isTablet) return;
-    if (onToggle) return onToggle();
-    setIsOpenLocal((v) => !v);
-  };
 
   const closeSidebar = () => {
     if (isTablet) return;
@@ -130,14 +125,6 @@ export default function Sidebar({
 
   return (
     <>
-      {!isTablet && (
-        <View style={[styles.headerContainer, { paddingTop: topInset }]}>
-          <Pressable onPress={toggleSidebar} style={styles.burgerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ color: 'white', fontSize: 45 }}>☰</Text>
-          </Pressable>
-        </View>
-      )}
-
       {!isTablet && isOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
       <Animated.View
@@ -253,27 +240,24 @@ function NavLink({ href, label, icon, active, onNavigate }: NavLinkProps) {
 
 /* Styles */
 const styles = StyleSheet.create({
-  headerContainer: {
+  edgeTab: {
     position: 'absolute',
-    top: 0,
     left: 0,
-    right: 0,
     zIndex: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 2,
-    backgroundColor: '#6B8F71',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    marginTop: -10,
-  },
-  burgerBtn: {
-    backgroundColor: '#6B8F71',
-    paddingVertical: 5,
-    paddingHorizontal: 5,
-    borderRadius: 25,
-    marginLeft: 12,
+    backgroundColor: 'rgba(107, 143, 113, 0.45)',
+    paddingVertical: 18,
+    paddingHorizontal: 7,
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        shadowOffset: { width: 2, height: 0 },
+      },
+      android: { elevation: 5 },
+    }),
   },
   overlay: {
     position: 'absolute',

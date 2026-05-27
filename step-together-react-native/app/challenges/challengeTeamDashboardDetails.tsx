@@ -1,4 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import ChallengeTabs from '../../components/ChallengeTabs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -417,9 +418,13 @@ const challengeTeamDashboardDetailsScreen: React.FC = () => {
 
   const startLocation = vm?.challenge?.startLocation || '—';
   const targetLocation = vm?.challenge?.targetLocation || '—';
+  const overviewPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboard';
+  const rankingPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboardDetails';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
+    <View style={{ flex: 1 }}>
+    <ChallengeTabs active="ranking" overviewPath={overviewPath} rankingPath={rankingPath} />
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 12 }}>
       <View style={styles.progressCard}>
         <View style={{ marginBottom: 12 }}>
           <Text
@@ -552,6 +557,7 @@ const challengeTeamDashboardDetailsScreen: React.FC = () => {
           ))}
       </View>
     </ScrollView>
+    </View>
   );
 };
 
