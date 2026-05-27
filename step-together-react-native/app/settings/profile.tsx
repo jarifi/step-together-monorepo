@@ -23,12 +23,6 @@ import {
   uploadMyProfilePicture,
 } from '../../services/userService';
 
-type UpdateUserPayload = {
-  name: string;
-  email: string;
-  step_length?: number | null;
-};
-
 const COLORS = {
   bg: '#fbfbfbff',
   card: '#FFFFFF',
@@ -41,10 +35,8 @@ const COLORS = {
   inputBg: '#FAFBFA',
 };
 
-const pickAvatarFromUser = (u: any): string | null => {
-  if (!u) return null;
-  return (u.avatarUrl ?? u.avatar_url ?? u.avatar ?? null) as string | null;
-};
+const pickAvatarFromUser = (u: any): string | null =>
+  (u?.avatarUrl ?? u?.avatar_url ?? u?.avatar ?? null) as string | null;
 
 const isPickedLocalUri = (uri: string) =>
   uri.startsWith('file://') || uri.startsWith('blob:') || uri.startsWith('data:');
@@ -62,64 +54,51 @@ const sanitizeDecimalInput = (raw: string) => {
 
 const normalizeDecimal = (v: string) => String(v ?? '').trim().replace(',', '.');
 
-const ProfileUpdateScreen: React.FC = () => {
+export default function ProfileUpdateScreen() {
   const { user, setUser, userId } = useUser();
   const router = useRouter();
 
-  const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [stepLength, setStepLength] = useState<string>('');
-  const [role, setRole] = useState<string>('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [stepLength, setStepLength] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-
     setName(user.name ?? '');
     setEmail(user.email ?? '');
-
     const sl =
       user.stepLength != null && !isNaN(Number(user.stepLength))
         ? String(user.stepLength)
         : '';
     setStepLength(sl);
-
-    setRole(user.role ?? '');
-
     const avatar = pickAvatarFromUser(user);
     if (avatar) setImageUri(avatar);
   }, [user]);
 
-  const handlePickImage = async (): Promise<void> => {
+  const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (status !== 'granted') {
-      Alert.alert(
-        'Zugriff benötigt',
-        'Bitte erlaube den Zugriff auf deine Fotos, um ein Profilbild zu wählen.'
-      );
+      Alert.alert('Zugriff benötigt', 'Bitte erlaube den Zugriff auf deine Fotos.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets?.length > 0) {
       setImageUri(result.assets[0].uri);
     }
   };
 
-  const handleUpdate = async (): Promise<void> => {
+  const handleUpdate = async () => {
     if (!userId) {
       Alert.alert('Error', 'Kein Benutzer gefunden.');
       return;
     }
-
     let parsedStepLength: number | null = null;
     if (stepLength.trim().length > 0) {
       const normalized = normalizeDecimal(stepLength);
@@ -130,36 +109,24 @@ const ProfileUpdateScreen: React.FC = () => {
       }
       parsedStepLength = num;
     }
-
     setLoading(true);
     try {
-      const payload: UpdateUserPayload = { name, email };
-      if (parsedStepLength !== null) payload.step_length = parsedStepLength;
-      console.log('[profile] updateUser payload:', JSON.stringify(payload));
-
       if (imageUri && isPickedLocalUri(imageUri)) {
         await uploadMyProfilePicture(imageUri);
       }
-
+      const payload: any = { name, email };
+      if (parsedStepLength !== null) payload.step_length = parsedStepLength;
       await updateUser(userId, payload);
-
       const freshUser = await getMe();
-      console.log('[profile] freshUser after save:', JSON.stringify({
-        avatar: freshUser?.avatar,
-        avatarUrl: freshUser?.avatarUrl,
-        profile_picture: freshUser?.profile_picture,
-      }));
       if (freshUser) {
         setUser(freshUser);
         const newAvatar = pickAvatarFromUser(freshUser);
         const absoluteAvatar = newAvatar ? (makeAbsoluteMediaUrl(newAvatar) ?? newAvatar) : null;
         if (absoluteAvatar) setImageUri(absoluteAvatar);
       }
-
-      Alert.alert('Success', 'Benutzer erfolgreich aktualisiert!');
+      Alert.alert('Gespeichert', 'Profil erfolgreich aktualisiert!');
       router.back();
     } catch (error: any) {
-      console.error(error);
       let message = 'Benutzer konnte nicht aktualisiert werden';
       try {
         const detail = JSON.parse(error?.message);
@@ -201,8 +168,8 @@ const ProfileUpdateScreen: React.FC = () => {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
           style={styles.scroll}
@@ -220,7 +187,6 @@ const ProfileUpdateScreen: React.FC = () => {
             >
               <Ionicons name="arrow-back" size={20} color={COLORS.text} />
             </Pressable>
-
             <View style={{ width: 44, height: 44 }} />
           </View>
 
@@ -231,26 +197,19 @@ const ProfileUpdateScreen: React.FC = () => {
               <View style={styles.headerBand} />
 
               <Pressable
-                style={({ pressed }) => [
-                  styles.avatarWrap,
-                  pressed && { transform: [{ scale: 0.98 }] },
-                ]}
+                style={({ pressed }) => [styles.avatarWrap, pressed && { transform: [{ scale: 0.98 }] }]}
                 onPress={handlePickImage}
                 disabled={loading}
               >
                 <View style={styles.avatarRing}>
                   <View style={styles.avatarCircle}>
                     {displayImageUri ? (
-                      <Image
-                        source={{ uri: displayImageUri }}
-                        style={styles.avatarImage}
-                      />
+                      <Image source={{ uri: displayImageUri }} style={styles.avatarImage} />
                     ) : (
                       <Text style={styles.avatarInitials}>{initials || '??'}</Text>
                     )}
                   </View>
                 </View>
-
                 <View style={styles.cameraBadge}>
                   <Ionicons name="camera" size={20} color="#fff" />
                 </View>
@@ -258,7 +217,6 @@ const ProfileUpdateScreen: React.FC = () => {
 
               <Text style={styles.profileName}>{name || 'Dein Name'}</Text>
               <Text style={styles.subtitle}>{email || 'email@example.com'}</Text>
-
             </View>
 
             {/* FORM */}
@@ -333,20 +291,13 @@ const ProfileUpdateScreen: React.FC = () => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
-
-export default ProfileUpdateScreen;
+}
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 120,
-  },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 50, paddingBottom: 120 },
 
-  // Top bar
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -364,15 +315,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  screenTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: 0.2,
-  },
   pressed: { opacity: 0.8 },
 
-  // Card
   card: {
     backgroundColor: COLORS.card,
     borderRadius: 28,
@@ -386,7 +330,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
-  // Header
   profileHeader: {
     alignItems: 'center',
     paddingTop: 18,
@@ -404,20 +347,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
-  headerGlow: {
-    position: 'absolute',
-    top: 24,
-    width: 220,
-    height: 220,
-    borderRadius: 999,
-    backgroundColor: COLORS.accentSoft,
-    opacity: 0.8,
-  },
 
-  avatarWrap: {
-    marginTop: 6,
-    marginBottom: 10,
-  },
+  avatarWrap: { marginTop: 6, marginBottom: 10 },
   avatarRing: {
     padding: 3,
     borderRadius: 999,
@@ -455,39 +386,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.card,
   },
 
-  profileName: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: COLORS.text,
-    marginTop: 6,
-  },
-  subtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#667085',
-  },
+  profileName: { fontSize: 22, fontWeight: '900', color: COLORS.text, marginTop: 6 },
+  subtitle: { marginTop: 4, fontSize: 13, fontWeight: '700', color: '#667085' },
 
-  changePhotoPill: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: COLORS.tint,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  changePhotoText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  disabledPill: { opacity: 0.6 },
-
-  // Form
   formSection: {
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -515,22 +416,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: '#101828',
-    paddingVertical: 0,
-  },
-  helper: {
-    marginTop: 8,
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#6B7280',
-    lineHeight: 16,
-    fontWeight: '600',
-  },
+  input: { flex: 1, fontSize: 15, color: '#101828', paddingVertical: 0 },
 
-  // Save button
   saveButton: {
     marginTop: 6,
     paddingVertical: 14,
@@ -546,10 +433,5 @@ const styles = StyleSheet.create({
   },
   savePressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
   saveDisabled: { opacity: 0.55 },
-  saveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 0.2,
-  },
+  saveText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16, letterSpacing: 0.2 },
 });

@@ -1,9 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Avatar from './Avatar';
 import { useUser } from '../context/UserContext';
 import { getUserRole, removeTokens } from '../lib/auth';
 
@@ -11,22 +12,12 @@ export const GLOBAL_NAV_HEIGHT = 64;
 
 type Props = { pathname: string };
 
-const LEFT_TABS = [
-  { key: 'history', icon: 'restore', path: '/userHistory' },
-  { key: 'notifications', icon: 'notifications', path: '/notifications' },
-] as const;
-
-const RIGHT_TABS = [
-  { key: 'challenges', icon: 'flag', path: '/challenges/hybridIndex' },
-  { key: 'settings', icon: 'settings', path: '__settings__' },
-] as const;
-
 const HOME_PATH = '/challenges/challengesDashboard';
 
 export default function GlobalNav({ pathname }: Props) {
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 8);
-  const { setUser, setToken, setUserId } = useUser();
+  const bottomOffset = Math.max(insets.bottom, 8) + 16;
+  const { user, setUser, setToken, setUserId } = useUser();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -48,6 +39,36 @@ export default function GlobalNav({ pathname }: Props) {
     router.replace('/login');
   };
 
+  const profileActive = pathname === '/profileInfo';
+  const notificationsActive = isActive('/notifications');
+  const challengesActive = isActive('/challenges/hybridIndex') || isActive('/userHistory');
+
+  // ── Home button animation ──
+  const homeScale = useRef(new Animated.Value(1)).current;
+  const homeRotate = useRef(new Animated.Value(0)).current;
+  const glowScale = useRef(new Animated.Value(1)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+
+  const onHomePressIn = () => {
+    Animated.parallel([
+      Animated.spring(homeScale, { toValue: 0.82, useNativeDriver: true, friction: 8, tension: 300 }),
+      Animated.timing(homeRotate, { toValue: 1, duration: 110, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const onHomePressOut = () => {
+    glowScale.setValue(0.9);
+    glowOpacity.setValue(0.65);
+    Animated.parallel([
+      Animated.spring(homeScale, { toValue: 1, useNativeDriver: true, friction: 3, tension: 380 }),
+      Animated.timing(homeRotate, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(glowScale, { toValue: 2.2, duration: 550, useNativeDriver: true }),
+      Animated.timing(glowOpacity, { toValue: 0, duration: 550, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const homeSpin = homeRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '14deg'] });
+
   return (
     <>
       {/* Settings popup */}
@@ -58,7 +79,7 @@ export default function GlobalNav({ pathname }: Props) {
         onRequestClose={() => setSettingsOpen(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setSettingsOpen(false)}>
-          <View style={[styles.settingsMenu, { bottom: GLOBAL_NAV_HEIGHT + bottomPad + 8 }]}>
+          <View style={[styles.settingsMenu, { bottom: GLOBAL_NAV_HEIGHT + bottomOffset + 8 }]}>
             {userRole === 'admin' && (
               <Pressable style={styles.menuItem} onPress={() => { setSettingsOpen(false); go('/admin'); }}>
                 <MaterialIcons name="groups" size={20} color="#2F3E34" />
@@ -82,37 +103,66 @@ export default function GlobalNav({ pathname }: Props) {
         </Pressable>
       </Modal>
 
-      {/* Bottom bar */}
-      <View style={[styles.wrap, { paddingBottom: bottomPad }]}>
+      {/* Floating dynamic island pill nav */}
+      <View style={[styles.wrap, { bottom: bottomOffset }]}>
         <View style={styles.bar}>
-          {LEFT_TABS.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <Pressable key={item.key} style={styles.tab} onPress={() => go(item.path)}>
-                <MaterialIcons name={item.icon as any} size={26} color={active ? '#6B8F71' : '#9CA3AF'} />
-              </Pressable>
-            );
-          })}
+          {/* Profile avatar tab */}
+          <Pressable style={styles.tab} onPress={() => go('/profileInfo')}>
+            <View style={[styles.avatarRing, profileActive && styles.avatarRingActive]}>
+              <Avatar user={user} size={32} showRing={false} />
+            </View>
+          </Pressable>
 
+          {/* Notifications */}
+          <Pressable style={styles.tab} onPress={() => go('/notifications')}>
+            <MaterialIcons
+              name="notifications"
+              size={26}
+              color={notificationsActive ? '#6B8F71' : '#9CA3AF'}
+            />
+          </Pressable>
+
+          {/* Home center button */}
           <View style={styles.centerSlot}>
-            <Pressable style={styles.homeBtn} onPress={() => go(HOME_PATH)}>
-              <MaterialIcons name="home" size={32} color="#fff" />
-            </Pressable>
+            {/* Expanding glow pulse ring */}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.glowRing,
+                { transform: [{ scale: glowScale }], opacity: glowOpacity },
+              ]}
+            />
+            <Animated.View
+              style={{ transform: [{ scale: homeScale }, { rotate: homeSpin }] }}
+            >
+              <Pressable
+                style={styles.homeBtn}
+                onPressIn={onHomePressIn}
+                onPressOut={onHomePressOut}
+                onPress={() => go(HOME_PATH)}
+              >
+                <MaterialIcons name="home" size={32} color="#fff" />
+              </Pressable>
+            </Animated.View>
           </View>
 
-          {RIGHT_TABS.map((item) => {
-            const isSettings = item.path === '__settings__';
-            const active = isSettings ? settingsOpen : isActive(item.path);
-            return (
-              <Pressable
-                key={item.key}
-                style={styles.tab}
-                onPress={() => isSettings ? setSettingsOpen(true) : go(item.path)}
-              >
-                <MaterialIcons name={item.icon as any} size={26} color={active ? '#6B8F71' : '#9CA3AF'} />
-              </Pressable>
-            );
-          })}
+          {/* Challenges */}
+          <Pressable style={styles.tab} onPress={() => go('/challenges/hybridIndex')}>
+            <MaterialIcons
+              name="flag"
+              size={26}
+              color={challengesActive ? '#6B8F71' : '#9CA3AF'}
+            />
+          </Pressable>
+
+          {/* Settings */}
+          <Pressable style={styles.tab} onPress={() => setSettingsOpen(true)}>
+            <MaterialIcons
+              name="settings"
+              size={26}
+              color={settingsOpen ? '#6B8F71' : '#9CA3AF'}
+            />
+          </Pressable>
         </View>
       </View>
     </>
@@ -122,48 +172,53 @@ export default function GlobalNav({ pathname }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 16,
+    right: 16,
     backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderRadius: 32,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.14,
+        shadowRadius: 24,
+        shadowOffset: { width: 0, height: 8 },
       },
-      android: { elevation: 8 },
+      android: { elevation: 14 },
     }),
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
     height: GLOBAL_NAV_HEIGHT,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
     paddingVertical: 6,
   },
-  label: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#9CA3AF',
+  avatarRing: {
+    borderRadius: 999,
+    padding: 2,
+    borderWidth: 2.5,
+    borderColor: '#D1DDD3',
   },
-  labelActive: {
-    color: '#6B8F71',
+  avatarRingActive: {
+    borderColor: '#6B8F71',
   },
   centerSlot: {
     width: 72,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -24,
+  },
+  glowRing: {
+    position: 'absolute',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#6B8F71',
   },
   homeBtn: {
     width: 58,

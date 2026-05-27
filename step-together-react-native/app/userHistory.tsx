@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -10,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getChallengeHistory, getMyChallenges } from './../services/challengeService.js';
 
@@ -40,6 +42,7 @@ const shadow = Platform.select({
 
 export default function ChallengeHistoryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
@@ -96,7 +99,6 @@ export default function ChallengeHistoryScreen() {
       <View style={styles.centered}>
         <View style={styles.hero}>
           <View style={styles.accentLine} />
-          <Text style={styles.heroTitle}>Verlauf</Text>
           <Text style={styles.heroTitle}>Mein Verlauf</Text>
           <Text style={styles.heroSub}>
             Hier siehst du alle Challenges, an denen du bereits teilgenommen hast.
@@ -130,13 +132,13 @@ export default function ChallengeHistoryScreen() {
           </Text>
 
           <Pressable
-            onPress={() => router.push('/challenges/activeChallenges')}
+            onPress={() => router.push('/notifications')}
             style={({ pressed }) => [
               styles.primaryButton,
               pressed && styles.primaryButtonPressed,
             ]}
           >
-            <Text style={styles.primaryButtonText}>Zu den Challenges</Text>
+            <Text style={styles.primaryButtonText}>Zu den Benachrichtigungen</Text>
           </Pressable>
         </View>
       </View>
@@ -154,6 +156,20 @@ export default function ChallengeHistoryScreen() {
 
   return (
     <View style={styles.container}>
+      {/* ── Tab bar – same design as ChallengeTabs ─────────────────── */}
+      <View style={[styles.tabBarWrap, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.tabBarRow}>
+          <Pressable style={styles.tabPill} onPress={() => router.replace('/challenges/hybridIndex' as any)}>
+            <MaterialIcons name="list" size={18} color="#9CA3AF" />
+            <Text style={styles.tabPillLabel}>Verwaltung</Text>
+          </Pressable>
+          <Pressable style={[styles.tabPill, styles.tabPillActive]}>
+            <MaterialIcons name="history" size={18} color="#6B8F71" />
+            <Text style={[styles.tabPillLabel, styles.tabPillLabelActive]}>Verlauf</Text>
+          </Pressable>
+        </View>
+      </View>
+
       <FlatList
         data={filteredHistory}
         keyExtractor={(item) => String(item.id)}
@@ -253,7 +269,7 @@ const styles = StyleSheet.create({
     padding: 22,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginTop: 48,
+    marginTop: 12,
     marginBottom: 16,
     ...(shadow ?? {}),
   },
@@ -383,6 +399,42 @@ const styles = StyleSheet.create({
   },
 
   cardLink: { marginTop: 12, fontSize: 13, fontWeight: '700', color: COLORS.sub },
+
+  tabBarWrap: {
+    backgroundColor: '#F5F7F4',
+    paddingHorizontal: 18,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+      android: { elevation: 2 },
+    }),
+  },
+  tabBarRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  tabPill: {
+    flexDirection: 'row',
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  tabPillActive: {
+    backgroundColor: 'rgba(107,143,113,0.12)',
+  },
+  tabPillLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#9CA3AF',
+  },
+  tabPillLabelActive: {
+    color: '#6B8F71',
+  },
 
   modeRow: {
     flexDirection: 'row',
