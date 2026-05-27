@@ -36,6 +36,17 @@ const normalizeStepLength = (v) => String(v ?? '').trim().replace(',', '.');
 const pickAvatar = (u) => u?.avatarUrl ?? u?.avatar_url ?? u?.avatar ?? null;
 const isLocalUri = (u) => u.startsWith('file://') || u.startsWith('blob:') || u.startsWith('data:');
 
+const COLORS = {
+  bg: '#F4F7F4',
+  card: '#FFFFFF',
+  text: '#0F1411',
+  sub: '#55605A',
+  border: 'rgba(15,20,17,0.10)',
+  accent: '#2F6B45',
+  inputBg: '#FAFBFA',
+  tint: '#CFE0D3',
+};
+
 export default function UpdateUserScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -186,21 +197,28 @@ export default function UpdateUserScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Hero ── */}
-          <View style={styles.hero}>
-            <View style={styles.heroBlob1} />
-            <View style={styles.heroBlob2} />
-
-            <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-              <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.9)" />
-            </Pressable>
-
+          {/* Top bar */}
+          <View style={styles.topBar}>
             <Pressable
-              onPress={handlePickImage}
-              disabled={uploading}
-              style={({ pressed }) => [styles.avatarContainer, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+              onPress={() => router.back()}
+              disabled={loading}
+              hitSlop={10}
             >
-              <View style={styles.avatarRing}>
+              <Ionicons name="arrow-back" size={20} color={COLORS.text} />
+            </Pressable>
+            <View style={{ width: 44, height: 44 }} />
+          </View>
+
+          {/* Card */}
+          <View style={styles.card}>
+            {/* Header */}
+            <View style={styles.headerBlock}>
+              <Pressable
+                onPress={handlePickImage}
+                disabled={uploading}
+                style={({ pressed }) => [styles.avatarWrap, pressed && { opacity: 0.8 }]}
+              >
                 <View style={styles.avatarCircle}>
                   {displayImageUri ? (
                     <Image
@@ -212,251 +230,230 @@ export default function UpdateUserScreen() {
                     <Text style={styles.avatarInitials}>{initials}</Text>
                   )}
                 </View>
-              </View>
-              <View style={styles.cameraTag}>
-                {uploading
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons name="camera" size={14} color="#fff" />}
-              </View>
-            </Pressable>
+                <View style={styles.cameraTag}>
+                  {uploading
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons name="camera" size={13} color="#fff" />}
+                </View>
+              </Pressable>
+              <Text style={styles.headerTitle}>Profil bearbeiten</Text>
+              <Text style={styles.headerHint}>Foto antippen zum Ändern</Text>
+            </View>
 
-            <Text style={styles.heroTitle}>Profil bearbeiten</Text>
-            <Text style={styles.heroHint}>Tippe auf das Foto zum Ändern</Text>
-          </View>
-
-          {/* ── Form ── */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Persönliche Daten</Text>
-
-            <View style={styles.formCard}>
-              <FieldRow icon="person-outline" label="Name">
+            {/* Name */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Name</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="person-outline" size={18} color={COLORS.sub} />
                 <TextInput
                   value={name}
                   onChangeText={setName}
                   placeholder="Vor- und Nachname"
-                  placeholderTextColor="#AEBAB3"
-                  style={styles.fieldInput}
+                  placeholderTextColor="#9AA4A0"
+                  style={styles.input}
                   editable={!loading}
                   autoCapitalize="words"
                   returnKeyType="next"
                 />
-              </FieldRow>
+              </View>
+            </View>
 
-              <View style={styles.fieldDivider} />
-
-              <FieldRow icon="mail-outline" label="E-Mail">
+            {/* Email */}
+            <View style={styles.field}>
+              <Text style={styles.label}>E-Mail</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="mail-outline" size={18} color={COLORS.sub} />
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
                   placeholder="deine@email.com"
-                  placeholderTextColor="#AEBAB3"
-                  style={styles.fieldInput}
+                  placeholderTextColor="#9AA4A0"
+                  style={styles.input}
                   editable={!loading}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   returnKeyType="next"
                 />
-              </FieldRow>
+              </View>
+            </View>
 
-              <View style={styles.fieldDivider} />
-
-              <FieldRow icon="walk-outline" label="Schrittlänge (cm)">
+            {/* Step length */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Schrittlänge (in cm)</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="walk-outline" size={18} color={COLORS.sub} />
                 <TextInput
                   value={stepLength}
                   onChangeText={(t) => setStepLength(sanitizeStepLengthInput(t))}
                   placeholder="z.B. 75"
-                  placeholderTextColor="#AEBAB3"
-                  style={styles.fieldInput}
+                  placeholderTextColor="#9AA4A0"
+                  style={styles.input}
                   editable={!loading}
                   keyboardType="decimal-pad"
                   inputMode="decimal"
                   returnKeyType="done"
                 />
-              </FieldRow>
+              </View>
             </View>
-          </View>
 
-          {/* ── Buttons ── */}
-          <View style={styles.buttonSection}>
+            {/* Save button */}
             <Pressable
+              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, (!name.trim() || !email.trim() || loading) && styles.disabled]}
+              disabled={loading || !name.trim() || !email.trim()}
               onPress={handleUpdate}
-              disabled={loading}
-              style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed, loading && styles.disabled]}
             >
               {loading
                 ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.saveBtnText}>Speichern</Text>}
+                : <Text style={styles.buttonText}>Speichern</Text>}
             </Pressable>
 
-            <Pressable
-              onPress={() => router.back()}
-              disabled={loading}
-              style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed, loading && styles.disabled]}
-            >
-              <Text style={styles.cancelBtnText}>Abbrechen</Text>
-            </Pressable>
+            {/* Info box */}
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle-outline" size={18} color="#111" />
+              <Text style={styles.infoText}>
+                Änderungen werden sofort in deinem Profil sichtbar.
+              </Text>
+            </View>
           </View>
+
+          <View style={{ height: 22 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function FieldRow({ icon, label, children }) {
-  return (
-    <View style={styles.fieldRow}>
-      <View style={styles.fieldMeta}>
-        <Ionicons name={icon} size={17} color="#6B8F71" />
-        <Text style={styles.fieldLabel}>{label}</Text>
-      </View>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F0F4F1' },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 120 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 50, paddingBottom: 120 },
 
-  /* ── Hero ── */
-  hero: {
-    backgroundColor: '#5A7D60',
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    overflow: 'hidden',
-    marginBottom: 24,
-    ...Platform.select({
-      ios: { shadowColor: '#2E5034', shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
-      android: { elevation: 10 },
-    }),
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 12,
   },
-  heroBlob1: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    top: -50,
-    right: -50,
-  },
-  heroBlob2: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    bottom: 10,
-    left: -30,
-  },
-  backBtn: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-
-  avatarContainer: { marginTop: 24, marginBottom: 12, position: 'relative' },
-  avatarRing: {
-    padding: 4,
-    borderRadius: 999,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-  avatarCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#C8DDCB',
-    overflow: 'hidden',
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitials: { fontSize: 32, fontWeight: '900', color: '#2F4A35' },
+  pressed: { opacity: 0.85 },
+
+  card: {
+    width: '100%',
+    backgroundColor: COLORS.card,
+    borderRadius: 28,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOpacity: 0.07,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 6,
+  },
+
+  headerBlock: {
+    alignItems: 'center',
+    paddingTop: 6,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    marginBottom: 14,
+  },
+  avatarWrap: { position: 'relative', marginBottom: 10 },
+  avatarCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.tint,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  avatarInitials: { fontSize: 24, fontWeight: '900', color: '#2F4A35' },
   cameraTag: {
     position: 'absolute',
-    right: 2,
-    bottom: 2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#3D6644',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: '#fff',
   },
+  headerTitle: { fontSize: 20, fontWeight: '900', color: COLORS.text, textAlign: 'center' },
+  headerHint: { fontSize: 12, color: COLORS.sub, marginTop: 4, fontWeight: '500' },
 
-  heroTitle: { fontSize: 20, fontWeight: '900', color: '#fff', letterSpacing: 0.2, marginBottom: 4 },
-  heroHint: { fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
-
-  /* ── Form section ── */
-  formSection: { marginHorizontal: 16, marginBottom: 16 },
-  sectionTitle: {
-    fontSize: 11,
+  field: { width: '100%', marginBottom: 12 },
+  label: {
+    fontSize: 13,
     fontWeight: '800',
-    color: '#8A9590',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    color: COLORS.sub,
     marginBottom: 8,
     marginLeft: 4,
   },
-
-  formCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.07)',
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-      android: { elevation: 2 },
-    }),
-  },
-
-  fieldRow: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  fieldMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  fieldLabel: { fontSize: 12, fontWeight: '700', color: '#6B8F71', textTransform: 'uppercase', letterSpacing: 0.4 },
-  fieldInput: {
-    fontSize: 16,
-    color: '#0F1411',
-    fontWeight: '500',
-    paddingVertical: 6,
-    paddingBottom: 12,
-  },
-  fieldDivider: { height: 1, backgroundColor: 'rgba(15,20,17,0.07)', marginHorizontal: 16 },
-
-  /* ── Buttons ── */
-  buttonSection: { marginHorizontal: 16, gap: 10 },
-  saveBtn: {
-    backgroundColor: '#5A7D60',
-    paddingVertical: 16,
-    borderRadius: 18,
+  inputRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
-    ...Platform.select({
-      ios: { shadowColor: '#2E5034', shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
-      android: { elevation: 4 },
-    }),
-  },
-  saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: 0.2 },
-  cancelBtn: {
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
     borderWidth: 1,
-    borderColor: 'rgba(15,20,17,0.10)',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  cancelBtnText: { color: '#55605A', fontWeight: '700', fontSize: 15 },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#101828',
+    paddingVertical: 0,
+  },
+
+  button: {
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 18,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    minHeight: 50,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  buttonPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
+  buttonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 16, letterSpacing: 0.2 },
   disabled: { opacity: 0.55 },
+
+  infoBox: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: COLORS.tint,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  infoText: { flex: 1, fontSize: 12, color: '#111', lineHeight: 16, fontWeight: '600' },
 });
