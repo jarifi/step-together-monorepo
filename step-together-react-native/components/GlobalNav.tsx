@@ -1,12 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useRef } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Avatar from './Avatar';
 import { useUser } from '../context/UserContext';
-import { getUserRole, removeTokens } from '../lib/auth';
+import { removeTokens } from '../lib/auth';
 
 export const GLOBAL_NAV_HEIGHT = 64;
 
@@ -18,12 +18,6 @@ export default function GlobalNav({ pathname }: Props) {
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 8) + 16;
   const { user, setUser, setToken, setUserId } = useUser();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    getUserRole().then(setUserRole);
-  }, []);
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path + '/');
@@ -31,7 +25,6 @@ export default function GlobalNav({ pathname }: Props) {
   const go = (path: string) => router.push(path as any);
 
   const handleLogout = async () => {
-    setSettingsOpen(false);
     await removeTokens();
     setUser(null);
     setToken(null);
@@ -71,38 +64,6 @@ export default function GlobalNav({ pathname }: Props) {
 
   return (
     <>
-      {/* Settings popup */}
-      <Modal
-        visible={settingsOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSettingsOpen(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setSettingsOpen(false)}>
-          <View style={[styles.settingsMenu, { bottom: GLOBAL_NAV_HEIGHT + bottomOffset + 8 }]}>
-            {userRole === 'admin' && (
-              <Pressable style={styles.menuItem} onPress={() => { setSettingsOpen(false); go('/admin'); }}>
-                <MaterialIcons name="groups" size={20} color="#2F3E34" />
-                <Text style={styles.menuLabel}>Admin Bereich</Text>
-              </Pressable>
-            )}
-            <Pressable style={styles.menuItem} onPress={() => { setSettingsOpen(false); go('/settings/settings'); }}>
-              <MaterialIcons name="settings" size={20} color="#2F3E34" />
-              <Text style={styles.menuLabel}>Einstellungen</Text>
-            </Pressable>
-            <Pressable style={styles.menuItem} onPress={() => { setSettingsOpen(false); go('/help/start'); }}>
-              <MaterialIcons name="info" size={20} color="#2F3E34" />
-              <Text style={styles.menuLabel}>Hilfe & Support</Text>
-            </Pressable>
-            <View style={styles.menuDivider} />
-            <Pressable style={styles.menuItem} onPress={handleLogout}>
-              <Feather name="log-out" size={20} color="#B91C1C" />
-              <Text style={styles.menuLabelDanger}>Logout</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-
       {/* Floating dynamic island pill nav */}
       <View style={[styles.wrap, { bottom: bottomOffset }]}>
         <View style={styles.bar}>
@@ -124,7 +85,6 @@ export default function GlobalNav({ pathname }: Props) {
 
           {/* Home center button */}
           <View style={styles.centerSlot}>
-            {/* Expanding glow pulse ring */}
             <Animated.View
               pointerEvents="none"
               style={[
@@ -132,9 +92,7 @@ export default function GlobalNav({ pathname }: Props) {
                 { transform: [{ scale: glowScale }], opacity: glowOpacity },
               ]}
             />
-            <Animated.View
-              style={{ transform: [{ scale: homeScale }, { rotate: homeSpin }] }}
-            >
+            <Animated.View style={{ transform: [{ scale: homeScale }, { rotate: homeSpin }] }}>
               <Pressable
                 style={styles.homeBtn}
                 onPressIn={onHomePressIn}
@@ -155,13 +113,9 @@ export default function GlobalNav({ pathname }: Props) {
             />
           </Pressable>
 
-          {/* Settings */}
-          <Pressable style={styles.tab} onPress={() => setSettingsOpen(true)}>
-            <MaterialIcons
-              name="settings"
-              size={26}
-              color={settingsOpen ? '#6B8F71' : '#9CA3AF'}
-            />
+          {/* Logout */}
+          <Pressable style={styles.tab} onPress={handleLogout}>
+            <Feather name="log-out" size={24} color="#B91C1C" />
           </Pressable>
         </View>
       </View>
