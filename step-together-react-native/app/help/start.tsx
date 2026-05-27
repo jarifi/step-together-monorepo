@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
 
   container: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
     marginTop: 30,
   },
 

@@ -407,7 +407,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  scrollContent: { paddingTop: 68, paddingHorizontal: 16 },
+  scrollContent: { paddingTop: 68, paddingHorizontal: 16, paddingBottom: 100 },
 
   splash: { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', gap: 12 },
   splashTxt: { fontSize: 14, color: SUB },

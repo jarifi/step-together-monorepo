@@ -385,7 +385,7 @@ export default function UsersScreen() {
             ) : null
           }
           contentContainerStyle={{
-            paddingBottom: 28,
+            paddingBottom: 100,
             flexGrow: 1,
             minHeight: screenHeight - 180,
           }}

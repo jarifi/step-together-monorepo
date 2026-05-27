@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
 
   centered: {
