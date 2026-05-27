@@ -59,6 +59,16 @@
 - Run:<br>
 `sudo systemctl start step_together_api.service`
 
+## Update Backend
+
+1. Log into the Server and stop it with `sudo systemctl stop step_together_api.service`
+
+2. Open WinSCP and delete all folders **except** `media` and `db`
+
+3. Upload all folders from your local machine, **excluding** `media` and `db`
+
+4. Then start the Server again with `sudo systemctl start step_together_api.service`
+
 ## Update Database
 
 `mysql -u dein_nutzername -p deine_datenbank < dateiname.sql`
