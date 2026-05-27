@@ -224,7 +224,7 @@ const contentTopPadding = useMemo(
           <ActivityIndicator size="large" color="#698059ff" />
           <Text style={styles.loadingText}>Step Together</Text>
         </View>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <Toast />
       </ThemeProvider>
     );
@@ -332,7 +332,7 @@ const contentTopPadding = useMemo(
         {showSidebar && !isTablet && <GlobalNav pathname={pathname} />}
       </Animated.View>
 
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Toast />
     </ThemeProvider>
   );
