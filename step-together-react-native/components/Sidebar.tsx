@@ -132,7 +132,7 @@ export default function Sidebar({
     <>
       {!isTablet && (
         <View style={[styles.headerContainer, { paddingTop: topInset }]}>
-          <Pressable onPress={toggleSidebar} style={styles.burgerBtn}>
+          <Pressable onPress={toggleSidebar} style={styles.burgerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ color: 'white', fontSize: 45 }}>☰</Text>
           </Pressable>
         </View>
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 5,
+    paddingBottom: 2,
     backgroundColor: '#6B8F71',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -270,9 +270,10 @@ const styles = StyleSheet.create({
   },
   burgerBtn: {
     backgroundColor: '#6B8F71',
-    paddingVertical: 10,
-    paddingHorizontal: 25,
-    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+    borderRadius: 25,
+    marginLeft: 12,
   },
   overlay: {
     position: 'absolute',

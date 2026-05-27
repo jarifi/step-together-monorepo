@@ -29,7 +29,7 @@ import {
 } from '../services/challengeService';
 
 const queryClient = new QueryClient();
-const PHONE_HEADER_HEIGHT = 72;
+const PHONE_HEADER_HEIGHT = 52;
 const PUBLIC_ROUTES = ['/', '/login', '/register', '/welcome', '/verifyInfo'];
 const SHOWN_POPUP_KEY = 'shown_invite_popup_ids';
 
