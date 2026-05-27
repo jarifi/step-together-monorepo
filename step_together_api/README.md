@@ -57,6 +57,16 @@
 - Run:<br>
   `sudo systemctl start step_together_api.service`
 
+## Update Backend
+
+1. Log into the Server and stop it with `sudo systemctl stop step_together_api.service`
+
+2. Open WinSCP and delete all folders **except** `media` and `db`
+
+3. Upload all folders from your local machine, **excluding** `media` and `db`
+
+4. Then start the Server again with `sudo systemctl start step_together_api.service`
+
 ## Update Database
 
 `mysql -u dein_nutzername -p deine_datenbank < dateiname.sql`
@@ -103,8 +113,3 @@ In case you do not see the "Send Request" line, you can also start a test by cli
 
 1. cd /srv/step_together_api/
 2. ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 3000
-
-### Deploy to Remote Server
-
-1. cd step_together_api
-2. .\scripts\deploy_app.ps1 -ServerUser root
