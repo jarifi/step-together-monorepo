@@ -1418,6 +1418,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
 
   header: {
+    paddingTop: 25,
     paddingBottom: 22,
     paddingHorizontal: 20,
     backgroundColor: T.white,

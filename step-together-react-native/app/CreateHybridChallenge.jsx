@@ -1244,7 +1244,7 @@ const s = StyleSheet.create({
 
   // Header
   header: {
-    paddingTop: Platform.OS === "ios" ? 74 : 24,
+    paddingTop: 74,
     paddingBottom: 22,
     paddingHorizontal: 20,
     backgroundColor: T.white,
