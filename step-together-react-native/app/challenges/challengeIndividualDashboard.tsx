@@ -157,6 +157,8 @@ const IndividualDashboard: React.FC = () => {
     const [sessionStart, setSessionStart] = useState<number | null>(null);
     const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
     const [trackingBaseSteps, setTrackingBaseSteps] = useState<number | null>(null);
+    const [devForceSaveFail, setDevForceSaveFail] = useState(false);
+    const [devPendingPreview, setDevPendingPreview] = useState<string>('leer');
 
     const subscriptionRef = useRef<any>(null);
     const isMountedRef = useRef(true);
@@ -396,6 +398,28 @@ const IndividualDashboard: React.FC = () => {
         await fetchAndApplyWeek(weekStart, pivot);
     }, [vm?.user?.id, vm?.challenge?.id, displayDate, minDate, maxDate, fetchAndApplyWeek]);
 
+    const upsertStepsWithDevSimulation = useCallback(
+        async (dateISO: string, steps: number, payload: { challengeId: number }) => {
+            if (__DEV__ && devForceSaveFail) {
+                const err: any = new Error('DEV simulated network error');
+                err.status = 0;
+                throw err;
+            }
+            return upsertStepsForDate(dateISO, steps, payload);
+        },
+        [devForceSaveFail]
+    );
+
+    const refreshDevPendingPreview = useCallback(async () => {
+        if (!__DEV__) return;
+        try {
+            const raw = await AsyncStorage.getItem(PENDING_STEPS_KEY);
+            setDevPendingPreview(raw ?? 'leer');
+        } catch {
+            setDevPendingPreview('Fehler beim Lesen');
+        }
+    }, []);
+
     useEffect(() => {
         if (!vm?.user?.id || !vm?.challenge?.id) return;
 
@@ -449,7 +473,7 @@ const IndividualDashboard: React.FC = () => {
             );
 
             try {
-                await upsertStepsForDate(dateISO, nextValue, {
+                await upsertStepsWithDevSimulation(dateISO, nextValue, {
                     challengeId: vm.challenge.id,
                 });
                 await AsyncStorage.removeItem(PENDING_STEPS_KEY);
@@ -463,9 +487,13 @@ const IndividualDashboard: React.FC = () => {
                 } else {
                     setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
                 }
+            } finally {
+                if (__DEV__) {
+                    refreshDevPendingPreview();
+                }
             }
         },
-        [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
+        [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek, upsertStepsWithDevSimulation, refreshDevPendingPreview]
     );
 
     const saveAbsoluteStepsForSelectedDay = useCallback(
@@ -478,26 +506,41 @@ const IndividualDashboard: React.FC = () => {
             const idx = (dateSafe.getDay() + 6) % 7;
             const dateISO = toIsoUtcMidnight(dateSafe);
 
-            const prev = [...weekSteps];
             const next = [...weekSteps];
             next[idx] = Math.max(0, Math.floor(newValue));
+            const nextValue = next[idx];
 
             setWeekSteps(next);
-            setStepsToday(next[idx]);
+            setStepsToday(nextValue);
+
+            // Persist before API call so stop/save survives token expiry or network switches.
+            await AsyncStorage.setItem(
+                PENDING_STEPS_KEY,
+                JSON.stringify({ dateISO, steps: nextValue, challengeId: vm.challenge.id })
+            );
 
             try {
-                await upsertStepsForDate(dateISO, next[idx], {
+                await upsertStepsWithDevSimulation(dateISO, nextValue, {
                     challengeId: vm.challenge.id,
                 });
+                await AsyncStorage.removeItem(PENDING_STEPS_KEY);
+                setHasPendingSteps(false);
                 await refreshWeek();
             } catch (e) {
-                setWeekSteps(prev);
-                setStepsToday(prev[idx] ?? 0);
+                setHasPendingSteps(true);
                 console.warn('Save steps failed:', e);
-                setErrorMsg('Schritte konnten nicht gespeichert werden.');
+                if (isUnauthorizedError(e)) {
+                    setErrorMsg('Session bleibt aktiv. Schritte werden später automatisch synchronisiert.');
+                } else {
+                    setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
+                }
+            } finally {
+                if (__DEV__) {
+                    refreshDevPendingPreview();
+                }
             }
         },
-        [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
+        [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek, upsertStepsWithDevSimulation, refreshDevPendingPreview]
     );
 
     const flushPendingSteps = useCallback(async () => {
@@ -512,7 +555,7 @@ const IndividualDashboard: React.FC = () => {
         }
         if (!pending || Number(pending.challengeId) !== Number(vm.challenge.id)) return;
         try {
-            await upsertStepsForDate(pending.dateISO, pending.steps, {
+            await upsertStepsWithDevSimulation(pending.dateISO, pending.steps, {
                 challengeId: pending.challengeId,
             });
             await AsyncStorage.removeItem(PENDING_STEPS_KEY);
@@ -521,8 +564,12 @@ const IndividualDashboard: React.FC = () => {
             await refreshWeek();
         } catch {
             // Will retry on next focus or foreground event
+        } finally {
+            if (__DEV__) {
+                refreshDevPendingPreview();
+            }
         }
-    }, [vm?.challenge?.id, refreshWeek]);
+    }, [vm?.challenge?.id, refreshWeek, upsertStepsWithDevSimulation, refreshDevPendingPreview]);
     const applyStepDelta = useCallback(
         async (delta: number) => {
             const dateSafe = clampDate(displayDate, minDate, maxDate);
@@ -685,7 +732,10 @@ const IndividualDashboard: React.FC = () => {
         AsyncStorage.getItem(PENDING_STEPS_KEY).then((v) => {
             if (v) setHasPendingSteps(true);
         });
-    }, []);
+        if (__DEV__) {
+            refreshDevPendingPreview();
+        }
+    }, [refreshDevPendingPreview]);
 
     // Auto-retry flush once vm is ready and there is a pending save
     useEffect(() => {
@@ -974,6 +1024,14 @@ const IndividualDashboard: React.FC = () => {
                         {__DEV__ && (
                             <View style={{ gap: 8 }}>
                                 <TouchableOpacity
+                                    style={{ backgroundColor: devForceSaveFail ? '#ef4444' : '#10b981', padding: 10, borderRadius: 8, alignItems: 'center' }}
+                                    onPress={() => setDevForceSaveFail((v) => !v)}
+                                >
+                                    <Text style={{ fontWeight: '700', color: '#fff' }}>
+                                        DEV: Netzwerkfehler {devForceSaveFail ? 'AN' : 'AUS'}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
                                     style={{ backgroundColor: '#fbbf24', padding: 10, borderRadius: 8, alignItems: 'center' }}
                                     onPress={() => saveTrackedSteps(500)}
                                 >
@@ -981,16 +1039,19 @@ const IndividualDashboard: React.FC = () => {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={{ backgroundColor: '#f87171', padding: 10, borderRadius: 8, alignItems: 'center' }}
-                                    onPress={async () => {
-                                        // Simulate what happens when the API call fails (e.g. token expired after 3h)
-                                        const idx = (new Date().getDay() + 6) % 7;
-                                        const prev = [...weekSteps];
-                                        setWeekSteps(prev); // no optimistic update
-                                        setErrorMsg('Schritte konnten nicht gespeichert werden.');
-                                    }}
+                                    onPress={async () => saveTrackedSteps(500)}
                                 >
-                                    <Text style={{ fontWeight: '700', color: '#fff' }}>DEV: simulate save failure</Text>
+                                    <Text style={{ fontWeight: '700', color: '#fff' }}>DEV: trigger save path</Text>
                                 </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#6366f1', padding: 10, borderRadius: 8, alignItems: 'center' }}
+                                    onPress={refreshDevPendingPreview}
+                                >
+                                    <Text style={{ fontWeight: '700', color: '#fff' }}>DEV: pending neu laden</Text>
+                                </TouchableOpacity>
+                                <Text style={{ fontSize: 12, color: '#334155' }} numberOfLines={3}>
+                                    DEV pending: {devPendingPreview}
+                                </Text>
                             </View>
                         )}
 
