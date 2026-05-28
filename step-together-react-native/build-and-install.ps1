@@ -52,6 +52,31 @@ function Get-ConnectedWirelessDeviceSerial {
     return $null
 }
 
+function Get-ConnectedUsbDeviceSerials {
+    $devicesOut = (& adb devices 2>$null | Out-String)
+    $items = @()
+
+    foreach ($line in ($devicesOut -split "`r?`n")) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            continue
+        }
+        if ($trimmed -like "List of devices attached*") {
+            continue
+        }
+
+        if ($trimmed -match "^(\S+)\s+device(\s|$)") {
+            $serial = $Matches[1].Trim()
+            # USB serials should not contain ':'; keep wireless serials out of this list.
+            if ($serial -notlike "*:*") {
+                $items += $serial
+            }
+        }
+    }
+
+    return @($items | Select-Object -Unique)
+}
+
 function Parse-Endpoint {
     param([string]$Endpoint)
 
@@ -200,80 +225,116 @@ function Grant-DevHealthPermissions {
     }
 }
 
-Write-Host "=== ADB Wireless Pairing ===" -ForegroundColor Cyan
-Write-Host "Checking for already connected wireless ADB device..." -ForegroundColor Yellow
+Write-Host "=== ADB Device Setup ===" -ForegroundColor Cyan
 Run-Checked -Command "adb" -Args @("start-server")
 
-$deviceSerial = Get-ConnectedWirelessDeviceSerial
+$deviceSerial = ""
 $phoneIp = ""
 $pairPort = ""
 $pairCode = ""
 $connectPort = ""
 
-if (-not [string]::IsNullOrWhiteSpace($deviceSerial)) {
-    Write-Host "Found already connected device: $deviceSerial" -ForegroundColor Green
+$connectionMode = (Read-Host "Connection mode [U=USB / W=Wireless] (default: U)").Trim().ToUpperInvariant()
+if ([string]::IsNullOrWhiteSpace($connectionMode)) {
+    $connectionMode = "U"
+}
 
-    if ($deviceSerial -match "^([^:]+):(\d+)$") {
-        $phoneIp = $Matches[1]
-        $connectPort = $Matches[2]
+if ($connectionMode -eq "U") {
+    Write-Host "Checking for connected USB devices..." -ForegroundColor Yellow
+    $usbDevices = @(Get-ConnectedUsbDeviceSerials)
+
+    if ($usbDevices.Count -eq 0) {
+        throw "No USB device found. Connect a phone via USB, enable USB debugging, accept the RSA prompt, then rerun."
+    }
+
+    if ($usbDevices.Count -eq 1) {
+        $deviceSerial = $usbDevices[0]
+        Write-Host "Using USB device: $deviceSerial" -ForegroundColor Green
+    }
+    else {
+        Write-Host "Multiple USB devices found:" -ForegroundColor Green
+        for ($i = 0; $i -lt $usbDevices.Count; $i++) {
+            Write-Host ("  [{0}] {1}" -f ($i + 1), $usbDevices[$i])
+        }
+
+        $selection = (Read-Host "Select device number").Trim()
+        $idx = 0
+        if (-not [int]::TryParse($selection, [ref]$idx) -or $idx -lt 1 -or $idx -gt $usbDevices.Count) {
+            throw "Invalid USB device selection."
+        }
+
+        $deviceSerial = $usbDevices[$idx - 1]
+        Write-Host "Using USB device: $deviceSerial" -ForegroundColor Green
     }
 }
-else {
-    Write-Host "No connected wireless device found. Starting pairing flow." -ForegroundColor Yellow
-    Write-Host "Choose pairing mode:" -ForegroundColor DarkCyan
-    Write-Host "  1) QR (pair on phone camera first, then script connects)" -ForegroundColor DarkCyan
-    Write-Host "  2) Manual (pair code + ports in script)" -ForegroundColor DarkCyan
-    Write-Host ""
-    Write-Host "Manual mode mapping (important):" -ForegroundColor Yellow
-    Write-Host "  Phone IP      -> only IP, e.g. 10.12.100.57 (NO :port)" -ForegroundColor Yellow
-    Write-Host "  Pair port     -> from 'Pair device with pairing code'" -ForegroundColor Yellow
-    Write-Host "  Pairing code  -> 6-digit code from phone" -ForegroundColor Yellow
-    Write-Host "  Connect port  -> from Wireless debugging main screen" -ForegroundColor Yellow
-    Write-Host ""
+elseif ($connectionMode -eq "W") {
+    Write-Host "Checking for already connected wireless ADB device..." -ForegroundColor Yellow
+    $deviceSerial = Get-ConnectedWirelessDeviceSerial
 
-    $pairMode = (Read-Host "Mode [1/2]").Trim()
-    if ([string]::IsNullOrWhiteSpace($pairMode)) {
-        $pairMode = "1"
+    if (-not [string]::IsNullOrWhiteSpace($deviceSerial)) {
+        Write-Host "Found already connected device: $deviceSerial" -ForegroundColor Green
+
+        if ($deviceSerial -match "^([^:]+):(\d+)$") {
+            $phoneIp = $Matches[1]
+            $connectPort = $Matches[2]
+        }
     }
+    else {
+        Write-Host "No connected wireless device found. Starting pairing flow." -ForegroundColor Yellow
+        Write-Host "Choose pairing mode:" -ForegroundColor DarkCyan
+        Write-Host "  1) QR (pair on phone camera first, then script connects)" -ForegroundColor DarkCyan
+        Write-Host "  2) Manual (pair code + ports in script)" -ForegroundColor DarkCyan
+        Write-Host ""
+        Write-Host "Manual mode mapping (important):" -ForegroundColor Yellow
+        Write-Host "  Phone IP      -> only IP, e.g. 10.12.100.57 (NO :port)" -ForegroundColor Yellow
+        Write-Host "  Pair port     -> from 'Pair device with pairing code'" -ForegroundColor Yellow
+        Write-Host "  Pairing code  -> 6-digit code from phone" -ForegroundColor Yellow
+        Write-Host "  Connect port  -> from Wireless debugging main screen" -ForegroundColor Yellow
+        Write-Host ""
 
-    if ($pairMode -eq "1") {
-        Write-Host "On phone: Developer options -> Wireless debugging -> Pair device with QR code." -ForegroundColor Yellow
-        Write-Host "Trying to discover connect endpoints from adb mDNS..." -ForegroundColor Yellow
+        $pairMode = (Read-Host "Mode [1/2]").Trim()
+        if ([string]::IsNullOrWhiteSpace($pairMode)) {
+            $pairMode = "1"
+        }
 
-        $connectEndpoint = ""
-        $mdnsEndpoints = Get-AdbTlsConnectEndpoints
-        if ($mdnsEndpoints.Count -gt 0) {
-            Write-Host "Discovered endpoints:" -ForegroundColor Green
-            for ($i = 0; $i -lt $mdnsEndpoints.Count; $i++) {
-                Write-Host ("  [{0}] {1}" -f ($i + 1), $mdnsEndpoints[$i])
-            }
+        if ($pairMode -eq "1") {
+            Write-Host "On phone: Developer options -> Wireless debugging -> Pair device with QR code." -ForegroundColor Yellow
+            Write-Host "Trying to discover connect endpoints from adb mDNS..." -ForegroundColor Yellow
 
-            $selection = (Read-Host "Select number, or press Enter to type endpoint manually").Trim()
-            if (-not [string]::IsNullOrWhiteSpace($selection)) {
-                $idx = 0
-                if (-not [int]::TryParse($selection, [ref]$idx) -or $idx -lt 1 -or $idx -gt $mdnsEndpoints.Count) {
-                    throw "Invalid selection."
+            $connectEndpoint = ""
+            $mdnsEndpoints = Get-AdbTlsConnectEndpoints
+            if ($mdnsEndpoints.Count -gt 0) {
+                Write-Host "Discovered endpoints:" -ForegroundColor Green
+                for ($i = 0; $i -lt $mdnsEndpoints.Count; $i++) {
+                    Write-Host ("  [{0}] {1}" -f ($i + 1), $mdnsEndpoints[$i])
                 }
-                $connectEndpoint = $mdnsEndpoints[$idx - 1]
+
+                $selection = (Read-Host "Select number, or press Enter to type endpoint manually").Trim()
+                if (-not [string]::IsNullOrWhiteSpace($selection)) {
+                    $idx = 0
+                    if (-not [int]::TryParse($selection, [ref]$idx) -or $idx -lt 1 -or $idx -gt $mdnsEndpoints.Count) {
+                        throw "Invalid selection."
+                    }
+                    $connectEndpoint = $mdnsEndpoints[$idx - 1]
+                }
             }
-        }
 
-        if ([string]::IsNullOrWhiteSpace($connectEndpoint)) {
-            Write-Host "No endpoint selected. Enter endpoint from phone Wireless debugging screen." -ForegroundColor Yellow
-            $connectEndpoint = (Read-Host "Connect endpoint (example 10.12.100.57:42165)").Trim()
-        }
+            if ([string]::IsNullOrWhiteSpace($connectEndpoint)) {
+                Write-Host "No endpoint selected. Enter endpoint from phone Wireless debugging screen." -ForegroundColor Yellow
+                $connectEndpoint = (Read-Host "Connect endpoint (example 10.12.100.57:42165)").Trim()
+            }
 
-        $parsed = Parse-Endpoint -Endpoint $connectEndpoint
-        $phoneIp = $parsed.Ip
-        $connectPort = $parsed.Port
-    }
-    elseif ($pairMode -eq "2") {
-        Write-Host "Open Android -> Developer options -> Wireless debugging -> Pair device with pairing code" -ForegroundColor DarkCyan
-        Write-Host "Example values:" -ForegroundColor DarkCyan
-        Write-Host "  IP: 10.12.100.57" -ForegroundColor DarkCyan
-        Write-Host "  Pair port: 36469" -ForegroundColor DarkCyan
-        Write-Host "  Pair code: 123456" -ForegroundColor DarkCyan
-        Write-Host "  Connect port: 42165" -ForegroundColor DarkCyan
+            $parsed = Parse-Endpoint -Endpoint $connectEndpoint
+            $phoneIp = $parsed.Ip
+            $connectPort = $parsed.Port
+        }
+        elseif ($pairMode -eq "2") {
+            Write-Host "Open Android -> Developer options -> Wireless debugging -> Pair device with pairing code" -ForegroundColor DarkCyan
+            Write-Host "Example values:" -ForegroundColor DarkCyan
+            Write-Host "  IP: 10.12.100.57" -ForegroundColor DarkCyan
+            Write-Host "  Pair port: 36469" -ForegroundColor DarkCyan
+            Write-Host "  Pair code: 123456" -ForegroundColor DarkCyan
+            Write-Host "  Connect port: 42165" -ForegroundColor DarkCyan
 
         $phoneIp = (Read-Host "Phone IP ONLY (example 10.12.100.57) [NO :port]").Trim()
         if ([string]::IsNullOrWhiteSpace($phoneIp)) {
@@ -302,10 +363,10 @@ else {
             throw "Connect port is required."
         }
         Validate-Port -PortValue $connectPort -Label "Connect port"
-    }
-    else {
-        throw "Unknown mode. Enter 1 (QR) or 2 (Manual)."
-    }
+        }
+        else {
+            throw "Unknown mode. Enter 1 (QR) or 2 (Manual)."
+        }
 
     Write-Host "Restarting ADB server..." -ForegroundColor Yellow
     Run-Checked -Command "adb" -Args @("kill-server")
@@ -393,8 +454,12 @@ else {
         throw "No online ADB device found after retries."
     }
 
-    Write-Host "Device is connected and ready." -ForegroundColor Green
-    $deviceSerial = "$phoneIp`:$connectPort"
+        Write-Host "Device is connected and ready." -ForegroundColor Green
+        $deviceSerial = "$phoneIp`:$connectPort"
+    }
+}
+else {
+    throw "Unknown connection mode. Enter U (USB) or W (Wireless)."
 }
 $appId = Get-AndroidApplicationId -ProjectPath (Get-Location).Path
 if (-not [string]::IsNullOrWhiteSpace($appId)) {
