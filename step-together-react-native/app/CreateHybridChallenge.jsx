@@ -1195,7 +1195,7 @@ export default function CreateHybridChallenge({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <View style={{ height: 32 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 

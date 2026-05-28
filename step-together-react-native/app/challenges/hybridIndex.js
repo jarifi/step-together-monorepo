@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -5,12 +6,14 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ChallengeCard from '../../components/ChallengeCard';
 import {
@@ -38,6 +41,7 @@ export default function AllChallengesScreen() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const filteredChallenges = useMemo(() => {
     if (!searchQuery.trim()) return challenges;
@@ -123,6 +127,20 @@ export default function AllChallengesScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* ── Tab bar – same design as ChallengeTabs ─────────────────── */}
+      <View style={[styles.tabBarWrap, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.tabBarRow}>
+          <Pressable style={[styles.tabPill, styles.tabPillActive]}>
+            <MaterialIcons name="list" size={18} color="#6B8F71" />
+            <Text style={[styles.tabPillLabel, styles.tabPillLabelActive]}>Verwaltung</Text>
+          </Pressable>
+          <Pressable style={styles.tabPill} onPress={() => router.replace('/userHistory')}>
+            <MaterialIcons name="history" size={18} color="#9CA3AF" />
+            <Text style={styles.tabPillLabel}>Verlauf</Text>
+          </Pressable>
+        </View>
+      </View>
+
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.headerCard}>
@@ -227,7 +245,7 @@ export default function AllChallengesScreen() {
             </View>
           }
           contentContainerStyle={{
-            paddingBottom: 28,
+            paddingBottom: 150,
             flexGrow: 1,
             minHeight: screenHeight - 180,
           }}
@@ -245,7 +263,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 56,
+    paddingTop: 12,
   },
 
   loadingWrap: {
@@ -341,6 +359,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.sub,
     fontWeight: '700',
+  },
+
+  tabBarWrap: {
+    backgroundColor: '#F5F7F4',
+    paddingHorizontal: 18,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+      android: { elevation: 2 },
+    }),
+  },
+  tabBarRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  tabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  tabPillActive: {
+    backgroundColor: 'rgba(107,143,113,0.12)',
+  },
+  tabPillLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  tabPillLabelActive: {
+    color: '#6B8F71',
   },
 
   primaryBtn: {

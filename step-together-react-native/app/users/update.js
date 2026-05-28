@@ -1,24 +1,26 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useUser } from '../../context/UserContext';
 import { validateEmail, validateName, validateStepLength } from '../../lib/userValidation';
-import { updateUser } from '../../services/userService';
+import { getMe, makeAbsoluteMediaUrl, updateUser, uploadMyProfilePicture } from '../../services/userService';
 
-// -----------------------------
-// helpers (comma/dot safe)
-// -----------------------------
 const sanitizeStepLengthInput = (raw) => {
   let v = String(raw ?? '').replace(/[^\d.,]/g, '');
   const firstSepIndex = v.search(/[.,]/);
@@ -31,18 +33,19 @@ const sanitizeStepLengthInput = (raw) => {
 };
 const normalizeStepLength = (v) => String(v ?? '').trim().replace(',', '.');
 
-// ====== UI tokens ======
+const pickAvatar = (u) => u?.avatarUrl ?? u?.avatar_url ?? u?.avatar ?? null;
+const isLocalUri = (u) => u.startsWith('file://') || u.startsWith('blob:') || u.startsWith('data:');
+
 const COLORS = {
-  bg: '#F5F7F4',
-  surface: '#FFFFFF',
+  bg: '#F4F7F4',
+  card: '#FFFFFF',
   text: '#0F1411',
   sub: '#55605A',
   border: 'rgba(15,20,17,0.10)',
-  accent: '#55805c',
-  inputBg: '#FBFCFB',
+  accent: '#2F6B45',
+  inputBg: '#FAFBFA',
+  tint: '#CFE0D3',
 };
-
-const FieldLabel = ({ children }) => <Text style={styles.label}>{children}</Text>;
 
 export default function UpdateUserScreen() {
   const router = useRouter();
@@ -51,43 +54,91 @@ export default function UpdateUserScreen() {
 
   const userId = useMemo(() => {
     const raw = Array.isArray(params?.id) ? params.id[0] : params?.id;
-    return Number(raw);
-  }, [params?.id]);
+    return raw != null ? Number(raw) : user?.id;
+  }, [params?.id, user?.id]);
 
   const initialName = useMemo(() => {
     const raw = Array.isArray(params?.name) ? params.name[0] : params?.name;
-    return String(raw ?? '');
-  }, [params?.name]);
+    return raw ? String(raw) : (user?.name ?? '');
+  }, [params?.name, user?.name]);
 
   const initialEmail = useMemo(() => {
     const raw = Array.isArray(params?.email) ? params.email[0] : params?.email;
-    return String(raw ?? '');
-  }, [params?.email]);
+    return raw ? String(raw) : (user?.email ?? '');
+  }, [params?.email, user?.email]);
 
   const initialStepLength = useMemo(() => {
     const raw = Array.isArray(params?.stepLength) ? params.stepLength[0] : params?.stepLength;
-    return raw == null ? '' : String(raw);
-  }, [params?.stepLength]);
+    if (raw != null && raw !== '') return String(raw);
+    const sl = user?.stepLength ?? user?.step_length;
+    return sl != null ? String(sl) : '';
+  }, [params?.stepLength, user?.stepLength, user?.step_length]);
 
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [stepLength, setStepLength] = useState(initialStepLength);
   const [loading, setLoading] = useState(false);
+  const [imageUri, setImageUri] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  const showError = (msg) => {
-    Toast.show({
-      type: 'error',
-      text1: 'Error',
-      text2: String(msg),
-      position: 'top',
-      topOffset: 100,
+  useEffect(() => {
+    const av = pickAvatar(user);
+    if (av) setImageUri(av);
+  }, [user]);
+
+  const displayImageUri = useMemo(() => {
+    if (!imageUri) return null;
+    if (isLocalUri(imageUri)) return imageUri;
+    return makeAbsoluteMediaUrl(imageUri) ?? imageUri;
+  }, [imageUri]);
+
+  const initials = useMemo(() => {
+    const n = (name ?? '').trim();
+    if (!n) return '??';
+    const parts = n.split(' ').filter(Boolean);
+    return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[1][0]).toUpperCase();
+  }, [name]);
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Zugriff benötigt', 'Bitte erlaube den Zugriff auf deine Fotos.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
     });
+    if (res.canceled || !res.assets?.length) return;
+
+    const uri = res.assets[0].uri;
+    setImageUri(uri);
+    setUploading(true);
+    try {
+      await uploadMyProfilePicture(uri);
+      const fresh = await getMe();
+      if (fresh) {
+        setUser(fresh);
+        const av = pickAvatar(fresh);
+        const abs = av ? (makeAbsoluteMediaUrl(av) ?? av) : null;
+        if (abs) setImageUri(abs);
+      }
+    } catch {
+      Alert.alert('Fehler', 'Foto konnte nicht hochgeladen werden.');
+      const av = pickAvatar(user);
+      setImageUri(av ? (makeAbsoluteMediaUrl(av) ?? av) : null);
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const stepLengthNormalized = useMemo(
-    () => normalizeStepLength(stepLength),
-    [stepLength]
-  );
+  const showError = (msg) => {
+    Toast.show({ type: 'error', text1: 'Fehler', text2: String(msg), position: 'top', topOffset: 100 });
+  };
+
+  const stepLengthNormalized = useMemo(() => normalizeStepLength(stepLength), [stepLength]);
 
   const handleUpdate = async () => {
     const trimmedName = name.trim();
@@ -98,11 +149,11 @@ export default function UpdateUserScreen() {
       return;
     }
 
-    const emailErrors = validateEmail(trimmedEmail);
-    const nameErrors = validateName(trimmedName);
-    const stepLengthErrors = validateStepLength(stepLengthNormalized);
-
-    const allErrors = [...emailErrors, ...nameErrors, ...stepLengthErrors].filter(Boolean);
+    const allErrors = [
+      ...validateEmail(trimmedEmail),
+      ...validateName(trimmedName),
+      ...validateStepLength(stepLengthNormalized),
+    ].filter(Boolean);
 
     if (allErrors.length > 0) {
       allErrors.forEach((err, i) => setTimeout(() => showError(err), i * 900));
@@ -111,36 +162,23 @@ export default function UpdateUserScreen() {
 
     setLoading(true);
     try {
-      const payload = {
+      const updatedUser = await updateUser(userId, {
         name: trimmedName,
         email: trimmedEmail,
         stepLength: parseFloat(stepLengthNormalized),
-      };
-
-      const updatedUser = await updateUser(userId, payload);
-
-      if (user && userId === user.id) {
-        setUser(updatedUser);
-      }
-
-      Toast.show({
-        type: 'success',
-        text1: 'Erfolg',
-        text2: 'Benutzer erfolgreich aktualisiert!',
-        position: 'top',
-        topOffset: 100,
       });
 
+      if (user && userId === user.id) setUser(updatedUser);
+
+      Toast.show({ type: 'success', text1: 'Gespeichert', text2: 'Dein Profil wurde aktualisiert.', position: 'top', topOffset: 100 });
       router.back();
     } catch (error) {
-      const apiMsg =
+      showError(
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
         error?.message ||
-        'Benutzer konnte nicht aktualisiert werden';
-
-      showError(apiMsg);
-      console.error('Update user failed:', error?.response?.data ?? error);
+        'Profil konnte nicht aktualisiert werden'
+      );
     } finally {
       setLoading(false);
     }
@@ -159,81 +197,126 @@ export default function UpdateUserScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header Card */}
-          <View style={styles.headerCard}>
-            <Text style={styles.title}>Benutzer bearbeiten</Text>
+          {/* Top bar */}
+          <View style={styles.topBar}>
+            <Pressable
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+              onPress={() => router.back()}
+              disabled={loading}
+              hitSlop={10}
+            >
+              <Ionicons name="arrow-back" size={20} color={COLORS.text} />
+            </Pressable>
+            <View style={{ width: 44, height: 44 }} />
           </View>
 
-          {/* Form Card */}
-          <View style={styles.formCard}>
-            <FieldLabel>NAME</FieldLabel>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Vor- und Nachname"
-              placeholderTextColor="#8A9590"
-              style={styles.input}
-              editable={!loading}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
-
-            <FieldLabel>E-MAIL</FieldLabel>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="E-Mail"
-              placeholderTextColor="#8A9590"
-              style={styles.input}
-              editable={!loading}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              returnKeyType="next"
-            />
-
-            <FieldLabel>SCHRITTLÄNGE</FieldLabel>
-            <TextInput
-              value={stepLength}
-              onChangeText={(t) => setStepLength(sanitizeStepLengthInput(t))}
-              placeholder="Schrittlänge (in cm)"
-              placeholderTextColor="#8A9590"
-              style={styles.input}
-              editable={!loading}
-              keyboardType="decimal-pad"
-              inputMode="decimal"
-              returnKeyType="done"
-            />
-
-            <View style={styles.buttonRow}>
+          {/* Card */}
+          <View style={styles.card}>
+            {/* Header */}
+            <View style={styles.headerBlock}>
               <Pressable
-                onPress={() => router.back()}
-                disabled={loading}
-                style={({ pressed }) => [
-                  styles.secondaryBtn,
-                  pressed && styles.pressed,
-                  loading && styles.disabled,
-                ]}
+                onPress={handlePickImage}
+                disabled={uploading}
+                style={({ pressed }) => [styles.avatarWrap, pressed && { opacity: 0.8 }]}
               >
-                <Text style={styles.secondaryBtnText}>Abbrechen</Text>
+                <View style={styles.avatarCircle}>
+                  {displayImageUri ? (
+                    <Image
+                      source={{ uri: displayImageUri }}
+                      style={StyleSheet.absoluteFill}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text style={styles.avatarInitials}>{initials}</Text>
+                  )}
+                </View>
+                <View style={styles.cameraTag}>
+                  {uploading
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons name="camera" size={13} color="#fff" />}
+                </View>
               </Pressable>
+              <Text style={styles.headerTitle}>Profil bearbeiten</Text>
+              <Text style={styles.headerHint}>Foto antippen zum Ändern</Text>
+            </View>
 
-              <Pressable
-                onPress={handleUpdate}
-                disabled={loading}
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && styles.pressed,
-                  loading && styles.disabled,
-                ]}
-              >
-                <Text style={styles.primaryBtnText}>
-                  {loading ? 'Aktualisiere…' : 'Aktualisieren'}
-                </Text>
-              </Pressable>
+            {/* Name */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Name</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="person-outline" size={18} color={COLORS.sub} />
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Vor- und Nachname"
+                  placeholderTextColor="#9AA4A0"
+                  style={styles.input}
+                  editable={!loading}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            {/* Email */}
+            <View style={styles.field}>
+              <Text style={styles.label}>E-Mail</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="mail-outline" size={18} color={COLORS.sub} />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="deine@email.com"
+                  placeholderTextColor="#9AA4A0"
+                  style={styles.input}
+                  editable={!loading}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            {/* Step length */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Schrittlänge (in cm)</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="walk-outline" size={18} color={COLORS.sub} />
+                <TextInput
+                  value={stepLength}
+                  onChangeText={(t) => setStepLength(sanitizeStepLengthInput(t))}
+                  placeholder="z.B. 75"
+                  placeholderTextColor="#9AA4A0"
+                  style={styles.input}
+                  editable={!loading}
+                  keyboardType="decimal-pad"
+                  inputMode="decimal"
+                  returnKeyType="done"
+                />
+              </View>
+            </View>
+
+            {/* Save button */}
+            <Pressable
+              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, (!name.trim() || !email.trim() || loading) && styles.disabled]}
+              disabled={loading || !name.trim() || !email.trim()}
+              onPress={handleUpdate}
+            >
+              {loading
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={styles.buttonText}>Speichern</Text>}
+            </Pressable>
+
+            {/* Info box */}
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle-outline" size={18} color="#111" />
+              <Text style={styles.infoText}>
+                Änderungen werden sofort in deinem Profil sichtbar.
+              </Text>
             </View>
           </View>
 
-          <View style={{ height: 26 }} />
+          <View style={{ height: 22 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -243,119 +326,134 @@ export default function UpdateUserScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 120,
-  },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 50, paddingBottom: 120 },
 
-  headerCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 14,
-    position: 'relative',
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 12,
   },
-
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-    letterSpacing: 0.2,
-    textAlign: 'center',
-    paddingHorizontal: 56,
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  pressed: { opacity: 0.85 },
 
-  formCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    padding: 16,
+  card: {
+    width: '100%',
+    backgroundColor: COLORS.card,
+    borderRadius: 28,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 3,
+    shadowOpacity: 0.07,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 6,
   },
 
+  headerBlock: {
+    alignItems: 'center',
+    paddingTop: 6,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    marginBottom: 14,
+  },
+  avatarWrap: { position: 'relative', marginBottom: 10 },
+  avatarCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.tint,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  avatarInitials: { fontSize: 24, fontWeight: '900', color: '#2F4A35' },
+  cameraTag: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  headerTitle: { fontSize: 20, fontWeight: '900', color: COLORS.text, textAlign: 'center' },
+  headerHint: { fontSize: 12, color: COLORS.sub, marginTop: 4, fontWeight: '500' },
+
+  field: { width: '100%', marginBottom: 12 },
   label: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: COLORS.sub,
     marginBottom: 8,
-    marginLeft: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    marginLeft: 4,
   },
-
-  input: {
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.inputBg,
-    borderRadius: 18,
+    borderRadius: 16,
+    paddingHorizontal: 12,
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: COLORS.text,
-    marginBottom: 14,
   },
-
-  buttonRow: {
-    flexDirection: 'row',
-    marginTop: 6,
-  },
-
-  primaryBtn: {
+  input: {
     flex: 1,
-    marginLeft: 12,
-    backgroundColor: COLORS.accent,
+    fontSize: 15,
+    color: '#101828',
+    paddingVertical: 0,
+  },
+
+  button: {
+    marginTop: 8,
     paddingVertical: 14,
     borderRadius: 18,
+    backgroundColor: COLORS.accent,
     alignItems: 'center',
+    minHeight: 50,
     justifyContent: 'center',
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    shadowRadius: 18,
+    elevation: 5,
   },
-  primaryBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
-    letterSpacing: 0.2,
-  },
+  buttonPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
+  buttonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 16, letterSpacing: 0.2 },
+  disabled: { opacity: 0.55 },
 
-  secondaryBtn: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
+  infoBox: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: COLORS.tint,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingVertical: 14,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  secondaryBtnText: {
-    color: COLORS.text,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
-  disabled: {
-    opacity: 0.6,
-  },
+  infoText: { flex: 1, fontSize: 12, color: '#111', lineHeight: 16, fontWeight: '600' },
 });

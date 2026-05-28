@@ -29,7 +29,7 @@ import {
     toIsoDate as toISO,
 } from '../../services/dto/dashboardDto';
 
-import BottomBar from '../../components/BottomBar';
+import ChallengeTabs from '../../components/ChallengeTabs';
 import { getChallengeById } from '../../services/challengeService';
 import { getHomeInit, getWeekSteps, listMyStepLogs, upsertStepsForDate } from '../../services/dashboardService';
 import styles from '../styles/dashboardStyles';
@@ -826,13 +826,13 @@ const IndividualDashboard: React.FC = () => {
 
     if (loading) {
         return (
-            <>
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7F4' }}>
+            <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
+                <ChallengeTabs active="overview" overviewPath="/challenges/challengeIndividualDashboard" rankingPath="/challenges/challengeIndividualDashboardDetails" />
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator size="large" />
                     <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
                 </View>
-                <BottomBar pathname={pathname} overviewPath={vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard'} />
-            </>
+            </View>
         );
     }
 
@@ -842,10 +842,10 @@ const IndividualDashboard: React.FC = () => {
 
     if (!vm || !canShowChallenge) {
         return (
-            <>
+            <View style={{ flex: 1 }}>
+                <ChallengeTabs active="overview" overviewPath="/challenges/challengeIndividualDashboard" rankingPath="/challenges/challengeIndividualDashboardDetails" />
                 <EmptyChallengeCard />
-                <BottomBar pathname={pathname} overviewPath={vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard'} />
-            </>
+            </View>
         );
     }
 
@@ -876,9 +876,13 @@ const IndividualDashboard: React.FC = () => {
 
     const isTodaySelected = sameDay(displayDate, today);
 
+    const overviewPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard';
+    const rankingPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboardDetails';
+
     return (
-        <>
-            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
+        <View style={{ flex: 1 }}>
+            <ChallengeTabs active="overview" overviewPath={overviewPath} rankingPath={rankingPath} />
+            <ScrollView style={[styles.container, { paddingTop: 0 }]} contentContainerStyle={{ paddingBottom: 120, paddingTop: 4 }}>
                 {!goalReached && isChallengeExpired && showExpiredWarning && (
                     <View style={styles.expiredWarningContainer}>
                         <Ionicons name="information-circle" size={22} color="#DC2626" style={styles.expiredWarningIcon} />
@@ -1316,16 +1320,7 @@ const IndividualDashboard: React.FC = () => {
                     </View>
                 </Modal>
             </ScrollView>
-            <BottomBar
-                pathname={pathname}
-                overviewPath={vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard'}
-                challengePath={
-                    vm?.challenge?.id
-                        ? `/challenges/challengeIndividualDashboardDetails?id=${vm.challenge.id}`
-                        : '/challenges/challengeIndividualDashboardDetails'
-                }
-            />
-        </>
+        </View>
     );
 };
 

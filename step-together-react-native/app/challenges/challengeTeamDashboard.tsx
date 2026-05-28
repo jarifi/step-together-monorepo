@@ -28,7 +28,7 @@ import {
   toIsoDate as toISO,
 } from '../../services/dto/dashboardDto';
 
-import BottomBar from '../../components/BottomBar';
+import ChallengeTabs from '../../components/ChallengeTabs';
 import { getChallengeById } from '../../services/challengeService';
 import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../services/dashboardService';
 import { getTeamRanking } from '../../services/teamService';
@@ -714,11 +714,11 @@ const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
+        <ChallengeTabs active="overview" overviewPath="/challenges/challengeTeamDashboard" rankingPath="/challenges/challengeTeamDashboardDetails" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" />
           <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
         </View>
-        <BottomBar pathname={pathname} overviewPath="/challenges/challengeTeamDashboard" />
       </View>
     );
   }
@@ -730,8 +730,8 @@ const Dashboard: React.FC = () => {
   if (!vm || errorMsg || !canShowChallenge) {
     return (
       <View style={{ flex: 1 }}>
+        <ChallengeTabs active="overview" overviewPath="/challenges/challengeTeamDashboard" rankingPath="/challenges/challengeTeamDashboardDetails" />
         <EmptyChallengeCard />
-        <BottomBar pathname={pathname} overviewPath="/challenges/challengeTeamDashboard" />
       </View>
     );
   }
@@ -763,9 +763,13 @@ const Dashboard: React.FC = () => {
 
   const isTodaySelected = sameDay(displayDate, today);
 
+  const overviewPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboard';
+  const rankingPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboardDetails';
+
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}>
+      <ChallengeTabs active="overview" overviewPath={overviewPath} rankingPath={rankingPath} />
+      <ScrollView style={[styles.container, { paddingTop: 0 }]} contentContainerStyle={{ paddingBottom: 120, paddingTop: 4 }}>
         {!goalReached && isChallengeExpired && showExpiredWarning && (
           <View style={styles.expiredWarningContainer}>
             <Ionicons name="information-circle" size={22} color="#DC2626" style={styles.expiredWarningIcon} />
@@ -1156,19 +1160,6 @@ const Dashboard: React.FC = () => {
           </View>
         </Modal>
       </ScrollView>
-      <BottomBar
-        pathname={pathname}
-        overviewPath={
-          vm?.challenge?.id
-            ? `/challenges/challengeTeamDashboard?id=${vm.challenge.id}`
-            : '/challenges/challengeTeamDashboard'
-        }
-        challengePath={
-          vm?.challenge?.id
-            ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}`
-            : '/challenges/challengeTeamDashboardDetails'
-        }
-      />
     </View>
   );
 };

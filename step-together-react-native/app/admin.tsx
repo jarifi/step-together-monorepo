@@ -24,32 +24,6 @@ export default function AdminScreen() {
           Verwaltung
         </Text>
 
-        {/* Challenge erstellen */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.navRow,
-            pressed && styles.navRowPressed,
-          ]}
-          onPress={() => router.push('/challenges/adminCreate')}
-        >
-          <View style={styles.navContent}>
-            <View style={styles.navIconWrapper}>
-              <MaterialIcons name="add-circle-outline" size={22} style={styles.navIcon} />
-            </View>
-            <View style={styles.navTextContainer}>
-              <Text style={styles.navText}>Challenge erstellen</Text>
-              <Text style={styles.navSubText}>
-                Neue Challenge mit Individual- oder Gruppenmodus anlegen.
-              </Text>
-            </View>
-          </View>
-          <MaterialIcons
-            name="chevron-right"
-            size={22}
-            style={styles.chevron}
-          />
-        </Pressable>
-
         {/* Alle Challenges */}
         <Pressable
           style={({ pressed }) => [
@@ -146,7 +120,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
 
   centered: {

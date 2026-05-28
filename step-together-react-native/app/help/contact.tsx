@@ -158,7 +158,7 @@ export default function Contact() {
 
 const styles = StyleSheet.create({
   scroll: { backgroundColor: BG },
-  container: { padding: 16, paddingBottom: 40, backgroundColor: BG },
+  container: { padding: 16, paddingBottom: 100, backgroundColor: BG },
 
   headerTopRow: {
     width: "100%",
