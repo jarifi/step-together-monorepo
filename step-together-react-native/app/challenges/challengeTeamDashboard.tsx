@@ -1,9 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Pedometer } from 'expo-sensors';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   AppState,
   Dimensions,
   Modal,
@@ -64,6 +66,24 @@ export type HomeInitDto = {
 const EMPTY_WEEK = [0, 0, 0, 0, 0, 0, 0] as const;
 const FIX_STEP_LENGTH_M = 0.78;
 const MAX_STEP_DELTA = 100000;
+const DAILY_GOAL_KEY = 'step_together_daily_goal';
+const DEFAULT_GOAL = 8000;
+const GOAL_MESSAGES = [
+  'Na endlich.',
+  'Gut gemacht. Für deine Verhältnisse.',
+  'Hätte früher auch nicht geschadet.',
+  'Super. Jetzt jeden Tag so.',
+  'Immerhin.',
+  'Wenigstens das.',
+  'Morgen auch bitte.',
+  "Ich sag's ungern, aber: gut.",
+  'Heute ausnahmsweise mal: Respekt.',
+  'Okay. Reicht.',
+  'lowkey impressed ngl.',
+  'Niemand hat damit gerechnet. Wirklich niemand.',
+  'Heute mal kein Versagen. Schön.',
+  'Dein Therapeut wäre stolz.',
+];
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
   if (!entries || entries.length !== 7) return [...EMPTY_WEEK];
@@ -153,7 +173,15 @@ const Dashboard: React.FC = () => {
 
   const [goalReached, setGoalReached] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [dailyGoal, setDailyGoal] = useState(DEFAULT_GOAL);
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+  const [showDailyCelebration, setShowDailyCelebration] = useState(false);
+  const [celebrationMsg, setCelebrationMsg] = useState('');
+  const [goalError, setGoalError] = useState<string | null>(null);
 
+  const celebrationAnim = useRef(new Animated.Value(0)).current;
+  const celebrationShownRef = useRef(false);
   const subscriptionRef = useRef<any>(null);
   const isMountedRef = useRef(true);
   const initAbortRef = useRef<AbortController | null>(null);
@@ -175,6 +203,12 @@ const Dashboard: React.FC = () => {
       initAbortRef.current = null;
       weekAbortRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(DAILY_GOAL_KEY).then((v) => {
+      if (v) setDailyGoal(Number(v) || DEFAULT_GOAL);
+    });
   }, []);
 
   const minDate = useMemo(
@@ -401,6 +435,11 @@ const Dashboard: React.FC = () => {
     }
   }, [vm?.team?.id, vm?.challenge?.id, vm?.challenge?.distanceKm, vm?.challenge?.distance]);
 
+  const saveGoal = async (value: number) => {
+    setDailyGoal(value);
+    await AsyncStorage.setItem(DAILY_GOAL_KEY, String(value));
+  };
+
   useEffect(() => {
     if (!vm?.user?.id || !vm?.challenge?.id) return;
 
@@ -616,6 +655,35 @@ const Dashboard: React.FC = () => {
     const d = ch.distanceKm ?? ch.distance ?? 0;
     return Number(d || 0);
   }, [vm?.challenge]);
+
+  const goalProgress = useMemo(() => Math.min(1, liveStepsToday / dailyGoal), [liveStepsToday, dailyGoal]);
+  const dailyGoalReached = useMemo(() => liveStepsToday >= dailyGoal, [liveStepsToday, dailyGoal]);
+
+  useEffect(() => {
+    if (dailyGoalReached && !celebrationShownRef.current) {
+      celebrationShownRef.current = true;
+      setCelebrationMsg(GOAL_MESSAGES[Math.floor(Math.random() * GOAL_MESSAGES.length)]);
+      setShowDailyCelebration(true);
+      celebrationAnim.setValue(0);
+      Animated.sequence([
+        Animated.spring(celebrationAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          damping: 14,
+          stiffness: 130,
+        }),
+        Animated.delay(2600),
+        Animated.timing(celebrationAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setShowDailyCelebration(false));
+    }
+    if (!dailyGoalReached) {
+      celebrationShownRef.current = false;
+    }
+  }, [dailyGoalReached]);
 
   useFocusEffect(
     useCallback(() => {
@@ -846,6 +914,27 @@ const Dashboard: React.FC = () => {
             </View>
           </View>
 
+          <View style={{ marginTop: 16, marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={[styles.font, { fontSize: 13, color: '#6B7280' }]}>Tagesziel</Text>
+              <TouchableOpacity
+                onPress={() => { setGoalInput(String(dailyGoal)); setGoalModalVisible(true); }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Text style={[styles.font, { fontSize: 13, color: dailyGoalReached ? '#2F6B45' : '#7FA58C', fontWeight: '700' }]}>
+                  {dailyGoalReached ? '✓ ' : ''}{dailyGoal.toLocaleString('de-DE')} Schritte
+                </Text>
+                <Ionicons name="pencil-outline" size={13} color={dailyGoalReached ? '#2F6B45' : '#7FA58C'} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ height: 8, backgroundColor: '#E8F0EA', borderRadius: 999, overflow: 'hidden' }}>
+              <View style={{ height: '100%', width: `${Math.round(goalProgress * 100)}%`, backgroundColor: dailyGoalReached ? '#2F6B45' : '#7EA88F', borderRadius: 999 }} />
+            </View>
+            <Text style={[styles.font, { fontSize: 12, color: '#9CA3AF', marginTop: 4, textAlign: 'right' }]}>
+              {Math.round(goalProgress * 100)} %{dailyGoalReached ? ' — Ziel erreicht!' : ` von ${dailyGoal.toLocaleString('de-DE')}`}
+            </Text>
+          </View>
+
           <View style={{ alignItems: 'center', marginTop: 12 }}>
             <Text style={[styles.font, { color: '#6B7280' }]}>Session</Text>
             <Text style={[styles.font, { fontSize: 22, fontWeight: '800', color: '#2F3E34' }]}>{sessionSteps}</Text>
@@ -936,6 +1025,92 @@ const Dashboard: React.FC = () => {
             })}
           </View>
         </View>
+
+        <Modal animationType="slide" transparent visible={goalModalVisible} onRequestClose={() => { setGoalModalVisible(false); setGoalError(null); }}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.stepsCard, { paddingTop: 20 }]}>
+              <View style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: '#e3efe6', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 }}>
+                <Ionicons name="flag" size={20} color="#2F6B45" />
+              </View>
+              <Text style={[styles.font, { fontSize: 17, fontWeight: '900', color: '#0F1411', textAlign: 'center', marginBottom: 3 }]}>
+                Tagesziel setzen
+              </Text>
+              <Text style={[styles.font, { fontSize: 12, color: '#6B7280', textAlign: 'center', marginBottom: 16 }]}>
+                Heute: <Text style={{ fontWeight: '700', color: '#2F3E34' }}>{liveStepsToday.toLocaleString('de-DE')}</Text> Schritte
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                {[
+                  { steps: 5000, label: 'Immerhin' },
+                  { steps: 8000, label: 'Passt schon' },
+                  { steps: 10000, label: 'Okay Respekt' },
+                  { steps: 15000, label: 'Krank' },
+                ].map(({ steps, label }) => {
+                  const selected = goalInput === String(steps);
+                  return (
+                    <TouchableOpacity
+                      key={steps}
+                      onPress={() => setGoalInput(String(steps))}
+                      style={{
+                        width: '47%',
+                        paddingVertical: 10,
+                        borderRadius: 14,
+                        alignItems: 'center',
+                        backgroundColor: selected ? '#2F6B45' : '#F2F7F3',
+                        borderWidth: selected ? 0 : 1,
+                        borderColor: '#DDE8DF',
+                      }}
+                    >
+                      <Text style={[styles.font, { fontSize: 17, fontWeight: '900', color: selected ? '#fff' : '#2F3E34' }]}>
+                        {steps / 1000}k
+                      </Text>
+                      <Text style={[styles.font, { fontSize: 11, color: selected ? 'rgba(255,255,255,0.75)' : '#6B7280', marginTop: 2 }]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.font, styles.fieldLabel]}>Eigene Zahl</Text>
+                <View style={styles.inputWrap}>
+                  <Ionicons name="walk-outline" size={18} style={{ marginRight: 8, opacity: 0.6 }} />
+                  <TextInput
+                    style={[styles.inputBare, styles.font]}
+                    placeholder="z. B. 9000"
+                    placeholderTextColor="#9AA7A0"
+                    keyboardType="number-pad"
+                    value={goalInput}
+                    onChangeText={setGoalInput}
+                  />
+                </View>
+              </View>
+              <TouchableOpacity
+                style={{ backgroundColor: '#2F6B45', paddingVertical: 12, borderRadius: 14, alignItems: 'center', marginTop: 4 }}
+                onPress={() => {
+                  const num = parseInt(goalInput, 10);
+                  if (!isNaN(num) && num >= 100 && num <= 50000) {
+                    saveGoal(num);
+                    setGoalModalVisible(false);
+                    setGoalError(null);
+                  } else if (isNaN(num) || num < 100) {
+                    setGoalError('Mindestens 100 Schritte eingeben.');
+                  } else {
+                    setGoalError('Maximum: 50.000 Schritte.');
+                  }
+                }}
+                activeOpacity={0.9}
+              >
+                <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>Speichern</Text>
+              </TouchableOpacity>
+              {goalError ? (
+                <Text style={[styles.font, { color: '#B91C1C', fontSize: 12, textAlign: 'center', marginTop: 6 }]}>{goalError}</Text>
+              ) : null}
+              <TouchableOpacity style={[styles.cancelGhost, { marginTop: 8 }]} onPress={() => { setGoalModalVisible(false); setGoalError(null); }}>
+                <Text style={[styles.font, styles.cancelGhostText]}>Abbrechen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
           <View style={styles.modalOverlay}>
@@ -1160,6 +1335,61 @@ const Dashboard: React.FC = () => {
           </View>
         </Modal>
       </ScrollView>
+
+      {showDailyCelebration && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: 'absolute',
+              bottom: 110,
+              left: 16,
+              right: 16,
+              backgroundColor: '#1A5432',
+              borderRadius: 24,
+              paddingVertical: 18,
+              paddingHorizontal: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 14,
+              shadowColor: '#000',
+              shadowOpacity: 0.28,
+              shadowRadius: 20,
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 12,
+            },
+            {
+              opacity: celebrationAnim,
+              transform: [
+                {
+                  translateY: celebrationAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [80, 0],
+                  }),
+                },
+                {
+                  scale: celebrationAnim.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [0.88, 1.04, 1],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={{ width: 52, height: 52, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="trophy" size={28} color="#FFD700" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.font, { color: '#fff', fontWeight: '900', fontSize: 17, marginBottom: 3 }]}>
+              Tagesziel erreicht! 🎉
+            </Text>
+            <Text style={[styles.font, { color: 'rgba(255,255,255,0.72)', fontSize: 13 }]}>
+              {celebrationMsg}
+            </Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };
