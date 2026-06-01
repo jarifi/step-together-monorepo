@@ -19,7 +19,24 @@ export default function WelcomeScreen() {
   const [permissionLoading, setPermissionLoading] = useState(true);
   const [hasActivityPermission, setHasActivityPermission] = useState(false);
 
+  const withBooleanTimeout = useCallback(
+    async (promise: Promise<boolean>, fallback: boolean, timeoutMs = 2500): Promise<boolean> => {
+      return Promise.race<boolean>([
+        promise,
+        new Promise<boolean>((resolve) => {
+          setTimeout(() => resolve(fallback), timeoutMs);
+        }),
+      ]);
+    },
+    []
+  );
+
   const checkActivityPermission = useCallback(async (): Promise<boolean> => {
+    // Expo dev mode can occasionally hang on Android permission checks.
+    if (__DEV__) {
+      return true;
+    }
+
     if (Platform.OS !== "android") {
       return true;
     }
@@ -30,8 +47,9 @@ export default function WelcomeScreen() {
     }
 
     try {
-      const granted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
+      const granted = await withBooleanTimeout(
+        PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION),
+        false
       );
       if (granted) return true;
     } catch {
@@ -43,7 +61,12 @@ export default function WelcomeScreen() {
         getPermissionsAsync?: () => Promise<{ status?: string }>;
       };
       if (pedometerApi.getPermissionsAsync) {
-        const res = await pedometerApi.getPermissionsAsync();
+        const res = await Promise.race([
+          pedometerApi.getPermissionsAsync(),
+          new Promise<{ status?: string }>((resolve) => {
+            setTimeout(() => resolve({ status: "denied" }), 2500);
+          }),
+        ]);
         return res?.status === "granted";
       }
     } catch {
@@ -51,9 +74,14 @@ export default function WelcomeScreen() {
     }
 
     return false;
-  }, []);
+  }, [withBooleanTimeout]);
 
   const requestActivityPermission = useCallback(async (): Promise<boolean> => {
+    // Keep dev workflow unblocked in Expo/Metro while testing UI flows.
+    if (__DEV__) {
+      return true;
+    }
+
     if (Platform.OS !== "android") {
       return true;
     }
@@ -64,16 +92,21 @@ export default function WelcomeScreen() {
     }
 
     try {
-      const result = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
-        {
-          title: "Aktivitaetserkennung erlauben",
-          message:
-            "Step Together braucht Aktivitaetserkennung, um Schritte zu tracken.",
-          buttonNegative: "Ablehnen",
-          buttonPositive: "Erlauben",
-        }
-      );
+      const result = await Promise.race([
+        PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
+          {
+            title: "Aktivitaetserkennung erlauben",
+            message:
+              "Step Together braucht Aktivitaetserkennung, um Schritte zu tracken.",
+            buttonNegative: "Ablehnen",
+            buttonPositive: "Erlauben",
+          }
+        ),
+        new Promise<string>((resolve) => {
+          setTimeout(() => resolve(PermissionsAndroid.RESULTS.DENIED), 2500);
+        }),
+      ]);
 
       if (result === PermissionsAndroid.RESULTS.GRANTED) {
         return true;
@@ -87,7 +120,12 @@ export default function WelcomeScreen() {
         requestPermissionsAsync?: () => Promise<{ status?: string }>;
       };
       if (pedometerApi.requestPermissionsAsync) {
-        const res = await pedometerApi.requestPermissionsAsync();
+        const res = await Promise.race([
+          pedometerApi.requestPermissionsAsync(),
+          new Promise<{ status?: string }>((resolve) => {
+            setTimeout(() => resolve({ status: "denied" }), 2500);
+          }),
+        ]);
         return res?.status === "granted";
       }
     } catch {
@@ -99,9 +137,12 @@ export default function WelcomeScreen() {
 
   const refreshPermissionState = useCallback(async () => {
     setPermissionLoading(true);
-    const granted = await checkActivityPermission();
-    setHasActivityPermission(granted);
-    setPermissionLoading(false);
+    try {
+      const granted = await checkActivityPermission();
+      setHasActivityPermission(granted);
+    } finally {
+      setPermissionLoading(false);
+    }
   }, [checkActivityPermission]);
 
   useEffect(() => {
@@ -110,16 +151,22 @@ export default function WelcomeScreen() {
 
   const handleGrantPermission = useCallback(async () => {
     setPermissionLoading(true);
-    const granted = await requestActivityPermission();
-    if (!granted) {
-      const current = await checkActivityPermission();
-      setHasActivityPermission(current);
-      setPermissionLoading(false);
-      return;
-    }
+    try {
+      const granted = await requestActivityPermission();
+      if (!granted) {
+        const current = await checkActivityPermission();
+        setHasActivityPermission(current);
+        if (current) {
+          router.push("/login");
+        }
+        return;
+      }
 
-    setHasActivityPermission(true);
-    setPermissionLoading(false);
+      setHasActivityPermission(true);
+      router.push("/login");
+    } finally {
+      setPermissionLoading(false);
+    }
   }, [checkActivityPermission, requestActivityPermission]);
 
   const handleLogin = useCallback(() => {
