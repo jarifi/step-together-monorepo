@@ -1,5 +1,12 @@
 # tests/conftest.py
+import os
 import pytest
+
+# Set test environment variables BEFORE importing app modules
+os.environ["SQLALCHEMY_DATABASE_URL"] = "sqlite:///./test.db"
+os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
+os.environ["ENVIRONMENT"] = "testing"
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -42,10 +49,7 @@ def client_fixture(db_session):
     Provides a FastAPI test client with an overridden database dependency.
     """
     def override_get_db():
-        try:
-            yield db_session
-        finally:
-            db_session.close()
+        yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:

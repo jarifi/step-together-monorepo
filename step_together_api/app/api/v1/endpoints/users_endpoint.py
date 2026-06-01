@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.core.security import get_current_user, verify_password
 from app.core.config import settings
 from app.crud import user as user_crud
-from app.schema.user import UserCreate, UserResponse, CurrentUser, UserUpdate
+from app.schema.user import UserCreate, UserResponse, CurrentUser, UserUpdate, UserRegister
 from app.models.user import User
 from app.crud.team import get_team_by_user_id
 from app.crud.challenge import get_active_challenge
@@ -150,7 +150,7 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_new_user(user: UserRegister, db: Session = Depends(get_db)):
     """
     Create a new user.
     Expected path: /api/v1/users/

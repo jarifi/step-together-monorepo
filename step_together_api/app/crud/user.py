@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models.user import User
 from app.schema.user import UserCreate, UserUpdate, UserRegister
 from app.core.security import verify_password, get_password_hash
+from app.core.config import settings
 
 
 def get_all_users(db: Session, skip: int = 0, limit: int = 10) -> List[User]:
@@ -51,6 +52,10 @@ def create_user(db: Session, user: UserCreate | UserRegister):
         )
 
     hashed_password = get_password_hash(user.password)
+    privacy_accepted = getattr(user, "privacy_policy_accepted", False)
+    
+    # Auto-verify users only when using test database (SQLite)
+    is_test_db = "sqlite" in settings.SQLALCHEMY_DATABASE_URL.lower()
 
     db_user = User(
         email=user.email,
@@ -58,11 +63,11 @@ def create_user(db: Session, user: UserCreate | UserRegister):
         name=user.name,
         step_length=user.step_length,
         is_active=True,
-        is_verified=False,
-        privacy_policy_accepted=getattr(user, "privacy_policy_accepted", False),
+        is_verified=is_test_db,  # Auto-verify only for test database
+        privacy_policy_accepted=privacy_accepted,
         privacy_policy_accepted_at=(
             datetime.now(timezone.utc)
-            if getattr(user, "privacy_policy_accepted", False)
+            if privacy_accepted
             else None
         )
     )
