@@ -979,7 +979,7 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     padding: IS_MOBILE ? 16 : 24,
-    paddingBottom: 40,
+    paddingBottom: 100,
     maxWidth: 740,
     width: '100%',
     alignSelf: 'center',
