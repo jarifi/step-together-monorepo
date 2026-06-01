@@ -947,10 +947,28 @@ const IndividualDashboard: React.FC = () => {
                         </Text>
                     </View>
 
-                    <View style={{ alignItems: 'center', marginTop: 12 }}>
-                        <Text style={[styles.font, { color: '#6B7280' }]}>Session</Text>
-                        <Text style={[styles.font, { fontSize: 22, fontWeight: '800', color: '#2F3E34' }]}>{pedometer.sessionSteps}</Text>
-                    </View>
+                    {isTracking && (
+                        <View style={{ marginTop: 14, alignItems: 'center' }}>
+                            <View style={{
+                                backgroundColor: '#EAF4ED',
+                                borderRadius: 18,
+                                paddingHorizontal: 28,
+                                paddingVertical: 12,
+                                alignItems: 'center',
+                                borderWidth: 1,
+                                borderColor: '#C8DFD0',
+                            }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2F6B45' }} />
+                                    <Text style={[styles.font, { fontSize: 11, color: '#5A8B6A', fontWeight: '700', letterSpacing: 0.8 }]}>SESSION</Text>
+                                </View>
+                                <Text style={[styles.font, { fontSize: 30, fontWeight: '800', color: '#2F6B45', lineHeight: 34 }]}>
+                                    {pedometer.sessionSteps.toLocaleString('de-DE')}
+                                </Text>
+                                <Text style={[styles.font, { fontSize: 12, color: '#7FA88C', marginTop: 2 }]}>Schritte</Text>
+                            </View>
+                        </View>
+                    )}
 
                     {errorMsg ? (
                         <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#B91C1C' }]}>
