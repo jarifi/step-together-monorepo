@@ -24,6 +24,8 @@ import {
   getMyInvites,
 } from '../services/challengeService';
 
+type TabKey = 'invites' | 'upcoming';
+
 const TEAM = '#1B7A42';
 const IND = '#D4650A';
 const BG = '#F2F5F3';
@@ -34,7 +36,7 @@ const MUTED = '#9AA49C';
 const BORD = 'rgba(0,0,0,0.07)';
 
 const shadow = Platform.select({
-  ios: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+  ios: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   android: { elevation: 3 },
   default: {},
 });
@@ -64,20 +66,32 @@ function fmtDate(s: string) {
   if (!s) return '—';
   const d = new Date(s);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
+  return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }
 
-function startsInLabel(dateStr: string) {
-  if (!dateStr) return '';
+function getCountdownInfo(dateStr: string, endDateStr?: string) {
+  if (!dateStr) return null;
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const d = new Date(dateStr);
   d.setHours(0, 0, 0, 0);
+  if (isNaN(d.getTime())) return null;
   const days = Math.round((d.getTime() - now.getTime()) / 86400000);
-  if (days < 0) return 'Bereits gestartet';
-  if (days === 0) return 'Beginnt heute';
-  if (days === 1) return 'Beginnt morgen';
-  return `Beginnt in ${days} Tagen (${fmtDate(dateStr)})`;
+
+  if (endDateStr) {
+    const end = new Date(endDateStr);
+    end.setHours(0, 0, 0, 0);
+    if (!isNaN(end.getTime()) && end < now) {
+      return { days, label: 'Beendet', pillBg: 'rgba(0,0,0,0.05)', pillColor: MUTED, icon: 'checkmark-done-outline' as const, isEnded: true };
+    }
+  }
+
+  if (days < 0)  return { days, label: 'Läuft',          pillBg: 'rgba(27,122,66,0.10)',  pillColor: TEAM,      icon: 'play-circle-outline' as const,    isEnded: false };
+  if (days === 0) return { days, label: 'Heute!',         pillBg: 'rgba(220,38,38,0.10)',  pillColor: '#DC2626', icon: 'flash' as const,                  isEnded: false };
+  if (days === 1) return { days, label: 'Morgen',         pillBg: 'rgba(234,88,12,0.10)',  pillColor: '#EA580C', icon: 'time' as const,                   isEnded: false };
+  if (days <= 6)  return { days, label: `${days} Tage`,   pillBg: 'rgba(202,138,4,0.10)',  pillColor: '#CA8A04', icon: 'time-outline' as const,           isEnded: false };
+  if (days <= 30) return { days, label: `${days} Tage`,   pillBg: 'rgba(27,122,66,0.10)',  pillColor: TEAM,      icon: 'calendar-outline' as const,       isEnded: false };
+  return           { days, label: `${days} Tage`,         pillBg: 'rgba(0,0,0,0.05)',      pillColor: SUB,       icon: 'calendar-outline' as const,       isEnded: false };
 }
 
 function getMonthKey(dateStr: string | null | undefined): string | null {
@@ -136,53 +150,102 @@ function ChallengeNotifCard({
   const modeLabel = isInd ? 'Individuell' : 'Team';
   const dist = item?.distance ?? 0;
   const startDate = getStartDate(item);
+  const endDate = item.endDate ?? (item as any).end_date ?? '';
   const count = isInd ? item.participantCount : item.teamCount;
   const countLabel = isInd ? 'Teilnehmer' : (count === 1 ? 'Team' : 'Teams');
   const countIcon = isInd ? 'person' : 'group';
+  const cd = getCountdownInfo(startDate, endDate);
+  const isEnded = cd?.isEnded ?? false;
 
   return (
     <Pressable
       onPress={isPending ? undefined : onPress}
-      style={({ pressed }) => [styles.notifCard, { borderLeftColor: color, borderLeftWidth: 4 }, !isPending && pressed && { opacity: 0.88 }]}
+      style={({ pressed }) => [
+        styles.notifCard,
+        { borderLeftColor: isEnded ? MUTED : color, borderLeftWidth: 4 },
+        isEnded && styles.notifCardEnded,
+        !isPending && pressed && { opacity: 0.88 },
+      ]}
     >
-      <View style={[styles.notifCardHeader, { backgroundColor: softBg }]}>
-        <View style={[styles.modeBadge, { backgroundColor: color }]}>
+      {/* ── Header ── */}
+      <View style={[styles.cardHeader, { backgroundColor: isEnded ? 'rgba(0,0,0,0.025)' : softBg }]}>
+        <View style={[styles.modeBadge, { backgroundColor: isEnded ? MUTED : color }]}>
           <MaterialIcons name={isInd ? 'person' : 'group'} size={11} color="#fff" />
           <Text style={styles.modeBadgeTxt}>{modeLabel}</Text>
         </View>
+
         {isPending && (
           <View style={styles.pendingBadge}>
             <Ionicons name="notifications" size={11} color="#92400E" />
-            <Text style={styles.pendingBadgeTxt}>Einladung ausstehend</Text>
+            <Text style={styles.pendingBadgeTxt}>Einladung</Text>
           </View>
         )}
-        <Text style={[styles.distTxt, { color }]}>{dist} km</Text>
+        {isEnded && (
+          <View style={styles.endedBadge}>
+            <Ionicons name="checkmark-done" size={11} color={MUTED} />
+            <Text style={styles.endedBadgeTxt}>Beendet</Text>
+          </View>
+        )}
+
+        <Text style={[styles.distTxt, { color: isEnded ? MUTED : color }]}>{dist} km</Text>
       </View>
 
-      <View style={styles.notifCardBody}>
-        <Text style={styles.challengeName} numberOfLines={2}>{item.name ?? '—'}</Text>
-
-        <View style={styles.infoRow}>
-          <Ionicons name="map-outline" size={13} color={MUTED} />
-          <Text style={styles.infoTxt} numberOfLines={1}>
-            {item.startLocation ?? '—'} → {item.targetLocation ?? '—'}
-          </Text>
+      {/* ── Body ── */}
+      <View style={styles.cardBody}>
+        {/* Route */}
+        <View style={styles.routeRow}>
+          <Ionicons name="location-outline" size={12} color={MUTED} />
+          <Text style={styles.routeTxt} numberOfLines={1}>{item.startLocation ?? '—'}</Text>
+          <Ionicons name="arrow-forward" size={11} color={MUTED} />
+          <Text style={styles.routeTxt} numberOfLines={1}>{item.targetLocation ?? '—'}</Text>
         </View>
 
-        <View style={styles.infoRow}>
-          <Ionicons name="time-outline" size={13} color={MUTED} />
-          <Text style={[styles.infoTxt, { fontWeight: '600', color: SUB }]}>
-            {startsInLabel(startDate)}
-          </Text>
-        </View>
+        {/* Challenge name */}
+        <Text style={[styles.challengeName, isEnded && { color: MUTED }]} numberOfLines={2}>
+          {item.name ?? '—'}
+        </Text>
 
-        {count != null && (
-          <View style={styles.infoRow}>
-            <MaterialIcons name={countIcon as any} size={13} color={color} />
-            <Text style={[styles.infoTxt, { color, fontWeight: '600' }]}>{count} {countLabel}</Text>
+        {/* Date bar */}
+        {cd && (
+          <View style={[styles.dateBar, { borderColor: isEnded ? 'rgba(0,0,0,0.05)' : `${cd.pillColor}22` }]}>
+            <View style={styles.dateBarLeft}>
+              <View style={styles.dateItem}>
+                <Text style={styles.dateMeta}>Start</Text>
+                <Text style={[styles.dateVal, isEnded && { color: MUTED }]}>{fmtDate(startDate)}</Text>
+              </View>
+              {!!endDate && (
+                <>
+                  <View style={styles.dateBarSep}>
+                    <View style={[styles.dateBarLine, { backgroundColor: isEnded ? BORD : `${cd.pillColor}33` }]} />
+                    <Ionicons name="arrow-forward" size={9} color={MUTED} />
+                    <View style={[styles.dateBarLine, { backgroundColor: isEnded ? BORD : `${cd.pillColor}33` }]} />
+                  </View>
+                  <View style={styles.dateItem}>
+                    <Text style={styles.dateMeta}>Ende</Text>
+                    <Text style={[styles.dateVal, isEnded && { color: MUTED }]}>{fmtDate(endDate)}</Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            <View style={[styles.countdownChip, { backgroundColor: cd.pillBg }]}>
+              <Ionicons name={cd.icon} size={12} color={cd.pillColor} />
+              <Text style={[styles.countdownChipTxt, { color: cd.pillColor }]}>{cd.label}</Text>
+            </View>
           </View>
         )}
 
+        {/* Count */}
+        {count != null && (
+          <View style={styles.infoRow}>
+            <MaterialIcons name={countIcon as any} size={13} color={isEnded ? MUTED : color} />
+            <Text style={[styles.infoTxt, { color: isEnded ? MUTED : color, fontWeight: '600' }]}>
+              {count} {countLabel}
+            </Text>
+          </View>
+        )}
+
+        {/* Inviter */}
         {isPending && item.inviterName && (
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={13} color={MUTED} />
@@ -194,6 +257,7 @@ function ChallengeNotifCard({
         )}
       </View>
 
+      {/* ── Actions ── */}
       {isPending && (
         <View style={styles.actionRow}>
           <Pressable
@@ -222,6 +286,7 @@ export default function NotificationsScreen() {
   const [challenges, setChallenges] = useState<NotifChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<TabKey>('invites');
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -235,8 +300,6 @@ export default function NotificationsScreen() {
       const invites = asArray(rawInvites);
       const activeIds = new Set(activeList.map((c: any) => Number(c.id)));
 
-      // Include pending AND accepted invites for challenges not yet in the active list
-      // (e.g. accepted challenge with future start date that isn't "active" yet)
       const unlistedInvites = invites.filter(
         (i: any) =>
           (i.status === 'pending' || i.status === 'accepted') &&
@@ -284,7 +347,6 @@ export default function NotificationsScreen() {
       const filtered = enriched.filter((c) => c.inviteStatus !== 'declined');
       setChallenges(filtered);
 
-      // Keep sidebar badge in sync
       const pendingCount = invites.filter((i: any) => i.status === 'pending').length;
       setPendingInviteCount(pendingCount);
     } catch (e) {
@@ -319,20 +381,24 @@ export default function NotificationsScreen() {
     }, [loadData])
   );
 
+  const pendingInvites = useMemo(() =>
+    [...challenges.filter((c) => c.inviteStatus === 'pending')]
+      .sort((a, b) => (Number(b.inviteId) || 0) - (Number(a.inviteId) || 0)),
+    [challenges]
+  );
+
   const monthSections = useMemo(() => {
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // Build month→challenges map; pin already-started challenges to current month
     const map: Record<string, NotifChallenge[]> = {};
-    challenges.forEach((c) => {
+    challenges.filter((c) => c.inviteStatus !== 'pending').forEach((c) => {
       let key = getMonthKey(getStartDate(c));
       if (!key || key < currentMonthKey) key = currentMonthKey;
       if (!map[key]) map[key] = [];
       map[key].push(c);
     });
 
-    // Always show at least the next 3 months
     const monthKeySet = new Set<string>(Object.keys(map));
     for (let i = 0; i < 3; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
@@ -367,38 +433,98 @@ export default function NotificationsScreen() {
       }
     >
       <View style={styles.pageHeader}>
+        <View style={styles.pageAccent} />
         <Text style={styles.pageTitle}>Benachrichtigungen</Text>
-        <Text style={styles.pageSub}>Kommende Challenges & Einladungen</Text>
+        <Text style={styles.pageSub}>Challenges & Einladungen im Überblick</Text>
       </View>
 
-      {monthSections.map(({ key, label, challenges: sectionChallenges }) => (
-        <View key={key} style={styles.monthSection}>
-          <View style={styles.monthHeaderRow}>
-            <Text style={styles.monthLabel}>{label}</Text>
-            <View style={styles.monthDivider} />
-          </View>
+      {/* Tab bar */}
+      <View style={styles.tabsWrap}>
+        <View style={styles.tabsPill}>
+          <Pressable
+            onPress={() => setTab('invites')}
+            style={[styles.tabBtn, tab === 'invites' && styles.tabBtnActive]}
+          >
+            <View style={styles.tabBtnInner}>
+              <Text style={[styles.tabText, tab === 'invites' && styles.tabTextActive]}>
+                Einladungen
+              </Text>
+              {pendingInvites.length > 0 && (
+                <View style={[styles.tabBadge, tab === 'invites' && styles.tabBadgeActive]}>
+                  <Text style={[styles.tabBadgeTxt, tab === 'invites' && styles.tabBadgeTxtActive]}>
+                    {pendingInvites.length}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+          <Pressable
+            onPress={() => setTab('upcoming')}
+            style={[styles.tabBtn, tab === 'upcoming' && styles.tabBtnActive]}
+          >
+            <Text style={[styles.tabText, tab === 'upcoming' && styles.tabTextActive]}>
+              Kalender
+            </Text>
+          </Pressable>
+        </View>
+      </View>
 
-          {sectionChallenges.length === 0 ? (
-            <View style={styles.emptyMonth}>
-              <Ionicons name="calendar-outline" size={15} color={MUTED} />
-              <Text style={styles.emptyMonthTxt}>Keine Challenge geplant</Text>
+      {/* Einladungen tab */}
+      {tab === 'invites' && (
+        <View>
+          {pendingInvites.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Ionicons name="mail-open-outline" size={32} color={MUTED} />
+              <Text style={styles.emptyTitle}>Keine Einladungen</Text>
+              <Text style={styles.emptyText}>Du hast aktuell keine ausstehenden Einladungen.</Text>
             </View>
           ) : (
-            sectionChallenges.map((item) => (
+            pendingInvites.map((item) => (
               <ChallengeNotifCard
                 key={String(item.id)}
                 item={item}
                 onAccept={() => handleAccept(item.id, item.inviteId)}
                 onDecline={() => handleDecline(item.id, item.inviteId)}
-                onPress={() => router.push({
-                  pathname: '/challenges/details',
-                  params: { id: String(item.id) },
-                })}
+                onPress={() => {}}
               />
             ))
           )}
         </View>
-      ))}
+      )}
+
+      {/* Kalender tab */}
+      {tab === 'upcoming' && (
+        <View>
+          {monthSections.map(({ key, label, challenges: sectionChallenges }) => (
+            <View key={key} style={styles.monthSection}>
+              <View style={styles.monthHeaderRow}>
+                <Text style={styles.monthLabel}>{label}</Text>
+                <View style={styles.monthDivider} />
+              </View>
+
+              {sectionChallenges.length === 0 ? (
+                <View style={styles.emptyMonth}>
+                  <Ionicons name="calendar-outline" size={15} color={MUTED} />
+                  <Text style={styles.emptyMonthTxt}>Keine Challenge geplant</Text>
+                </View>
+              ) : (
+                sectionChallenges.map((item) => (
+                  <ChallengeNotifCard
+                    key={String(item.id)}
+                    item={item}
+                    onAccept={() => handleAccept(item.id, item.inviteId)}
+                    onDecline={() => handleDecline(item.id, item.inviteId)}
+                    onPress={() => router.push({
+                      pathname: '/challenges/details',
+                      params: { id: String(item.id) },
+                    })}
+                  />
+                ))
+              )}
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -407,19 +533,61 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  scrollContent: { paddingTop: 68, paddingHorizontal: 16, paddingBottom: 100 },
+  scrollContent: { paddingTop: 64, paddingHorizontal: 16, paddingBottom: 100 },
 
   splash: { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', gap: 12 },
   splashTxt: { fontSize: 14, color: SUB },
 
-  pageHeader: { marginBottom: 24 },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: TEXT, marginBottom: 4 },
-  pageSub: { fontSize: 14, color: MUTED },
+  pageHeader: { marginBottom: 24, alignItems: 'center' },
+  pageAccent: { width: 36, height: 4, borderRadius: 4, backgroundColor: TEAM, marginBottom: 12 },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: TEXT, marginBottom: 4, textAlign: 'center' },
+  pageSub: { fontSize: 14, color: MUTED, textAlign: 'center' },
 
+  // ── Tabs ──
+  tabsWrap: { marginBottom: 20 },
+  tabsPill: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    borderRadius: 999,
+    padding: 4,
+    gap: 4,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtnActive: {
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: BORD,
+    ...shadow,
+  },
+  tabBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tabText: { fontSize: 13, fontWeight: '700', color: SUB },
+  tabTextActive: { color: TEXT },
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  tabBadgeActive: { backgroundColor: TEAM },
+  tabBadgeTxt: { fontSize: 11, fontWeight: '800', color: SUB },
+  tabBadgeTxtActive: { color: '#fff' },
+
+  // ── Month sections ──
   monthSection: { marginBottom: 28 },
-  monthHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 12 },
-  monthLabel: { fontSize: 17, fontWeight: '800', color: TEXT, flexShrink: 0 },
-  monthDivider: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 1 },
+  monthHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
+  monthLabel: { fontSize: 16, fontWeight: '800', color: TEXT, flexShrink: 0 },
+  monthDivider: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.09)', borderRadius: 1 },
 
   emptyMonth: {
     flexDirection: 'row',
@@ -435,21 +603,24 @@ const styles = StyleSheet.create({
   },
   emptyMonthTxt: { fontSize: 13, color: MUTED, fontStyle: 'italic' },
 
+  // ── Card ──
   notifCard: {
     backgroundColor: CARD,
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: BORD,
     marginBottom: 12,
     ...shadow,
   },
-  notifCardHeader: {
+  notifCardEnded: { opacity: 0.6 },
+
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
+    paddingVertical: 9,
+    gap: 7,
   },
   modeBadge: {
     flexDirection: 'row',
@@ -457,9 +628,10 @@ const styles = StyleSheet.create({
     gap: 4,
     borderRadius: 999,
     paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
   },
   modeBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
+
   pendingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -472,20 +644,80 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(234,179,8,0.25)',
   },
   pendingBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+
+  endedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  endedBadgeTxt: { fontSize: 11, fontWeight: '600', color: MUTED },
+
   distTxt: { marginLeft: 'auto' as any, fontSize: 13, fontWeight: '800' },
 
-  notifCardBody: {
+  cardBody: {
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 14,
     borderTopWidth: 1,
     borderTopColor: BORD,
-    gap: 7,
+    gap: 8,
   },
-  challengeName: { fontSize: 16, fontWeight: '700', color: TEXT, marginBottom: 4 },
+
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  routeTxt: { fontSize: 12, color: MUTED, flexShrink: 1 },
+
+  challengeName: { fontSize: 17, fontWeight: '800', color: TEXT, lineHeight: 22 },
+
+  // Date bar
+  dateBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.025)',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 2,
+  },
+  dateBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  dateItem: { gap: 1 },
+  dateMeta: { fontSize: 10, fontWeight: '600', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 },
+  dateVal: { fontSize: 13, fontWeight: '700', color: TEXT },
+  dateBarSep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  dateBarLine: { width: 10, height: 1 },
+
+  countdownChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+  },
+  countdownChipTxt: { fontSize: 12, fontWeight: '800' },
+
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   infoTxt: { fontSize: 13, color: SUB, flex: 1 },
 
+  // Actions
   actionRow: {
     flexDirection: 'row',
     gap: 8,
@@ -494,22 +726,36 @@ const styles = StyleSheet.create({
   },
   btnDecline: {
     flex: 1,
-    paddingVertical: 9,
-    borderRadius: 11,
+    paddingVertical: 10,
+    borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.04)',
     borderWidth: 1,
     borderColor: BORD,
   },
   btnDeclineTxt: { fontSize: 13, fontWeight: '700', color: SUB },
   btnAccept: {
     flex: 2,
-    paddingVertical: 9,
-    borderRadius: 11,
+    paddingVertical: 10,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
   },
   btnAcceptTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  // Empty states
+  emptyCard: {
+    backgroundColor: CARD,
+    borderRadius: 18,
+    padding: 32,
+    borderWidth: 1,
+    borderColor: BORD,
+    alignItems: 'center',
+    gap: 8,
+    ...shadow,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: TEXT, marginTop: 6 },
+  emptyText: { fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 19 },
 });
