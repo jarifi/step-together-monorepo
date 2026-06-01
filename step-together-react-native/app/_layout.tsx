@@ -20,6 +20,7 @@ import Toast from 'react-native-toast-message';
 
 import GlobalNav from '../components/GlobalNav';
 import Sidebar from '../components/Sidebar';
+import { PedometerProvider } from '../context/PedometerContext';
 import { UserProvider, useUser } from '../context/UserContext';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { isLoggedIn } from '../lib/auth';
@@ -44,9 +45,11 @@ const asArray = (x: any): any[] => {
 export default function RootLayout() {
   return (
     <UserProvider>
-      <QueryClientProvider client={queryClient}>
-        <AppContent />
-      </QueryClientProvider>
+      <PedometerProvider>
+        <QueryClientProvider client={queryClient}>
+          <AppContent />
+        </QueryClientProvider>
+      </PedometerProvider>
     </UserProvider>
   );
 }
