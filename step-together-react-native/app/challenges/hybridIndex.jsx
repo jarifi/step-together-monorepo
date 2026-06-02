@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -365,12 +364,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F7F4',
     paddingHorizontal: 18,
     paddingBottom: 2,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-      android: { elevation: 2 },
-    }),
   },
   tabBarRow: {
     flexDirection: 'row',
