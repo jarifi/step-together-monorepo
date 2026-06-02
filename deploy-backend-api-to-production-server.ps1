@@ -27,7 +27,7 @@ function Invoke-CheckedCommand {
 }
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$apiRoot = Resolve-Path (Join-Path $scriptDir "..")
+$apiRoot = Resolve-Path (Join-Path $scriptDir "step_together_api")
 $appPath = Join-Path $apiRoot "app"
 
 if (-not (Test-Path $appPath)) {
