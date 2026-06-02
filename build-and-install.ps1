@@ -5,6 +5,15 @@
 $ErrorActionPreference = "Stop"
 $autoGrantHealthPermissions = $true
 
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$reactNativeProjectPath = Join-Path $scriptRoot "step-together-react-native"
+
+if (-not (Test-Path $reactNativeProjectPath)) {
+    throw "React Native project folder not found: $reactNativeProjectPath"
+}
+
+Set-Location $reactNativeProjectPath
+
 function Run-Checked {
     param(
         [Parameter(Mandatory = $true)]
@@ -16,6 +25,72 @@ function Run-Checked {
     if ($LASTEXITCODE -ne 0) {
         throw "$Command failed with exit code $LASTEXITCODE"
     }
+}
+
+$buildTarget = (Read-Host "Build target [L=Local device / E=Expo EAS cloud] (default: L)").Trim().ToUpperInvariant()
+if ([string]::IsNullOrWhiteSpace($buildTarget)) {
+    $buildTarget = "L"
+}
+
+if ($buildTarget -eq "E") {
+    Write-Host "=== Expo EAS Build ===" -ForegroundColor Cyan
+
+    $platform = (Read-Host "Platform [android/ios] (default: android)").Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($platform)) {
+        $platform = "android"
+    }
+    if ($platform -ne "android" -and $platform -ne "ios") {
+        throw "Invalid platform. Enter 'android' or 'ios'."
+    }
+
+    Write-Host "EAS profile options:" -ForegroundColor DarkCyan
+    Write-Host "  1) preview" -ForegroundColor DarkCyan
+    Write-Host "  2) production" -ForegroundColor DarkCyan
+    $profileChoice = (Read-Host "Select profile [1/2] (default: 1)").Trim()
+    if ([string]::IsNullOrWhiteSpace($profileChoice)) {
+        $profileChoice = "1"
+    }
+
+    switch ($profileChoice) {
+        "1" { $profile = "preview" }
+        "2" { $profile = "production" }
+        default { throw "Invalid profile selection. Enter 1 for preview or 2 for production." }
+    }
+
+    $useClearCache = (Read-Host "Use --clear-cache? [Y/n]").Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($useClearCache)) {
+        $useClearCache = "y"
+    }
+
+    $skipFingerprint = (Read-Host "Skip auto fingerprint? [y/N]").Trim().ToLowerInvariant()
+
+    $easArgs = @("eas", "build", "-p", $platform, "--profile", $profile)
+    if ($useClearCache -ne "n") {
+        $easArgs += "--clear-cache"
+    }
+
+    $previousSkipFingerprint = $env:EAS_SKIP_AUTO_FINGERPRINT
+    try {
+        if ($skipFingerprint -eq "y") {
+            $env:EAS_SKIP_AUTO_FINGERPRINT = "1"
+        }
+
+        Run-Checked -Command "npx.cmd" -Args $easArgs
+    }
+    finally {
+        if ($null -eq $previousSkipFingerprint) {
+            Remove-Item Env:EAS_SKIP_AUTO_FINGERPRINT -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:EAS_SKIP_AUTO_FINGERPRINT = $previousSkipFingerprint
+        }
+    }
+
+    Write-Host "Done. EAS build command finished." -ForegroundColor Green
+    return
+}
+elseif ($buildTarget -ne "L") {
+    throw "Unknown build target. Enter L (Local) or E (Expo EAS)."
 }
 
 function Get-AdbTlsConnectEndpoints {

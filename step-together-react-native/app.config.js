@@ -7,16 +7,16 @@ export default ({ config }) => ({
   slug: 'step-together',
   version: '1.0.4',
   scheme: 'steptogether',
+  newArchEnabled: true,
 
   icon: './assets/images/AppIcon.png',
 
   android: {
     ...config.android,
     package: 'at.bfistmk.steptogether',
-    permissions: [
-      ...(config.android?.permissions ?? []),
-      'android.permission.ACTIVITY_RECOGNITION',
-    ],
+    permissions: (config.android?.permissions ?? []).includes('android.permission.ACTIVITY_RECOGNITION')
+      ? config.android.permissions
+      : [...(config.android?.permissions ?? []), 'android.permission.ACTIVITY_RECOGNITION'],
   },
 
   ios: {
@@ -42,9 +42,6 @@ export default ({ config }) => ({
 
   plugins: [
     ...(config.plugins ?? []),
-    'expo-secure-store',
-    'expo-web-browser',
     'expo-font',
-    'expo-router',
   ],
 });

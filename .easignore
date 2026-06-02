@@ -1,0 +1,41 @@
+# EAS Build archive exclusions
+# Keep this strict to reduce upload size and avoid local-only artifacts.
+
+# VCS
+.git/
+.gitignore
+
+# Dependencies and caches
+node_modules/
+.expo/
+.expo-shared/
+
+# Local native projects generated for local builds only
+android/
+**/android/
+**/.cxx/
+**/build/
+ios/
+.kotlin/
+
+# Build outputs / temp
+build/
+dist/
+web-build/
+coverage/
+*.log
+build-and-install.ps1
+
+# Binary artifacts
+*.apk
+*.aab
+*.ipa
+
+# Local env files (use EAS env vars instead)
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/

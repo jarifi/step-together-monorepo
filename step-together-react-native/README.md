@@ -74,3 +74,23 @@ npm install
 npx expo-doctor
 npx react-native start --reset-cache
 npx expo start -c --lan
+
+## EAS Build Hygiene (Android/iOS)
+
+To keep EAS uploads small and avoid local-only build issues, use the project-level ignore rules in [.easignore](.easignore).
+
+Excluded from EAS upload:
+
+- node_modules/
+- android/ and ios/ (local native folders for expo run)
+- .expo/, .expo-shared/, .kotlin/
+- build outputs (build/, dist/, web-build/, coverage/, _.apk, _.aab, \*.ipa)
+- local env files (.env, .env.\*)
+
+Build command:
+
+```bash
+eas build -p android --profile preview --clear-cache
+```
+
+If the uploaded archive is still large, check for additional generated folders and add them to [.easignore](.easignore).
