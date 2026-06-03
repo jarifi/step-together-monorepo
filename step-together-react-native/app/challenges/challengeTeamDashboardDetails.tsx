@@ -378,23 +378,6 @@ const challengeTeamDashboardDetailsScreen: React.FC = () => {
           </Text>
 
           <TouchableOpacity
-            onPress={() => router.push('/challenges/activeChallenges')}
-            activeOpacity={0.9}
-            style={{
-              backgroundColor: '#658869ff',
-              paddingVertical: 14,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 10,
-            }}
-          >
-            <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>
-              Zu den Challenges
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             onPress={() => router.push('/userHistory')}
             activeOpacity={0.85}
             style={{

@@ -311,7 +311,6 @@ const contentTopPadding = useMemo(
           <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
           <Stack.Screen name="userHistory" options={{ headerShown: false }} />
           <Stack.Screen name="profileInfo" options={{ headerShown: false }} />
           <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
