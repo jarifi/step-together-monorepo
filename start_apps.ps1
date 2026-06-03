@@ -85,18 +85,8 @@ $defaultRemoteApiBaseUrl = 'https://api.step-together.at/api/v1'
 $currentApiBaseUrl = Get-ApiBaseUrlFromEnvFile -filePath $frontendEnvFile
 $remoteApiBaseUrl = if ($currentApiBaseUrl -and $currentApiBaseUrl -match '^https://') { $currentApiBaseUrl } else { $defaultRemoteApiBaseUrl }
 
-Write-Host 'Choose what to start:'
-Write-Host '1) Start backend API and frontend app'
-Write-Host '2) Start frontend app only'
-
-$choice = Read-Host 'Enter 1 or 2'
-while ($choice -notin @('1', '2')) {
-    Write-Host 'Invalid option. Please enter 1 or 2.'
-    $choice = Read-Host 'Enter 1 or 2'
-}
-
 Write-Host ''
-Write-Host 'Choose API server for frontend:'
+Write-Host 'Choose API server:'
 Write-Host "1) Local backend ($localApiBaseUrl)"
 Write-Host "2) Remote backend ($remoteApiBaseUrl)"
 
@@ -111,7 +101,7 @@ Set-ApiBaseUrlInEnvFile -filePath $frontendEnvFile -apiBaseUrl $selectedApiBaseU
 Write-Host "Updated .env.development API_BASE_URL to: $selectedApiBaseUrl"
 Write-Host ''
 
-if ($serverChoice -eq '1' -or $choice -eq '1') {
+if ($serverChoice -eq '1') {
     $existingProcess = Get-ListeningProcessDetails -port 3000
     if ($existingProcess) {
         $cmd = [string]$existingProcess.CommandLine
@@ -145,7 +135,7 @@ if ($serverChoice -eq '1' -or $choice -eq '1') {
     }
 }
 
-if ($choice -eq '1') {
+if ($serverChoice -eq '1') {
     $backendPython = Join-Path $backendRoot 'venv\Scripts\python.exe'
     if (Test-Path $backendPython) {
         $backendCommand = "Set-Location '$backendRoot'; & '$backendPython' -m uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload"
@@ -160,9 +150,9 @@ if ($choice -eq '1') {
 $frontendCommand = "Set-Location '$frontendRoot'; `$env:API_BASE_URL = '$selectedApiBaseUrl'; `$env:EXPO_PUBLIC_API_BASE_URL = '$selectedApiBaseUrl'; npm run start:dev -- --clear"
 Start-Process powershell -ArgumentList @('-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $frontendCommand) -WorkingDirectory $frontendRoot | Out-Null
 
-if ($choice -eq '1') {
+if ($serverChoice -eq '1') {
     Write-Host 'Started backend API and frontend app in separate PowerShell windows.'
 }
 else {
-    Write-Host 'Started frontend app in a separate PowerShell window.'
+    Write-Host 'Started frontend app (using remote backend API).'
 }
