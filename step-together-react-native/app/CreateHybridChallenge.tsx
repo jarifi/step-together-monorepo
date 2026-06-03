@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -10,11 +10,13 @@ import {
   Modal,
   Platform,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 import {
   createBulkChallengeInvites,
@@ -26,27 +28,33 @@ import {
   searchUsers,
 } from "../services/userService";
 
-function extractErrorMessage(err) {
-  // Unpack a FastAPI / structured payload first
+interface AppError {
+  payload?: { message?: string; detail?: string | Array<{ msg?: string }> } | string;
+  message?: string;
+  status?: number;
+  name?: string;
+}
+
+function extractErrorMessage(err: AppError): string {
   const p = err?.payload;
   if (p) {
-    if (typeof p.message === "string" && p.message) return p.message;
-    if (typeof p.detail === "string" && p.detail) return p.detail;
-    if (Array.isArray(p.detail))
-      return p.detail.map((d) => d.msg || JSON.stringify(d)).join(" · ");
+    if (typeof p === "object") {
+      if (typeof p.message === "string" && p.message) return p.message;
+      if (typeof p.detail === "string" && p.detail) return p.detail;
+      if (Array.isArray(p.detail))
+        return p.detail.map((d) => d.msg || JSON.stringify(d)).join(" · ");
+    }
     if (typeof p === "string") return p;
   }
-  // err.message can be "[object Object]" when the API bug fires
   const m = err?.message;
   if (typeof m === "string" && m && m !== "[object Object]") return m;
-  // Status-based fallbacks in German
   const s = err?.status;
   if (s === 400) return "Ungültige Eingabe. Bitte alle Felder prüfen.";
   if (s === 401) return "Nicht autorisiert. Bitte erneut anmelden.";
   if (s === 403) return "Keine Berechtigung für diese Aktion.";
   if (s === 404) return "Ressource nicht gefunden.";
   if (s === 422) return "Eingabefehler. Bitte alle Felder korrekt ausfüllen.";
-  if (s >= 500) return "Serverfehler. Bitte später erneut versuchen.";
+  if (s != null && s >= 500) return "Serverfehler. Bitte später erneut versuchen.";
   if (err?.name === "TypeError")
     return "Netzwerkfehler. Bitte Internetverbindung prüfen.";
   return "Unbekannter Fehler. Bitte erneut versuchen.";
@@ -86,29 +94,19 @@ const IS_WEB = Platform.OS === "web";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const MONTHS_DE = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
 ];
 const DAYS_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
-function today() {
+function today(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function sameDay(a, b) {
-  return (
+function sameDay(a: Date | null, b: Date | null): boolean {
+  return !!(
     a &&
     b &&
     a.getFullYear() === b.getFullYear() &&
@@ -117,7 +115,7 @@ function sameDay(a, b) {
   );
 }
 
-function fmtDate(d) {
+function fmtDate(d: Date | null): string {
   if (!d) return "";
   return d.toLocaleDateString("de-AT", {
     day: "2-digit",
@@ -126,38 +124,37 @@ function fmtDate(d) {
   });
 }
 
-function fmtTime(d) {
+function fmtTime(d: Date | null): string {
   if (!d) return "";
   return d.toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" });
 }
 
-function fmtDateShort(d) {
+function fmtDateShort(d: Date | null): string {
   if (!d) return "—";
   return `${fmtDate(d)}  ${fmtTime(d)}`;
 }
 
-function daysBetween(a, b) {
+function daysBetween(a: Date | null, b: Date | null): number | null {
   if (!a || !b) return null;
-  const n = Math.round((b - a) / 86400000);
+  const n = Math.round((b.getTime() - a.getTime()) / 86400000);
   return n > 0 ? n : null;
 }
 
-function calDaysInMonth(year, month) {
+function calDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function calFirstWeekday(year, month) {
-  // Monday-based: Mon=0 … Sun=6
+function calFirstWeekday(year: number, month: number): number {
   const wd = new Date(year, month, 1).getDay();
   return (wd + 6) % 7;
 }
 
-function roundToFive(min) {
+function roundToFive(min: number): number {
   const rounded = Math.round((Number(min) || 0) / 5) * 5;
   return Math.min(55, Math.max(0, rounded));
 }
 
-function initials(name) {
+function initials(name: string | undefined): string {
   return (name || "?")
     .trim()
     .split(/\s+/)
@@ -167,8 +164,17 @@ function initials(name) {
     .toUpperCase();
 }
 
-function TimeStepper({ value, min, max, step, onChange }) {
-  function applyDelta(delta) {
+// ─── TimeStepper ──────────────────────────────────────────────────────────────
+interface TimeStepperProps {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (val: number) => void;
+}
+
+function TimeStepper({ value, min, max, step, onChange }: TimeStepperProps) {
+  function applyDelta(delta: number) {
     const next = Math.min(max, Math.max(min, value + delta));
     if (next !== value) onChange(next);
   }
@@ -189,8 +195,13 @@ function TimeStepper({ value, min, max, step, onChange }) {
 }
 
 // ─── TimeWheel ────────────────────────────────────────────────────────────────
-// Minimal scroll-drum for hour / minute
-function TimeWheel({ value, options, onChange }) {
+interface TimeWheelProps {
+  value: number;
+  options: number[];
+  onChange: (val: number) => void;
+}
+
+function TimeWheel({ value, options, onChange }: TimeWheelProps) {
   return (
     <ScrollView
       style={tw.wheel}
@@ -264,6 +275,15 @@ const tw = StyleSheet.create({
 });
 
 // ─── Modern Calendar Picker ───────────────────────────────────────────────────
+interface CalendarPickerProps {
+  visible: boolean;
+  value: Date | null;
+  minDate?: Date;
+  onConfirm: (d: Date) => void;
+  onClose: () => void;
+  title?: string;
+}
+
 function CalendarPicker({
   visible,
   value,
@@ -271,7 +291,7 @@ function CalendarPicker({
   onConfirm,
   onClose,
   title,
-}) {
+}: CalendarPickerProps) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(
     value ? value.getFullYear() : now.getFullYear(),
@@ -279,13 +299,12 @@ function CalendarPicker({
   const [viewMonth, setViewMonth] = useState(
     value ? value.getMonth() : now.getMonth(),
   );
-  const [picked, setPicked] = useState(value || null);
+  const [picked, setPicked] = useState<Date | null>(value || null);
   const [hour, setHour] = useState(value ? value.getHours() : 8);
   const [minute, setMinute] = useState(
     value ? roundToFive(value.getMinutes()) : 0,
   );
 
-  // reset when opening
   useEffect(() => {
     if (visible) {
       const base = value || new Date();
@@ -310,7 +329,7 @@ function CalendarPicker({
     } else setViewMonth((m) => m + 1);
   }
 
-  function selectDay(day) {
+  function selectDay(day: number) {
     const d = new Date(viewYear, viewMonth, day);
     if (minDate && d < minDate) return;
     setPicked(d);
@@ -325,7 +344,7 @@ function CalendarPicker({
 
   const daysInMonth = calDaysInMonth(viewYear, viewMonth);
   const firstWeekday = calFirstWeekday(viewYear, viewMonth);
-  const cells = [];
+  const cells: (number | null)[] = [];
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length < 42) cells.push(null);
@@ -382,7 +401,7 @@ function CalendarPicker({
             const cellDate = new Date(viewYear, viewMonth, day);
             const isTodayD = sameDay(cellDate, today());
             const isSelected = picked && sameDay(cellDate, picked);
-            const isDisabled = minDate && cellDate < minDate;
+            const isDisabled = !!(minDate && cellDate < minDate);
             return (
               <TouchableOpacity
                 key={day}
@@ -421,7 +440,7 @@ function CalendarPicker({
             {IS_WEB ? (
               <select
                 value={hour}
-                onChange={(e) => setHour(Number(e.target.value))}
+                onChange={(e: any) => setHour(Number(e.target.value))}
                 style={{
                   fontSize: 16,
                   padding: "6px 10px",
@@ -431,7 +450,7 @@ function CalendarPicker({
                   background: T.surfaceAlt,
                   fontFamily: "inherit",
                   outline: "none",
-                }}
+                } as any}
               >
                 {HOURS.map((h) => (
                   <option key={h} value={h}>
@@ -457,7 +476,7 @@ function CalendarPicker({
             {IS_WEB ? (
               <select
                 value={minute}
-                onChange={(e) => setMinute(Number(e.target.value))}
+                onChange={(e: any) => setMinute(Number(e.target.value))}
                 style={{
                   fontSize: 16,
                   padding: "6px 10px",
@@ -467,7 +486,7 @@ function CalendarPicker({
                   background: T.surfaceAlt,
                   fontFamily: "inherit",
                   outline: "none",
-                }}
+                } as any}
               >
                 {MINUTES.map((m) => (
                   <option key={m} value={m}>
@@ -534,6 +553,7 @@ function CalendarPicker({
 }
 
 const CAL_CELL = Math.min(26, (Math.min(W, 360) - 28 - 12) / 7);
+void CAL_CELL;
 
 const cal = StyleSheet.create({
   backdrop: {
@@ -550,7 +570,7 @@ const cal = StyleSheet.create({
     maxHeight: IS_MOBILE ? "78%" : "82%",
     flexShrink: 1,
     ...(IS_WEB
-      ? { boxShadow: "0 8px 40px rgba(10,25,18,0.22)" }
+      ? ({ boxShadow: "0 8px 40px rgba(10,25,18,0.22)" } as any)
       : {
           shadowColor: "#000",
           shadowOpacity: 0.25,
@@ -703,7 +723,16 @@ const cal = StyleSheet.create({
 });
 
 // ─── DateField ────────────────────────────────────────────────────────────────
-function DateField({ label, required, value, onChange, minDate, error }) {
+interface DateFieldProps {
+  label?: string;
+  required?: boolean;
+  value: Date | null;
+  onChange: (date: Date | null) => void;
+  minDate?: Date;
+  error?: string | null;
+}
+
+function DateField({ label, required, value, onChange, minDate, error }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const hasVal = !!value;
   return (
@@ -754,7 +783,12 @@ function DateField({ label, required, value, onChange, minDate, error }) {
 }
 
 // ─── Section heading ──────────────────────────────────────────────────────────
-function SectionHead({ title, subtitle }) {
+interface SectionHeadProps {
+  title: string;
+  subtitle?: string;
+}
+
+function SectionHead({ title, subtitle }: SectionHeadProps) {
   return (
     <View style={s.secHead}>
       <Text style={s.secTitle}>{title}</Text>
@@ -764,7 +798,12 @@ function SectionHead({ title, subtitle }) {
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
-function Card({ children, style }) {
+interface CardProps {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}
+
+function Card({ children, style }: CardProps) {
   return <View style={[s.card, style]}>{children}</View>;
 }
 
@@ -773,7 +812,21 @@ function HRule() {
 }
 
 // ─── User row ─────────────────────────────────────────────────────────────────
-function UserRow({ user, selected, onToggle }) {
+interface UserItem {
+  id: number | string;
+  name?: string;
+  fullname?: string;
+  full_name?: string;
+  username?: string;
+}
+
+interface UserRowProps {
+  user: UserItem;
+  selected: boolean;
+  onToggle: (id: number | string) => void;
+}
+
+function UserRow({ user, selected, onToggle }: UserRowProps) {
   const avatarUri = getDisplayAvatarUri(user);
   const [imgErr, setImgErr] = useState(false);
   const displayName =
@@ -813,31 +866,38 @@ function UserRow({ user, selected, onToggle }) {
   );
 }
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+interface ToastState {
+  type: "success" | "error";
+  message: string;
+  onPress?: () => void;
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function CreateHybridChallenge({ navigation }) {
+export default function CreateHybridChallenge({ navigation }: { navigation?: object }) {
   // Form state
   const [name, setName] = useState("");
   const [startLoc, setStartLoc] = useState("");
   const [targetLoc, setTargetLoc] = useState("");
   const [distance, setDistance] = useState("");
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
   // Users
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [query, setQuery] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [visibleUsers, setVisibleUsers] = useState(4);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<(number | string)[]>([]);
 
   // Form
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
 
   // Toast
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const toastAnim = useRef(new Animated.Value(-140)).current;
-  const toastTimer = useRef(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadUsers("");
@@ -851,7 +911,7 @@ export default function CreateHybridChallenge({ navigation }) {
     setLoadingUsers(false);
   };
 
-  const toggleUser = useCallback((id) => {
+  const toggleUser = useCallback((id: number | string) => {
     setSelectedUserIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
@@ -859,8 +919,8 @@ export default function CreateHybridChallenge({ navigation }) {
 
   const duration = daysBetween(startDate, endDate);
 
-  const validate = () => {
-    const e = {};
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Name ist erforderlich";
     if (!startLoc.trim()) e.startLoc = "Startort eingeben";
     if (!targetLoc.trim()) e.targetLoc = "Zielort eingeben";
@@ -886,13 +946,13 @@ export default function CreateHybridChallenge({ navigation }) {
         start_location: startLoc.trim(),
         target_location: targetLoc.trim(),
         distance: parseFloat(distance),
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
+        start_date: startDate!.toISOString(),
+        end_date: endDate!.toISOString(),
         mode: "individual",
         team_ids: [],
         creator_id: parseInt(storedUserId || "0", 10),
       };
-      const timeout = new Promise((_, reject) =>
+      const timeout = new Promise<never>((_, reject) =>
         setTimeout(
           () =>
             reject(
@@ -917,13 +977,14 @@ export default function CreateHybridChallenge({ navigation }) {
         () => router.push("/challenges/hybridIndex"),
       );
     } catch (err) {
-      showToast("error", extractErrorMessage(err));
+      showToast("error", extractErrorMessage(err as AppError));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const clearError = (key) => setErrors((prev) => ({ ...prev, [key]: null }));
+  const clearError = (key: string) =>
+    setErrors((prev) => ({ ...prev, [key]: null }));
 
   function dismissToast() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -934,13 +995,15 @@ export default function CreateHybridChallenge({ navigation }) {
     }).start(() => setToast(null));
   }
 
-  function showToast(type, message, onPress) {
+  function showToast(
+    type: "success" | "error",
+    message: string,
+    onPress?: () => void,
+  ) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ type, message, onPress });
-    // Animation starts in useEffect below, AFTER the Modal is mounted
   }
 
-  // Start slide-in only after the toast Modal is actually in the native tree
   useEffect(() => {
     if (!toast) return;
     toastAnim.setValue(-140);
@@ -1047,11 +1110,7 @@ export default function CreateHybridChallenge({ navigation }) {
               </Text>
               <View style={s.distRow}>
                 <TextInput
-                  style={[
-                    s.input,
-                    s.distInput,
-                    errors.distance && s.inputError,
-                  ]}
+                  style={[s.input, s.distInput, errors.distance && s.inputError]}
                   placeholder="z.B. 200"
                   placeholderTextColor={T.textLight}
                   value={distance}
@@ -1212,7 +1271,6 @@ export default function CreateHybridChallenge({ navigation }) {
               dismissToast();
             }}
             activeOpacity={1}
-            pointerEvents="auto"
           >
             <View style={ts.iconWrap}>
               <Text style={ts.iconText}>
@@ -1242,7 +1300,6 @@ const CARD_RADIUS = 16;
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
 
-  // Header
   header: {
     paddingTop: 74,
     paddingBottom: 22,
@@ -1261,7 +1318,6 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Scroll
   scroll: { flex: 1 },
   scrollContent: {
     padding: IS_MOBILE ? 16 : 24,
@@ -1271,7 +1327,6 @@ const s = StyleSheet.create({
     alignSelf: "center",
   },
 
-  // Section heading
   secHead: {
     marginBottom: 10,
     marginTop: 20,
@@ -1287,7 +1342,6 @@ const s = StyleSheet.create({
   },
   secSub: { fontSize: 13, color: T.textMuted, marginTop: 2 },
 
-  // Card
   card: {
     backgroundColor: T.white,
     borderRadius: CARD_RADIUS,
@@ -1296,7 +1350,7 @@ const s = StyleSheet.create({
     padding: IS_MOBILE ? 16 : 20,
     marginBottom: 4,
     ...(IS_WEB
-      ? { boxShadow: "0 1px 6px rgba(15,31,23,0.08)" }
+      ? ({ boxShadow: "0 1px 6px rgba(15,31,23,0.08)" } as any)
       : {
           shadowColor: "#0F1F17",
           shadowOpacity: 0.06,
@@ -1306,7 +1360,6 @@ const s = StyleSheet.create({
         }),
   },
 
-  // Fields
   fieldWrap: { marginBottom: 0 },
   label: {
     fontSize: 13,
@@ -1325,7 +1378,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: T.text,
     ...(IS_WEB
-      ? { outlineStyle: "none", transition: "border-color 0.15s" }
+      ? ({ outlineStyle: "none", transition: "border-color 0.15s" } as any)
       : {}),
   },
   inputError: { borderColor: T.danger, backgroundColor: T.dangerSoft },
@@ -1347,11 +1400,9 @@ const s = StyleSheet.create({
     marginVertical: 16,
   },
 
-  // Layout
   row2: { flexDirection: "row", gap: 14 },
   col: { flexDirection: "column", gap: 14 },
 
-  // Distance
   distRow: { flexDirection: "row", gap: 10, alignItems: "center" },
   distInput: { flex: 1, maxWidth: IS_MOBILE ? undefined : 200 },
   unitChip: {
@@ -1364,7 +1415,6 @@ const s = StyleSheet.create({
   },
   unitText: { fontSize: 15, fontWeight: "700", color: T.primary },
 
-  // Date button
   dateBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1375,7 +1425,9 @@ const s = StyleSheet.create({
     borderRadius: INPUT_RADIUS,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    ...(IS_WEB ? { cursor: "pointer", transition: "border-color 0.15s" } : {}),
+    ...(IS_WEB
+      ? ({ cursor: "pointer", transition: "border-color 0.15s" } as any)
+      : {}),
   },
   dateBtnFilled: {
     borderColor: T.accentLight,
@@ -1398,7 +1450,6 @@ const s = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Duration
   durationRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1415,7 +1466,6 @@ const s = StyleSheet.create({
   },
   durationVal: { fontSize: 14, fontWeight: "700", color: T.success },
 
-  // Search
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -1427,7 +1477,9 @@ const s = StyleSheet.create({
     gap: 8,
     marginTop: 10,
     marginBottom: 10,
-    ...(IS_WEB ? { boxShadow: "0 1px 4px rgba(15,31,23,0.07)" } : {}),
+    ...(IS_WEB
+      ? ({ boxShadow: "0 1px 4px rgba(15,31,23,0.07)" } as any)
+      : {}),
   },
   searchIcon: { fontSize: 18, color: T.textMuted },
   searchInput: {
@@ -1436,7 +1488,7 @@ const s = StyleSheet.create({
     color: T.text,
     paddingVertical: 12,
     ...(IS_WEB
-      ? { outlineStyle: "none", border: "none", background: "transparent" }
+      ? ({ outlineStyle: "none", border: "none", background: "transparent" } as any)
       : {}),
   },
   searchClear: {
@@ -1446,7 +1498,6 @@ const s = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Pills
   pillsScroll: { flexGrow: 0, marginBottom: 10 },
   pillsContent: { flexDirection: "row", gap: 8, paddingRight: 4 },
   pill: {
@@ -1463,7 +1514,6 @@ const s = StyleSheet.create({
   pillText: { fontSize: 13, fontWeight: "600", color: T.primary },
   pillX: { fontSize: 18, color: T.primaryMid, lineHeight: 20 },
 
-  // Team list
   teamCard: { padding: 0, overflow: "hidden", marginBottom: 4 },
   teamRow: {
     flexDirection: "row",
@@ -1518,7 +1568,6 @@ const s = StyleSheet.create({
     lineHeight: 14,
   },
 
-  // States
   teamsCenter: { padding: 36, alignItems: "center", gap: 12 },
   teamsCenterText: { fontSize: 14, color: T.textMuted },
   teamsErrorText: { fontSize: 14, color: T.danger, textAlign: "center" },
@@ -1554,7 +1603,6 @@ const s = StyleSheet.create({
     color: T.primary,
   },
 
-  // Team Modus
   teamModusDesc: {
     fontSize: 14,
     color: T.textSec,
@@ -1576,16 +1624,18 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     ...(IS_WEB
-      ? {
+      ? ({
           cursor: "pointer",
           transition: "border-color 0.15s, background-color 0.15s",
-        }
+        } as any)
       : {}),
   },
   teamModusBtnActive: {
     borderColor: T.primary,
     backgroundColor: T.primarySoft,
-    ...(IS_WEB ? { boxShadow: "0 2px 14px rgba(30,92,58,0.18)" } : {}),
+    ...(IS_WEB
+      ? ({ boxShadow: "0 2px 14px rgba(30,92,58,0.18)" } as any)
+      : {}),
   },
   teamModusBtnLabel: {
     fontSize: 18,
@@ -1593,19 +1643,14 @@ const s = StyleSheet.create({
     color: T.textSec,
     letterSpacing: 0.2,
   },
-  teamModusBtnLabelActive: {
-    color: T.text,
-  },
+  teamModusBtnLabelActive: { color: T.text },
   teamModusBtnSub: {
     fontSize: 12,
     fontWeight: "500",
     color: T.textMuted,
   },
-  teamModusBtnSubActive: {
-    color: T.textSec,
-  },
+  teamModusBtnSubActive: { color: T.textSec },
 
-  // Mode Widget
   modeWidget: {
     padding: 0,
     marginBottom: 4,
@@ -1646,7 +1691,6 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
 
-  // User row
   userRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1657,9 +1701,7 @@ const s = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: "transparent",
   },
-  userRowSel: {
-    borderLeftColor: T.primary,
-  },
+  userRowSel: { borderLeftColor: T.primary },
   userAvatarImg: {
     width: 42,
     height: 42,
@@ -1675,7 +1717,6 @@ const s = StyleSheet.create({
     borderColor: T.primaryLight,
   },
 
-  // Submit
   submitBtn: {
     backgroundColor: T.primaryLight,
     borderRadius: 14,
@@ -1684,7 +1725,10 @@ const s = StyleSheet.create({
     justifyContent: "center",
     marginTop: 20,
     ...(IS_WEB
-      ? { cursor: "pointer", boxShadow: "0 4px 18px rgba(74,158,110,0.35)" }
+      ? ({
+          cursor: "pointer",
+          boxShadow: "0 4px 18px rgba(74,158,110,0.35)",
+        } as any)
       : {
           shadowColor: T.primaryLight,
           shadowOpacity: 0.4,
@@ -1724,7 +1768,7 @@ const ts = StyleSheet.create({
     gap: 12,
     opacity: 1,
     ...(IS_WEB
-      ? { boxShadow: "0 6px 24px rgba(10,25,18,0.35)" }
+      ? ({ boxShadow: "0 6px 24px rgba(10,25,18,0.35)" } as any)
       : {
           shadowColor: "#000",
           shadowOpacity: 0.28,
