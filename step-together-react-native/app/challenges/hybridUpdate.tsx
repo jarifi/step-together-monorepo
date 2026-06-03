@@ -21,8 +21,8 @@ import {
     getChallengeById,
     getChallengeInvites,
     updateChallenge,
-} from '../services/challengeService';
-import { getDisplayAvatarUri, getUsers, searchUsers } from '../services/userService';
+} from '../../services/challengeService';
+import { getDisplayAvatarUri, getUsers, searchUsers } from '../../services/userService';
 
 declare global {
     namespace JSX {

@@ -1,14 +1,14 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import ChallengeTabs from '../../components/ChallengeTabs';
+import ChallengeTabs from '../../../components/ChallengeTabs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import Avatar from '../../components/Avatar';
-import { LeafletOSMMap } from '../../components/LeafletOSMMap';
-import { getChallengeById, getChallengeParticipants } from '../../services/challengeService';
-import { getHomeInit } from '../../services/dashboardService';
-import { mapHomeInitToDashboard } from '../../services/dto/dashboardDto';
-import styles from '../styles/dashboardStyles';
+import Avatar from '../../../components/Avatar';
+import { LeafletOSMMap } from '../../../components/LeafletOSMMap';
+import { getChallengeById, getChallengeParticipants } from '../../../services/challengeService';
+import { getHomeInit } from '../../../services/dashboardService';
+import { mapHomeInitToDashboard } from '../../../services/dto/dashboardDto';
+import styles from '../../styles/dashboardStyles';
 
 const FIX_STEP_LENGTH_M = 0.78;
 
@@ -397,8 +397,8 @@ const challengeIndividualDashboardDetailsScreen: React.FC = () => {
 
     const startLocation = vm?.challenge?.startLocation || '—';
     const targetLocation = vm?.challenge?.targetLocation || '—';
-    const overviewPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard';
-    const rankingPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboardDetails';
+    const overviewPath = vm?.challenge?.id ? `/challenges/dashboard/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/dashboard/challengeIndividualDashboard';
+    const rankingPath = vm?.challenge?.id ? `/challenges/dashboard/challengeIndividualDashboardDetails?id=${vm.challenge.id}` : '/challenges/dashboard/challengeIndividualDashboardDetails';
 
     return (
         <View style={{ flex: 1 }}>

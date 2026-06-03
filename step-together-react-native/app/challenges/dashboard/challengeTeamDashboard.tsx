@@ -28,13 +28,13 @@ import {
   startOfWeek,
   stripTime,
   toIsoDate as toISO,
-} from '../../services/dto/dashboardDto';
+} from '../../../services/dto/dashboardDto';
 
-import ChallengeTabs from '../../components/ChallengeTabs';
-import { getChallengeById } from '../../services/challengeService';
-import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../services/dashboardService';
-import { getTeamRanking } from '../../services/teamService';
-import styles from '../styles/dashboardStyles';
+import ChallengeTabs from '../../../components/ChallengeTabs';
+import { getChallengeById } from '../../../services/challengeService';
+import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../../services/dashboardService';
+import { getTeamRanking } from '../../../services/teamService';
+import styles from '../../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -767,7 +767,7 @@ const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
-        <ChallengeTabs active="overview" overviewPath="/challenges/challengeTeamDashboard" rankingPath="/challenges/challengeTeamDashboardDetails" />
+        <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeTeamDashboard" rankingPath="/challenges/dashboard/challengeTeamDashboardDetails" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" />
           <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
@@ -783,7 +783,7 @@ const Dashboard: React.FC = () => {
   if (!vm || errorMsg || !canShowChallenge) {
     return (
       <View style={{ flex: 1 }}>
-        <ChallengeTabs active="overview" overviewPath="/challenges/challengeTeamDashboard" rankingPath="/challenges/challengeTeamDashboardDetails" />
+        <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeTeamDashboard" rankingPath="/challenges/dashboard/challengeTeamDashboardDetails" />
         <EmptyChallengeCard />
       </View>
     );
@@ -816,8 +816,8 @@ const Dashboard: React.FC = () => {
 
   const isTodaySelected = sameDay(displayDate, today);
 
-  const overviewPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboard';
-  const rankingPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboardDetails';
+  const overviewPath = vm?.challenge?.id ? `/challenges/dashboard/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/dashboard/challengeTeamDashboard';
+  const rankingPath = vm?.challenge?.id ? `/challenges/dashboard/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/dashboard/challengeTeamDashboardDetails';
 
   return (
     <View style={{ flex: 1 }}>

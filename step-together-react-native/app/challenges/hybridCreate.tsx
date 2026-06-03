@@ -21,12 +21,12 @@ import {
 import {
   createBulkChallengeInvites,
   createChallenge,
-} from "../services/challengeService";
+} from "../../services/challengeService";
 import {
   getDisplayAvatarUri,
   getUsers,
   searchUsers,
-} from "../services/userService";
+} from "../../services/userService";
 
 interface AppError {
   payload?: { message?: string; detail?: string | Array<{ msg?: string }> } | string;

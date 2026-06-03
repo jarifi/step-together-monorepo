@@ -167,7 +167,7 @@ export default function LoginScreen() {
         activeChallenges: data.activeChallenges,
       });
 
-      router.replace("/challenges/challengesDashboard");
+      router.replace("/challenges/dashboard/challengesDashboard");
     } catch (err: any) {
       if (__DEV__) {
         console.log("LOGIN ERROR status:", err?.status);
@@ -303,7 +303,7 @@ export default function LoginScreen() {
         activeChallenges: data.activeChallenges,
       });
 
-      router.replace("/challenges/challengesDashboard");
+      router.replace("/challenges/dashboard/challengesDashboard");
     } catch (err: any) {
       if (__DEV__) {
         console.log("PASSKEY LOGIN ERROR:", err?.message);
@@ -366,7 +366,7 @@ export default function LoginScreen() {
         activeChallenges: data.activeChallenges,
       });
 
-      router.replace("/challenges/challengesDashboard");
+      router.replace("/challenges/dashboard/challengesDashboard");
     } catch (err: any) {
       showError(err?.message || "Fehler beim Akzeptieren der Datenschutzerklärung.");
     } finally {

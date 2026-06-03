@@ -16,7 +16,7 @@ import {
   getChallengeParticipants,
   getChallengeTeams,
   getMyActiveChallenges,
-} from '../../services/challengeService';
+} from '../../../services/challengeService';
 
 const TEAM = '#1B7A42';
 const IND = '#D4650A';
@@ -258,8 +258,8 @@ export default function AllChallengesScreen() {
     router.push({
       pathname:
         mode === 'individual'
-          ? '/challenges/challengeIndividualDashboard'
-          : '/challenges/challengeTeamDashboard',
+          ? '/challenges/dashboard/challengeIndividualDashboard'
+          : '/challenges/dashboard/challengeTeamDashboard',
       params,
     });
   };
@@ -336,7 +336,7 @@ export default function AllChallengesScreen() {
             </Text>
 
             <Pressable
-              onPress={() => router.push('/CreateHybridChallenge')}
+              onPress={() => router.push('/challenges/hybridCreate')}
               style={({ pressed }) => [
                 styles.createBtn,
                 { backgroundColor: TEAM },
