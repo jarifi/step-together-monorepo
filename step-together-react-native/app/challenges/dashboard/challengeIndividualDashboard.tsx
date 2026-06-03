@@ -27,13 +27,13 @@ import {
     startOfWeek,
     stripTime,
     toIsoDate as toISO,
-} from '../../services/dto/dashboardDto';
+} from '../../../services/dto/dashboardDto';
 
-import ChallengeTabs from '../../components/ChallengeTabs';
-import { usePedometer } from '../../context/PedometerContext';
-import { getChallengeById } from '../../services/challengeService';
-import { getHomeInit, getWeekSteps, listMyStepLogs, upsertStepsForDate } from '../../services/dashboardService';
-import styles from '../styles/dashboardStyles';
+import ChallengeTabs from '../../../components/ChallengeTabs';
+import { usePedometer } from '../../../context/PedometerContext';
+import { getChallengeById } from '../../../services/challengeService';
+import { getHomeInit, getWeekSteps, listMyStepLogs, upsertStepsForDate } from '../../../services/dashboardService';
+import styles from '../../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -779,7 +779,7 @@ const IndividualDashboard: React.FC = () => {
     if (loading) {
         return (
             <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
-                <ChallengeTabs active="overview" overviewPath="/challenges/challengeIndividualDashboard" rankingPath="/challenges/challengeIndividualDashboardDetails" />
+                <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeIndividualDashboard" rankingPath="/challenges/dashboard/challengeIndividualDashboardDetails" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator size="large" />
                     <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
@@ -795,7 +795,7 @@ const IndividualDashboard: React.FC = () => {
     if (!vm || !canShowChallenge) {
         return (
             <View style={{ flex: 1 }}>
-                <ChallengeTabs active="overview" overviewPath="/challenges/challengeIndividualDashboard" rankingPath="/challenges/challengeIndividualDashboardDetails" />
+                <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeIndividualDashboard" rankingPath="/challenges/dashboard/challengeIndividualDashboardDetails" />
                 <EmptyChallengeCard />
             </View>
         );
@@ -828,8 +828,8 @@ const IndividualDashboard: React.FC = () => {
 
     const isTodaySelected = sameDay(displayDate, today);
 
-    const overviewPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard';
-    const rankingPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboardDetails';
+    const overviewPath = vm?.challenge?.id ? `/challenges/dashboard/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/dashboard/challengeIndividualDashboard';
+    const rankingPath = vm?.challenge?.id ? `/challenges/dashboard/challengeIndividualDashboardDetails?id=${vm.challenge.id}` : '/challenges/dashboard/challengeIndividualDashboardDetails';
 
     return (
         <View style={{ flex: 1 }}>

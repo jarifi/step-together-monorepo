@@ -31,8 +31,8 @@ type Props = {
   challengePath?: string;
 };
 
-let rememberedOverviewPath = '/challenges/challengesDashboard';
-let rememberedChallengePath = '/challenges/challengeTeamDashboardDetails';
+let rememberedOverviewPath = '/challenges/dashboard/challengesDashboard';
+let rememberedChallengePath = '/challenges/dashboard/challengeTeamDashboardDetails';
 
 export default function BottomBar({ pathname, overviewPath, challengePath }: Props) {
   const insets = useSafeAreaInsets();

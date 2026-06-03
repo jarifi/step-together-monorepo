@@ -196,7 +196,7 @@ export default function AllChallengesScreen() {
           ) : null}
 
           <Pressable
-            onPress={() => router.push('/CreateHybridChallenge')}
+            onPress={() => router.push('/challenges/hybridCreate')}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
           >
             <Text style={styles.primaryBtnText}>+ Neue Challenge</Text>
