@@ -21,7 +21,7 @@ import { useUser } from '../../context/UserContext';
 import { validateEmail, validateName, validateStepLength } from '../../lib/userValidation';
 import { getMe, makeAbsoluteMediaUrl, updateUser, uploadMyProfilePicture } from '../../services/userService';
 
-const sanitizeStepLengthInput = (raw) => {
+const sanitizeStepLengthInput = (raw: unknown): string => {
   let v = String(raw ?? '').replace(/[^\d.,]/g, '');
   const firstSepIndex = v.search(/[.,]/);
   if (firstSepIndex !== -1) {
@@ -31,10 +31,15 @@ const sanitizeStepLengthInput = (raw) => {
   }
   return v;
 };
-const normalizeStepLength = (v) => String(v ?? '').trim().replace(',', '.');
 
-const pickAvatar = (u) => u?.avatarUrl ?? u?.avatar_url ?? u?.avatar ?? null;
-const isLocalUri = (u) => u.startsWith('file://') || u.startsWith('blob:') || u.startsWith('data:');
+const normalizeStepLength = (v: unknown): string =>
+  String(v ?? '').trim().replace(',', '.');
+
+const pickAvatar = (u: any): string | null =>
+  u?.avatarUrl ?? u?.avatar_url ?? u?.avatar ?? null;
+
+const isLocalUri = (u: string): boolean =>
+  u.startsWith('file://') || u.startsWith('blob:') || u.startsWith('data:');
 
 const COLORS = {
   bg: '#F4F7F4',
@@ -49,8 +54,8 @@ const COLORS = {
 
 export default function UpdateUserScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { user, setUser } = useUser();
+  const params = useLocalSearchParams<{ id?: string; name?: string; email?: string; stepLength?: string }>();
+  const { user, setUser } = useUser() as any;
 
   const userId = useMemo(() => {
     const raw = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -78,7 +83,7 @@ export default function UpdateUserScreen() {
   const [email, setEmail] = useState(initialEmail);
   const [stepLength, setStepLength] = useState(initialStepLength);
   const [loading, setLoading] = useState(false);
-  const [imageUri, setImageUri] = useState(null);
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -134,7 +139,7 @@ export default function UpdateUserScreen() {
     }
   };
 
-  const showError = (msg) => {
+  const showError = (msg: string) => {
     Toast.show({ type: 'error', text1: 'Fehler', text2: String(msg), position: 'top', topOffset: 100 });
   };
 
@@ -172,7 +177,7 @@ export default function UpdateUserScreen() {
 
       Toast.show({ type: 'success', text1: 'Gespeichert', text2: 'Dein Profil wurde aktualisiert.', position: 'top', topOffset: 100 });
       router.back();
-    } catch (error) {
+    } catch (error: any) {
       showError(
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
@@ -197,7 +202,6 @@ export default function UpdateUserScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Top bar */}
           <View style={styles.topBar}>
             <Pressable
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
@@ -210,9 +214,7 @@ export default function UpdateUserScreen() {
             <View style={{ width: 44, height: 44 }} />
           </View>
 
-          {/* Card */}
           <View style={styles.card}>
-            {/* Header */}
             <View style={styles.headerBlock}>
               <Pressable
                 onPress={handlePickImage}
@@ -240,7 +242,6 @@ export default function UpdateUserScreen() {
               <Text style={styles.headerHint}>Foto antippen zum Ändern</Text>
             </View>
 
-            {/* Name */}
             <View style={styles.field}>
               <Text style={styles.label}>Name</Text>
               <View style={styles.inputRow}>
@@ -258,7 +259,6 @@ export default function UpdateUserScreen() {
               </View>
             </View>
 
-            {/* Email */}
             <View style={styles.field}>
               <Text style={styles.label}>E-Mail</Text>
               <View style={styles.inputRow}>
@@ -277,7 +277,6 @@ export default function UpdateUserScreen() {
               </View>
             </View>
 
-            {/* Step length */}
             <View style={styles.field}>
               <Text style={styles.label}>Schrittlänge (in cm)</Text>
               <View style={styles.inputRow}>
@@ -296,7 +295,6 @@ export default function UpdateUserScreen() {
               </View>
             </View>
 
-            {/* Save button */}
             <Pressable
               style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, (!name.trim() || !email.trim() || loading) && styles.disabled]}
               disabled={loading || !name.trim() || !email.trim()}
@@ -307,7 +305,6 @@ export default function UpdateUserScreen() {
                 : <Text style={styles.buttonText}>Speichern</Text>}
             </Pressable>
 
-            {/* Info box */}
             <View style={styles.infoBox}>
               <Ionicons name="information-circle-outline" size={18} color="#111" />
               <Text style={styles.infoText}>
