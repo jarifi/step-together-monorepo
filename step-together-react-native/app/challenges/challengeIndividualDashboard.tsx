@@ -69,20 +69,20 @@ const PENDING_STEPS_KEY = 'step_together_pending_save';
 const DAILY_GOAL_KEY = 'step_together_daily_goal';
 const DEFAULT_GOAL = 8000;
 const GOAL_MESSAGES = [
-  'Na endlich.',
-  'Gut gemacht. Für deine Verhältnisse.',
-  'Hätte früher auch nicht geschadet.',
-  'Super. Jetzt jeden Tag so.',
-  'Immerhin.',
-  'Wenigstens das.',
-  'Morgen auch bitte.',
-  "Ich sag's ungern, aber: gut.",
-  'Heute ausnahmsweise mal: Respekt.',
-  'Okay. Reicht.',
-  'lowkey impressed ngl.',
-  'Niemand hat damit gerechnet. Wirklich niemand.',
-  'Heute mal kein Versagen. Schön.',
-  'Dein Therapeut wäre stolz.',
+    'Na endlich.',
+    'Gut gemacht. Für deine Verhältnisse.',
+    'Hätte früher auch nicht geschadet.',
+    'Super. Jetzt jeden Tag so.',
+    'Immerhin.',
+    'Wenigstens das.',
+    'Morgen auch bitte.',
+    "Ich sag's ungern, aber: gut.",
+    'Heute ausnahmsweise mal: Respekt.',
+    'Okay. Reicht.',
+    'lowkey impressed ngl.',
+    'Niemand hat damit gerechnet. Wirklich niemand.',
+    'Heute mal kein Versagen. Schön.',
+    'Dein Therapeut wäre stolz.',
 ];
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
@@ -948,7 +948,9 @@ const IndividualDashboard: React.FC = () => {
                                     <Text style={[styles.font, { fontSize: 11, color: '#5A8B6A', fontWeight: '700', letterSpacing: 0.8 }]}>SESSION</Text>
                                 </View>
                                 <Text style={[styles.font, { fontSize: 30, fontWeight: '800', color: '#2F6B45', lineHeight: 34 }]}>
-                                    {pedometer.sessionSteps.toLocaleString('de-DE')}
+                                    {Number.isFinite(Number(pedometer.sessionSteps))
+                                        ? Number(pedometer.sessionSteps).toLocaleString('de-DE')
+                                        : '0'}
                                 </Text>
                                 <Text style={[styles.font, { fontSize: 12, color: '#7FA88C', marginTop: 2 }]}>Schritte</Text>
                             </View>

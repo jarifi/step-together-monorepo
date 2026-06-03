@@ -1,13 +1,18 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+﻿import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Pedometer } from 'expo-sensors';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, PermissionsAndroid, Platform } from 'react-native';
 
 const PEDOMETER_SESSION_KEY = 'step_together_pedometer_session';
 
 type PedometerSession = {
     isTracking: boolean;
-    sessionStartTime: number;
+    // Steps accumulated in previous subscription windows (e.g. after app restore).
+    // watchStepCount resets its counter each time a new subscription starts, so we
+    // carry over whatever was already counted before the current subscription began.
+    stepOffset?: number;
+    // Legacy key from previous implementation.
+    sessionStartTime?: number;
     baseSteps: number;
     challengeId: number;
     dateISO: string;
@@ -31,7 +36,7 @@ const PedometerContext = createContext<PedometerContextType>({
     dateISO: null,
     baseSteps: 0,
     isPedometerAvailable: null,
-    startTracking: async () => {},
+    startTracking: async () => { },
     stopTracking: async () => ({ sessionSteps: 0 }),
 });
 
@@ -45,44 +50,83 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [baseSteps, setBaseSteps] = useState(0);
     const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
 
-    const sessionStartTimeRef = useRef<number | null>(null);
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const subscriptionRef = useRef<ReturnType<typeof Pedometer.watchStepCount> | null>(null);
     const isMountedRef = useRef(true);
     const isTrackingRef = useRef(false);
     isTrackingRef.current = isTracking;
 
-    const readSteps = useCallback(async (): Promise<number> => {
-        if (!sessionStartTimeRef.current) return 0;
+    // Steps counted before the current watchStepCount window.
+    // watchStepCount resets to 0 on each new subscription, so we track the
+    // cumulative offset from previous windows here.
+    const stepOffsetRef = useRef(0);
+
+    const toSafeStepNumber = useCallback((value: unknown) => {
+        const num = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(num) || num < 0) return 0;
+        return Math.floor(num);
+    }, []);
+
+    const ensureActivityPermission = useCallback(async () => {
+        if (Platform.OS !== 'android') return true;
+        if (typeof Platform.Version === 'number' && Platform.Version < 29) return true;
+
         try {
-            const result = await Pedometer.getStepCountAsync(
-                new Date(sessionStartTimeRef.current),
-                new Date()
+            const granted = await PermissionsAndroid.check(
+                PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
             );
-            return result.steps;
+            if (granted) return true;
         } catch {
-            return 0;
+            // Continue with other permission methods below.
+        }
+
+        try {
+            const result = await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
+                {
+                    title: 'Aktivitaetserkennung erlauben',
+                    message: 'Step Together braucht Aktivitaetserkennung, um Schritte zu tracken.',
+                    buttonNegative: 'Ablehnen',
+                    buttonPositive: 'Erlauben',
+                },
+            );
+            if (result === PermissionsAndroid.RESULTS.GRANTED) return true;
+        } catch {
+            // Continue with Expo pedometer permission fallback.
+        }
+
+        try {
+            const pedometerApi = Pedometer as unknown as {
+                requestPermissionsAsync?: () => Promise<{ status?: string }>;
+            };
+            if (pedometerApi.requestPermissionsAsync) {
+                const res = await pedometerApi.requestPermissionsAsync();
+                return res?.status === 'granted';
+            }
+        } catch {
+            return false;
+        }
+
+        return false;
+    }, []);
+
+    const stopSubscription = useCallback(() => {
+        if (subscriptionRef.current) {
+            subscriptionRef.current.remove();
+            subscriptionRef.current = null;
         }
     }, []);
 
-    const startPoll = useCallback(() => {
-        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        // immediate first read
-        readSteps().then((steps) => {
-            if (isMountedRef.current) setSessionSteps(steps);
+    const startSubscription = useCallback((offset: number) => {
+        stopSubscription();
+        stepOffsetRef.current = toSafeStepNumber(offset);
+
+        subscriptionRef.current = Pedometer.watchStepCount((result) => {
+            if (isMountedRef.current) {
+                const liveSteps = toSafeStepNumber(result?.steps);
+                setSessionSteps(stepOffsetRef.current + liveSteps);
+            }
         });
-        pollIntervalRef.current = setInterval(async () => {
-            if (!isTrackingRef.current) return;
-            const steps = await readSteps();
-            if (isMountedRef.current) setSessionSteps(steps);
-        }, 3000);
-    }, [readSteps]);
-
-    const stopPoll = useCallback(() => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-        }
-    }, []);
+    }, [stopSubscription, toSafeStepNumber]);
 
     // Restore session from AsyncStorage on mount
     useEffect(() => {
@@ -90,24 +134,30 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const restore = async () => {
             try {
+                const hasPermission = await ensureActivityPermission();
                 const available = await Pedometer.isAvailableAsync();
-                if (isMountedRef.current) setIsPedometerAvailable(available);
+                if (isMountedRef.current) setIsPedometerAvailable(available && hasPermission);
 
                 const raw = await AsyncStorage.getItem(PEDOMETER_SESSION_KEY);
                 if (!raw) return;
                 const session: PedometerSession = JSON.parse(raw);
                 if (!session.isTracking) return;
+                if (!hasPermission || !available) {
+                    await AsyncStorage.removeItem(PEDOMETER_SESSION_KEY);
+                    return;
+                }
+                const restoredOffset = toSafeStepNumber(session.stepOffset);
 
-                sessionStartTimeRef.current = session.sessionStartTime;
                 if (isMountedRef.current) {
                     setIsTracking(true);
                     setChallengeId(session.challengeId);
                     setDateISO(session.dateISO);
                     setBaseSteps(session.baseSteps);
-                    startPoll();
+                    setSessionSteps(restoredOffset);
+                    startSubscription(restoredOffset);
                 }
             } catch {
-                // corrupt storage — ignore
+                // corrupt storage --- ignore
             }
         };
 
@@ -115,34 +165,72 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         return () => {
             isMountedRef.current = false;
-            stopPoll();
+            stopSubscription();
         };
-    }, [startPoll, stopPoll]);
+    }, [startSubscription, stopSubscription, toSafeStepNumber, ensureActivityPermission]);
 
-    // Pause/resume polling based on app foreground state
+    // When the app goes to background: save accumulated steps and stop the
+    // subscription (Android kills sensors in the background).
+    // When it comes back to foreground: restart from saved offset.
     useEffect(() => {
         const sub = AppState.addEventListener('change', (state) => {
             if (!isTrackingRef.current) return;
+
             if (state === 'active') {
-                startPoll();
+                // sessionSteps state already holds the persisted offset
+                setSessionSteps((prev) => {
+                    const safePrev = toSafeStepNumber(prev);
+                    startSubscription(safePrev);
+                    return safePrev;
+                });
             } else {
-                stopPoll();
+                // Capture current count, persist it, then stop subscription
+                setSessionSteps((prev) => {
+                    const safePrev = toSafeStepNumber(prev);
+                    setChallengeId((cId) => {
+                        setDateISO((dISO) => {
+                            setBaseSteps((base) => {
+                                if (cId !== null && dISO !== null) {
+                                    const session: PedometerSession = {
+                                        isTracking: true,
+                                        stepOffset: safePrev,
+                                        baseSteps: base,
+                                        challengeId: cId,
+                                        dateISO: dISO,
+                                    };
+                                    AsyncStorage.setItem(
+                                        PEDOMETER_SESSION_KEY,
+                                        JSON.stringify(session),
+                                    ).catch(() => { });
+                                }
+                                return base;
+                            });
+                            return dISO;
+                        });
+                        return cId;
+                    });
+                    stopSubscription();
+                    return safePrev;
+                });
             }
         });
         return () => sub.remove();
-    }, [startPoll, stopPoll]);
+    }, [startSubscription, stopSubscription, toSafeStepNumber]);
 
     const startTracking = useCallback(async (base: number, cId: number, dISO: string) => {
+        const hasPermission = await ensureActivityPermission();
+        if (!hasPermission) {
+            setIsPedometerAvailable(false);
+            throw new Error('Aktivitaetserkennung nicht erlaubt');
+        }
+
         const available = await Pedometer.isAvailableAsync();
         setIsPedometerAvailable(available);
-        if (!available) throw new Error('Pedometer nicht verfügbar');
-
-        const now = Date.now();
-        sessionStartTimeRef.current = now;
+        if (!available) throw new Error('Pedometer nicht verfuegbar');
 
         const session: PedometerSession = {
             isTracking: true,
-            sessionStartTime: now,
+            stepOffset: 0,
             baseSteps: base,
             challengeId: cId,
             dateISO: dISO,
@@ -154,26 +242,31 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setChallengeId(cId);
         setDateISO(dISO);
         setBaseSteps(base);
-        startPoll();
-    }, [startPoll]);
+        startSubscription(0);
+    }, [startSubscription, ensureActivityPermission]);
 
     const stopTracking = useCallback(async () => {
-        stopPoll();
+        stopSubscription();
 
-        // Final authoritative read before clearing the start time
-        const finalSteps = await readSteps();
-        sessionStartTimeRef.current = null;
+        // Capture the final value from state
+        const finalSteps = await new Promise<number>((resolve) => {
+            setSessionSteps((prev) => {
+                const safePrev = toSafeStepNumber(prev);
+                resolve(safePrev);
+                return 0;
+            });
+        });
 
         await AsyncStorage.removeItem(PEDOMETER_SESSION_KEY);
 
         setIsTracking(false);
-        setSessionSteps(0);
         setChallengeId(null);
         setDateISO(null);
         setBaseSteps(0);
+        stepOffsetRef.current = 0;
 
         return { sessionSteps: finalSteps };
-    }, [stopPoll, readSteps]);
+    }, [stopSubscription]);
 
     return (
         <PedometerContext.Provider value={{
