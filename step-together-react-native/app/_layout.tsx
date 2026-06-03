@@ -198,6 +198,7 @@ const contentTopPadding = useMemo(
       await AsyncStorage.setItem(SHOWN_POPUP_KEY, JSON.stringify([...shown]));
 
       const challenge = await getChallengeById(newInvite.challengeId ?? newInvite.challenge_id);
+      if (!challenge) return;
       showAlertRef.current(
         challenge,
         newInvite.id,

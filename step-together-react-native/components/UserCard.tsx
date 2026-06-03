@@ -3,7 +3,34 @@ import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Avatar from '../components/Avatar';
 
-export default function UserCard({ user, onUpdate, onDelete, onVerify, onUnlock }) {
+interface User {
+  id?: number | string;
+  name?: string;
+  email?: string;
+  isVerified?: boolean;
+  is_verified?: boolean;
+  verified?: boolean;
+  failedLoginAttempts?: number;
+  failed_login_attempts?: number;
+}
+
+interface UserCardProps {
+  user: User;
+  onUpdate?: () => void;
+  onDelete?: () => void;
+  onVerify?: (user: User) => void;
+  onUnlock?: (user: User) => void;
+}
+
+interface ActionButtonProps {
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  label: string;
+  color: string;
+  bg: string;
+  onPress: () => void;
+}
+
+export default function UserCard({ user, onUpdate, onDelete, onVerify, onUnlock }: UserCardProps) {
   const [modalVisible, setModalVisible] = useState(false);
 
   const name = user?.name ?? '—';
@@ -130,7 +157,7 @@ export default function UserCard({ user, onUpdate, onDelete, onVerify, onUnlock 
   );
 }
 
-function ActionButton({ icon, label, color, bg, onPress }) {
+function ActionButton({ icon, label, color, bg, onPress }: ActionButtonProps) {
   return (
     <Pressable
       onPress={onPress}

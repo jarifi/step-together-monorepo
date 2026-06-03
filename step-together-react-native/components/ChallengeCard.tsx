@@ -1,29 +1,59 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 const TEAM_COLOR = '#55805c';
 const IND_COLOR = '#D4650A';
 
-const shadow = Platform.select({
+const shadow: ViewStyle = Platform.select({
   ios: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 5 } },
   android: { elevation: 4 },
   default: {},
-});
+}) ?? {};
 
-const fmt = (s) => {
+const fmt = (s: string | undefined): string => {
   if (!s) return '—';
   const d = new Date(s);
-  return isNaN(d) ? '—' : d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: '2-digit' });
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: '2-digit' });
 };
 
-const getStatus = (stateRaw) => {
+interface StatusConfig {
+  color: string;
+  bg: string;
+  text: string;
+}
+
+const getStatus = (stateRaw: string | undefined): StatusConfig => {
   const state = (stateRaw ?? '').toLowerCase();
   if (state === 'open') return { color: '#22c55e', bg: 'rgba(34,197,94,0.12)', text: 'Aktiv' };
   if (state === 'incoming') return { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', text: 'Bevorstehend' };
   if (state === 'closed') return { color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', text: 'Beendet' };
   return { color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', text: 'Unbekannt' };
 };
+
+interface Challenge {
+  state?: string;
+  mode?: string;
+  name?: string;
+  startLocation?: string;
+  targetLocation?: string;
+  startDate?: string;
+  endDate?: string;
+  distance?: number;
+  participantCount?: number;
+  teamCount?: number;
+}
+
+interface ChallengeCardProps {
+  challenge: Challenge;
+  onUpdate?: () => void;
+  onDelete?: () => void;
+  onPress?: (challenge: Challenge) => void;
+  showActions?: boolean;
+  onAccept?: () => void;
+  onDecline?: () => void;
+  isPending?: boolean;
+}
 
 const ChallengeCard = ({
   challenge,
@@ -34,7 +64,7 @@ const ChallengeCard = ({
   onAccept,
   onDecline,
   isPending,
-}) => {
+}: ChallengeCardProps) => {
   const [modalVisible, setModalVisible] = useState(false);
   const status = useMemo(() => getStatus(challenge?.state), [challenge?.state]);
 

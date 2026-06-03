@@ -27,6 +27,7 @@ export const getChallengeById = async (id) => {
   try {
     return await apiGet(`/challenges/${id}`);
   } catch (err) {
+    if (err?.status === 404) return null;
     console.error('Error fetching challenge by id:', err);
     throw err;
   }

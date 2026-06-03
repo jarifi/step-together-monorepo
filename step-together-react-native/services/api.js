@@ -223,6 +223,8 @@ const authedFetch = async (path, options = {}, retry = true) => {
     err.payload = payload;
     if (isUnauthorizedStatus(err.status)) {
       console.warn('🟠 [API] unauthorized:', err.status, payload);
+    } else if (err.status === 404) {
+      console.warn('🟡 [API] not found:', err.status, JSON.stringify(payload));
     } else {
       console.error('🔴 [API] request failed:', err.status, JSON.stringify(payload));
     }
