@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ChallengeCard from '../../components/ChallengeCard';
+import { getUserRole } from '../../lib/auth';
 import {
   deleteChallenge,
   getActiveParticipantsCounts,
@@ -85,8 +86,10 @@ export default function AllChallengesScreen() {
   const loadChallenges = async () => {
     setLoadingInitial(true);
     try {
+      const role = await getUserRole();
       const data = await getMyChallenges();
-      const safe: Challenge[] = Array.isArray(data) ? data : [];
+      const all: Challenge[] = Array.isArray(data) ? data : [];
+      const safe = role === 'admin' ? all.filter((c) => c.mode === 'individual') : all;
 
       const count = await getActiveParticipantsCounts();
       const countMap: Record<string | number, number> = {};
