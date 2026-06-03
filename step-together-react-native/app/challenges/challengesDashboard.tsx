@@ -13,12 +13,9 @@ import {
 } from 'react-native';
 
 import {
-  acceptChallengeInvite,
-  declineChallengeInvite,
   getChallengeParticipants,
   getChallengeTeams,
   getMyActiveChallenges,
-  getMyInvites,
 } from '../../services/challengeService';
 
 const TEAM = '#1B7A42';
@@ -41,25 +38,48 @@ const shadow = Platform.select({
   default: {},
 });
 
-const asArray = (x) => {
+interface RawChallenge {
+  id: number | string;
+  name?: string;
+  mode?: string;
+  challenge_mode?: string;
+  type?: string;
+  state?: string;
+  startDate?: string;
+  start_date?: string;
+  endDate?: string;
+  startLocation?: string;
+  targetLocation?: string;
+  distance?: number;
+  distanceKm?: number;
+  teamCount?: number;
+  teamIds?: number[];
+  participantCount?: number;
+  [key: string]: unknown;
+}
+
+type ChallengeItem = RawChallenge;
+
+const asArray = (x: unknown): RawChallenge[] => {
   if (Array.isArray(x)) return x;
-  if (Array.isArray(x?.content)) return x.content;
-  if (Array.isArray(x?.data)) return x.data;
-  if (Array.isArray(x?.challenges)) return x.challenges;
-  if (Array.isArray(x?.teams)) return x.teams;
-  if (Array.isArray(x?.items)) return x.items;
+  if (x && typeof x === 'object') {
+    const o = x as Record<string, unknown>;
+    if (Array.isArray(o.content)) return o.content as RawChallenge[];
+    if (Array.isArray(o.data)) return o.data as RawChallenge[];
+    if (Array.isArray(o.challenges)) return o.challenges as RawChallenge[];
+    if (Array.isArray(o.teams)) return o.teams as RawChallenge[];
+    if (Array.isArray(o.items)) return o.items as RawChallenge[];
+  }
   return [];
 };
 
-const sameId = (a, b) => Number(a) === Number(b);
-
-const fmt = (s) => {
+const fmt = (s: string | undefined): string => {
   if (!s) return '—';
   const d = new Date(s);
-  return isNaN(d) ? '—' : d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
 };
 
-function resolveMode(item) {
+function resolveMode(item: RawChallenge): 'individual' | 'team' {
   const raw = String(item?.mode ?? item?.challenge_mode ?? item?.type ?? '')
     .toLowerCase()
     .trim();
@@ -67,21 +87,24 @@ function resolveMode(item) {
   if (['individual', 'individuell', 'solo'].includes(raw)) return 'individual';
   if (raw === 'team') return 'team';
 
-  if (item?.inviteStatus === 'accepted' || item?.inviteStatus === 'pending') {
-    return 'individual';
-  }
-
-  if (item?.teamCount > 0 || (Array.isArray(item?.teamIds) && item.teamIds.length > 0)) {
+  if (
+    (item?.teamCount != null && item.teamCount > 0) ||
+    (Array.isArray(item?.teamIds) && item.teamIds.length > 0)
+  ) {
     return 'team';
   }
 
   return 'team';
 }
 
-function ChallengeCard({ item, onPress, onAccept, onDecline }) {
+interface ChallengeCardProps {
+  item: ChallengeItem;
+  onPress: () => void;
+}
+
+function ChallengeCard({ item, onPress }: ChallengeCardProps) {
   const mode = resolveMode(item);
   const isInd = mode === 'individual';
-  const isPend = isInd && item?.inviteStatus === 'pending';
 
   const color = isInd ? IND : TEAM;
   const soft = isInd ? 'rgba(212,101,10,0.07)' : 'rgba(27,122,66,0.07)';
@@ -96,8 +119,8 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
 
   return (
     <Pressable
-      onPress={isPend ? undefined : onPress}
-      style={({ pressed }) => [styles.card, !isPend && pressed && styles.cardTap]}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.cardTap]}
     >
       <View style={[styles.stripe, { backgroundColor: color }]} />
 
@@ -105,18 +128,11 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
         <View style={[styles.cardTop, { backgroundColor: soft }]}>
           <View style={styles.cardTopRow}>
             <View style={[styles.modeBadge, { backgroundColor: color }]}>
-              <MaterialIcons name={mIcon} size={11} color="#fff" />
+              <MaterialIcons name={mIcon as any} size={11} color="#fff" />
               <Text style={styles.modeTxt}>{label}</Text>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {isPend && (
-                <View style={styles.invBadge}>
-                  <Ionicons name="notifications" size={11} color="#92400E" />
-                </View>
-              )}
-              <Text style={[styles.kmTxt, { color }]}>{dist} km</Text>
-            </View>
+            <Text style={[styles.kmTxt, { color }]}>{dist} km</Text>
           </View>
 
           <Text style={styles.name} numberOfLines={2}>
@@ -139,11 +155,9 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
               <Text style={styles.dateTxt}>{d1} – {d2}</Text>
             </View>
 
-            {!isPend && (
-              <View style={[styles.goBtn, { backgroundColor: color }]}>
-                <Ionicons name="chevron-forward" size={15} color="#fff" />
-              </View>
-            )}
+            <View style={[styles.goBtn, { backgroundColor: color }]}>
+              <Ionicons name="chevron-forward" size={15} color="#fff" />
+            </View>
           </View>
 
           {isInd
@@ -156,33 +170,13 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
             : item.teamCount != null && (
                 <View style={styles.countRow}>
                   <MaterialIcons name="group" size={13} color={color} />
-                  <Text style={[styles.countTxt, { color }]}>{item.teamCount} {item.teamCount === 1 ? 'Team' : 'Teams'}</Text>
+                  <Text style={[styles.countTxt, { color }]}>
+                    {item.teamCount} {item.teamCount === 1 ? 'Team' : 'Teams'}
+                  </Text>
                 </View>
               )
           }
 
-          {isPend && (
-            <View style={styles.pendBtns}>
-              <Pressable
-                onPress={onDecline}
-                style={({ pressed }) => [styles.btnNo, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.btnNoTxt}>Ablehnen</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={onAccept}
-                style={({ pressed }) => [
-                  styles.btnYes,
-                  { backgroundColor: color },
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <Ionicons name="checkmark" size={14} color="#fff" />
-                <Text style={styles.btnYesTxt}>Annehmen</Text>
-              </Pressable>
-            </View>
-          )}
         </View>
       </View>
     </Pressable>
@@ -190,61 +184,49 @@ function ChallengeCard({ item, onPress, onAccept, onDecline }) {
 }
 
 export default function AllChallengesScreen() {
-  const [challenges, setChallenges] = useState([]);
+  const [challenges, setChallenges] = useState<ChallengeItem[]>([]);
   const [loadingInitial, setLoadingInit] = useState(true);
 
   const router = useRouter();
 
-  const visible = challenges;
-
   const loadChallenges = useCallback(async () => {
     setLoadingInit(true);
     try {
-      const [rawChallenges, rawInvites] = await Promise.all([
-        getMyActiveChallenges(),
-        getMyInvites(),
-      ]);
+      const rawChallenges = await getMyActiveChallenges();
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Only challenges that have already started
       const activeList = asArray(rawChallenges).filter((c) => {
         const state = String(c.state ?? '').toLowerCase();
         if (state === 'open' || state === 'active') return true;
         const start = c.startDate ?? c.start_date;
-        return start ? new Date(start) <= today : false;
+        return start ? new Date(start as string) <= today : false;
       });
 
-      const invites = asArray(rawInvites);
-
-      const enriched = await Promise.all(
+      const enriched: ChallengeItem[] = await Promise.all(
         activeList.map(async (ch) => {
-          const inv = invites.find((i) => sameId(i.challengeId ?? i.challenge_id, ch.id));
-          const base = {
-            inviteStatus: inv?.status ?? ch.inviteStatus ?? null,
-            inviteId: inv?.id ?? null,
-          };
           const mode = resolveMode(ch);
           try {
             if (mode === 'individual') {
               const participants = asArray(await getChallengeParticipants(ch.id));
-              return { ...ch, ...base, participantCount: participants.length };
+              return { ...ch, participantCount: participants.length };
             } else {
               const teams = asArray(await getChallengeTeams(ch.id));
               const teamIds = teams
-                .map((t) => Number(t.id ?? t.teamId ?? t.team_id ?? t.team?.id ?? 0))
+                .map((t) => Number(
+                  (t as any).id ?? (t as any).teamId ?? (t as any).team_id ?? (t as any).team?.id ?? 0
+                ))
                 .filter(Boolean);
-              return { ...ch, ...base, teamCount: teamIds.length, teamIds };
+              return { ...ch, teamCount: teamIds.length, teamIds };
             }
           } catch {
-            return { ...ch, ...base, teamCount: 0, teamIds: [], participantCount: 0 };
+            return { ...ch, teamCount: 0, teamIds: [], participantCount: 0 };
           }
         })
       );
 
-      // Exclude declined and still-pending invites — dashboard = active participation only
-      setChallenges(enriched.filter((c) => c.inviteStatus !== 'declined' && c.inviteStatus !== 'pending'));
+      setChallenges(enriched);
     } catch (e) {
       console.error('Failed to load challenges:', e);
       setChallenges([]);
@@ -256,29 +238,10 @@ export default function AllChallengesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadChallenges();
-      return () => {};
     }, [loadChallenges])
   );
 
-  const handleAccept = async (cId, iId) => {
-    try {
-      await acceptChallengeInvite(cId, iId);
-      loadChallenges();
-    } catch (e) {
-      console.error('[accept failed]', e);
-    }
-  };
-
-  const handleDecline = async (cId, iId) => {
-    try {
-      await declineChallengeInvite(cId, iId);
-      loadChallenges();
-    } catch (e) {
-      console.error('[decline failed]', e);
-    }
-  };
-
-  const handlePress = (item) => {
+  const handlePress = (item: ChallengeItem) => {
     const mode = resolveMode(item);
 
     const params = {
@@ -312,8 +275,8 @@ export default function AllChallengesScreen() {
 
   return (
     <View style={styles.screen}>
-      <FlatList
-        data={visible}
+      <FlatList<ChallengeItem>
+        data={challenges}
         keyExtractor={(it) => String(it?.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
@@ -331,9 +294,9 @@ export default function AllChallengesScreen() {
                   </Text>
                 </View>
 
-                {visible.length > 0 && (
+                {challenges.length > 0 && (
                   <View style={styles.countBadge}>
-                    <Text style={[styles.countNum, { color: TEAM }]}>{visible.length}</Text>
+                    <Text style={[styles.countNum, { color: TEAM }]}>{challenges.length}</Text>
                     <Text style={styles.countSub}>aktiv</Text>
                   </View>
                 )}
@@ -359,8 +322,6 @@ export default function AllChallengesScreen() {
           <ChallengeCard
             item={item}
             onPress={() => handlePress(item)}
-            onAccept={() => handleAccept(item.id, item.inviteId)}
-            onDecline={() => handleDecline(item.id, item.inviteId)}
           />
         )}
         ListEmptyComponent={
@@ -479,19 +440,6 @@ const styles = StyleSheet.create({
   },
   modeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
-  invBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(234,179,8,0.13)',
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(234,179,8,0.25)',
-  },
-  invTxt: { fontSize: 11, fontWeight: '700', color: '#92400E' },
-
   kmTxt: { fontSize: 13, fontWeight: '800' },
 
   name: { fontSize: 16, fontWeight: '700', color: TEXT, lineHeight: 21 },
@@ -525,28 +473,6 @@ const styles = StyleSheet.create({
 
   countRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   countTxt: { fontSize: 12, fontWeight: '600' },
-
-  pendBtns: { flexDirection: 'row', gap: 8 },
-  btnNo: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 11,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderWidth: 1,
-    borderColor: BORD,
-  },
-  btnNoTxt: { fontSize: 13, fontWeight: '700', color: SUB },
-  btnYes: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  btnYesTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   empty: { marginTop: 60, alignItems: 'center', paddingHorizontal: 32 },
   emptyCircle: {

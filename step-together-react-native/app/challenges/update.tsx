@@ -34,17 +34,30 @@ const COLORS = {
   danger: '#B91C1C',
 };
 
-const toStr = (v) => (Array.isArray(v) ? v[0] : v ?? '');
+interface Team {
+  id: number;
+  name: string;
+}
 
-const toYmd = (v) => {
+interface CalendarCell {
+  date: Date;
+  inMonth: boolean;
+  selectable: boolean;
+}
+
+const toStr = (v: string | string[] | undefined): string =>
+  Array.isArray(v) ? v[0] : v ?? '';
+
+const toYmd = (v: string | string[] | undefined): string => {
   if (!v) return '';
   const s = String(toStr(v));
   return s.includes('T') ? s.split('T')[0] : s;
 };
 
-const isValidHHMM = (t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t ?? '').trim());
+const isValidHHMM = (t: string | undefined): boolean =>
+  /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t ?? '').trim());
 
-const toHHmm = (v, fallback = '08:00') => {
+const toHHmm = (v: string | string[] | undefined, fallback = '08:00'): string => {
   const s = String(toStr(v));
   if (!s) return fallback;
 
@@ -61,37 +74,40 @@ const toHHmm = (v, fallback = '08:00') => {
   return fallback;
 };
 
-const localDateTimeToUtcIso = (ymd, hhmm) => {
+const localDateTimeToUtcIso = (ymd: string, hhmm: string): string => {
   const [y, m, d] = String(ymd).split('-').map(Number);
   const [hh, mm] = String(hhmm).split(':').map(Number);
   const local = new Date(y, m - 1, d, hh, mm, 0, 0);
   return local.toISOString();
 };
 
-const stripTime = (date) => {
+const stripTime = (date: Date): Date => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
 };
 
-const firstOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
-const sameDay = (a, b) => stripTime(a).getTime() === stripTime(b).getTime();
+const firstOfMonth = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), 1);
 
-const formatLocalYMD = (d) => {
+const sameDay = (a: Date, b: Date): boolean =>
+  stripTime(a).getTime() === stripTime(b).getTime();
+
+const formatLocalYMD = (d: Date): string => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
 
-const parseLocalYMD = (s) => {
+const parseLocalYMD = (s: string): Date | null => {
   if (!s) return null;
   const [y, m, d] = s.split('-').map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 };
 
-const parseInitialTeamIds = (value) => {
+const parseInitialTeamIds = (value: string | string[] | undefined): number[] => {
   if (!value) return [];
 
   if (Array.isArray(value)) {
@@ -132,21 +148,25 @@ export default function UpdateChallengeScreen() {
 
   const [loading, setLoading] = useState(false);
 
-  const [availableTeams, setAvailableTeams] = useState([]);
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
   const [selectedTeamsLoading, setSelectedTeamsLoading] = useState(true);
-  const [selectedTeamIds, setSelectedTeamIds] = useState(parseInitialTeamIds(params.teamIds));
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>(
+    parseInitialTeamIds(params.teamIds)
+  );
   const [teamModalOpen, setTeamModalOpen] = useState(false);
   const [teamSearch, setTeamSearch] = useState('');
 
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarType, setCalendarType] = useState('start');
+  const [calendarType, setCalendarType] = useState<'start' | 'end'>('start');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarPick, setCalendarPick] = useState(new Date());
 
-  const FieldLabel = ({ children }) => <Text style={styles.label}>{children}</Text>;
+  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <Text style={styles.label}>{children}</Text>
+  );
 
-  const showError = (msg) => {
+  const showError = (msg: string) => {
     Toast.show({
       type: 'error',
       text1: 'Error',
@@ -166,13 +186,15 @@ export default function UpdateChallengeScreen() {
 
         if (!mounted) return;
 
-        const mapped = (Array.isArray(data) ? data : [])
-          .map((team) => ({
+        const mapped: Team[] = (Array.isArray(data) ? data : [])
+          .map((team: { id: number | string; name?: string }) => ({
             id: Number(team.id),
             name: team.name ?? `Team ${team.id}`,
           }))
-          .filter((team) => team.id)
-          .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+          .filter((team: Team) => team.id)
+          .sort((a: Team, b: Team) =>
+            a.name.localeCompare(b.name, 'de', { sensitivity: 'base' })
+          );
 
         setAvailableTeams(mapped);
       } catch (error) {
@@ -203,8 +225,8 @@ export default function UpdateChallengeScreen() {
         setSelectedTeamsLoading(true);
 
         const data = await getChallengeTeams(challengeId);
-        const ids = Array.isArray(data)
-          ? data.map((team) => Number(team.id)).filter(Boolean)
+        const ids: number[] = Array.isArray(data)
+          ? data.map((team: { id: number | string }) => Number(team.id)).filter(Boolean)
           : [];
 
         if (mounted) setSelectedTeamIds(ids);
@@ -226,11 +248,11 @@ export default function UpdateChallengeScreen() {
     };
   }, [challengeId, params.teamIds]);
 
-  const selectedTeams = useMemo(() => {
+  const selectedTeams = useMemo<Team[]>(() => {
     return availableTeams.filter((team) => selectedTeamIds.includes(team.id));
   }, [availableTeams, selectedTeamIds]);
 
-  const filteredTeamResults = useMemo(() => {
+  const filteredTeamResults = useMemo<Team[]>(() => {
     const q = teamSearch.trim().toLowerCase();
 
     const sorted = [...availableTeams].sort((a, b) => {
@@ -249,13 +271,13 @@ export default function UpdateChallengeScreen() {
     });
   }, [availableTeams, selectedTeamIds, teamSearch]);
 
-  const toggleTeam = (teamId) => {
+  const toggleTeam = (teamId: number) => {
     setSelectedTeamIds((prev) =>
       prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
     );
   };
 
-  const openCalendar = (type) => {
+  const openCalendar = (type: 'start' | 'end') => {
     setCalendarType(type);
 
     const current =
@@ -282,13 +304,13 @@ export default function UpdateChallengeScreen() {
     year: 'numeric',
   });
 
-  const calendarGrid = useMemo(() => {
+  const calendarGrid = useMemo<CalendarCell[]>(() => {
     const first = firstOfMonth(calendarMonth);
     const firstDayOfWeek = (first.getDay() + 6) % 7;
     const start = new Date(first);
     start.setDate(first.getDate() - firstDayOfWeek);
 
-    const cells = [];
+    const cells: CalendarCell[] = [];
     for (let i = 0; i < 42; i++) {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
@@ -350,7 +372,9 @@ export default function UpdateChallengeScreen() {
       return;
     }
 
-    const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors].filter(Boolean);
+    const allErrors = [...nameErrors, ...locationErrors, ...distanceErrors, ...dateErrors].filter(
+      Boolean
+    );
     if (allErrors.length > 0) {
       allErrors.forEach((error, i) => setTimeout(() => showError(error), i * 900));
       return;
@@ -377,9 +401,10 @@ export default function UpdateChallengeScreen() {
         topOffset: 100,
       });
       router.replace('/challenges');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
-      showError(error?.message || 'Challenge konnte nicht aktualisiert werden!');
+      const message = error instanceof Error ? error.message : 'Challenge konnte nicht aktualisiert werden!';
+      showError(message);
     } finally {
       setLoading(false);
     }
@@ -446,7 +471,9 @@ export default function UpdateChallengeScreen() {
           >
             <View style={styles.selectorLeft}>
               <Ionicons name="people-outline" size={18} color={COLORS.accent} />
-              <Text style={[styles.selectorText, selectedTeams.length === 0 && styles.selectorPlaceholder]}>
+              <Text
+                style={[styles.selectorText, selectedTeams.length === 0 && styles.selectorPlaceholder]}
+              >
                 {teamsLoading || selectedTeamsLoading
                   ? 'Teams werden geladen...'
                   : selectedTeams.length > 0
@@ -524,7 +551,11 @@ export default function UpdateChallengeScreen() {
             <Pressable
               onPress={() => router.back()}
               disabled={loading}
-              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed, loading && styles.disabled]}
+              style={({ pressed }) => [
+                styles.secondaryBtn,
+                pressed && styles.pressed,
+                loading && styles.disabled,
+              ]}
             >
               <Text style={styles.secondaryBtnText}>Abbrechen</Text>
             </Pressable>
@@ -701,7 +732,7 @@ export default function UpdateChallengeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 28 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 60 },
 
   headerCard: {
     backgroundColor: COLORS.surface,

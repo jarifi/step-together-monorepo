@@ -28,22 +28,71 @@ const C = {
   primaryLight: 'rgba(30,92,58,0.10)',
 };
 
-const STATUS_CONFIG = {
+type InviteStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
+
+interface StatusConfig {
+  icon: string;
+  color: string;
+  label: string;
+}
+
+const STATUS_CONFIG: Record<InviteStatus, StatusConfig> = {
   pending:   { icon: 'time-outline',           color: '#F59E0B', label: 'Ausstehend'  },
   accepted:  { icon: 'checkmark-circle',        color: '#22C55E', label: 'Angenommen'  },
   declined:  { icon: 'close-circle',            color: '#EF4444', label: 'Abgelehnt'   },
   cancelled: { icon: 'remove-circle-outline',   color: '#9CA3AF', label: 'Abgebrochen' },
 };
 
-function getInitials(user) {
+interface User {
+  id?: number | string;
+  name?: string;
+  username?: string;
+  email?: string;
+}
+
+interface Invite {
+  id?: number | string;
+  status?: string;
+  inviteeUserId?: number | string;
+  invitee_user_id?: number | string;
+  inviteeId?: number | string;
+  invitee_id?: number | string;
+}
+
+interface InviteRowData {
+  invite: Invite;
+  user: User | null;
+}
+
+interface TeamData {
+  id: number | string;
+  name?: string;
+  totalSteps?: number;
+}
+
+interface Challenge {
+  id?: number | string;
+  name?: string;
+  distance?: number;
+  state?: string;
+  mode?: string;
+  startLocation?: string;
+  start_location?: string;
+  targetLocation?: string;
+  target_location?: string;
+  creator_id?: number | string;
+  creatorId?: number | string;
+}
+
+function getInitials(user: User | null | undefined): string {
   const s = user?.name ?? user?.username ?? user?.email ?? '?';
   return s.slice(0, 2).toUpperCase();
 }
 
-function InviteRow({ invite, user }) {
+function InviteRow({ invite, user }: { invite: Invite; user: User | null }) {
   const avatarUri = getDisplayAvatarUri(user);
-  const status = (invite?.status ?? 'pending').toLowerCase();
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+  const status = ((invite?.status ?? 'pending').toLowerCase()) as InviteStatus;
+  const cfg: StatusConfig = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   const displayName = user?.name ?? user?.username ?? user?.email ?? `User ${invite?.inviteeUserId}`;
   const subtitle = user?.email ?? '';
 
@@ -65,7 +114,7 @@ function InviteRow({ invite, user }) {
         </View>
       </View>
       <View style={[styles.statusBadge, { backgroundColor: cfg.color + '22' }]}>
-        <Ionicons name={cfg.icon} size={15} color={cfg.color} />
+        <Ionicons name={cfg.icon as any} size={15} color={cfg.color} />
         <Text style={[styles.statusLabel, { color: cfg.color }]}>{cfg.label}</Text>
       </View>
     </View>
@@ -76,12 +125,12 @@ export default function ChallengeDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
-  const [challenge, setChallenge] = useState(null);
-  const [teams, setTeams] = useState([]);
-  const [inviteRows, setInviteRows] = useState([]);
-  const [invitesError, setInvitesError] = useState(null);
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const [teams, setTeams] = useState<TeamData[]>([]);
+  const [inviteRows, setInviteRows] = useState<InviteRowData[]>([]);
+  const [invitesError, setInvitesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState<number | string | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -100,8 +149,8 @@ export default function ChallengeDetailsScreen() {
 
         if (challengeData?.mode === 'individual') {
           try {
-            const invites = await getChallengeInvites(challengeId);
-            const rows = await Promise.all(
+            const invites: Invite[] = await getChallengeInvites(challengeId);
+            const rows: InviteRowData[] = await Promise.all(
               invites.map(async (invite) => {
                 const userId =
                   invite?.inviteeUserId ??
@@ -113,10 +162,11 @@ export default function ChallengeDetailsScreen() {
               })
             );
             setInviteRows(rows);
-          } catch (err) {
+          } catch (err: unknown) {
             console.error('Failed to load invites:', err);
+            const e = err as { status?: number; message?: string };
             setInvitesError(
-              `Einladungen konnten nicht geladen werden (${err?.status ?? '?'}: ${err?.message ?? 'Fehler'})`
+              `Einladungen konnten nicht geladen werden (${e?.status ?? '?'}: ${e?.message ?? 'Fehler'})`
             );
           }
         } else {
@@ -133,7 +183,7 @@ export default function ChallengeDetailsScreen() {
     load();
   }, [id]);
 
-  const sortedTeams = useMemo(() => {
+  const sortedTeams = useMemo<TeamData[]>(() => {
     if (!Array.isArray(teams)) return [];
     return [...teams].sort((a, b) => {
       const diff = (b.totalSteps ?? 0) - (a.totalSteps ?? 0);
@@ -141,7 +191,7 @@ export default function ChallengeDetailsScreen() {
     });
   }, [teams]);
 
-  const stepsToKm = (steps) => (steps * 0.0008).toFixed(2);
+  const stepsToKm = (steps: number): string => (steps * 0.0008).toFixed(2);
 
   const state = String(challenge?.state ?? '').trim().toLowerCase();
   const isUpcoming = ['upcoming', 'not_started', 'scheduled', 'future'].includes(state);
@@ -539,7 +589,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // Invite rows
   inviteRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -597,7 +646,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Team rows
   teamRow: {
     flexDirection: 'row',
     alignItems: 'center',

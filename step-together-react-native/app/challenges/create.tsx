@@ -17,18 +17,28 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from 'react-native';
 import { createBulkChallengeInvites, createChallenge } from '../../services/challengeService';
 import { getAllTeams } from '../../services/teamService';
 import { getDisplayAvatarUri, getUsers, searchUsers } from '../../services/userService';
 
-function extractErrorMessage(err) {
+interface AppError {
+  payload?: { message?: string; detail?: string | Array<{ msg?: string }> } | string;
+  message?: string;
+  status?: number;
+  name?: string;
+}
+
+function extractErrorMessage(err: AppError): string {
   const p = err?.payload;
   if (p) {
-    if (typeof p.message === 'string' && p.message) return p.message;
-    if (typeof p.detail === 'string' && p.detail) return p.detail;
-    if (Array.isArray(p.detail))
-      return p.detail.map(d => d.msg || JSON.stringify(d)).join(' · ');
+    if (typeof p === 'object') {
+      if (typeof p.message === 'string' && p.message) return p.message;
+      if (typeof p.detail === 'string' && p.detail) return p.detail;
+      if (Array.isArray(p.detail))
+        return p.detail.map((d) => d.msg || JSON.stringify(d)).join(' · ');
+    }
     if (typeof p === 'string') return p;
   }
   const m = err?.message;
@@ -39,7 +49,7 @@ function extractErrorMessage(err) {
   if (s === 403) return 'Keine Berechtigung für diese Aktion.';
   if (s === 404) return 'Ressource nicht gefunden.';
   if (s === 422) return 'Eingabefehler. Bitte alle Felder korrekt ausfüllen.';
-  if (s >= 500) return 'Serverfehler. Bitte später erneut versuchen.';
+  if (s != null && s >= 500) return 'Serverfehler. Bitte später erneut versuchen.';
   if (err?.name === 'TypeError') return 'Netzwerkfehler. Bitte Internetverbindung prüfen.';
   return 'Unbekannter Fehler. Bitte erneut versuchen.';
 }
@@ -83,69 +93,75 @@ const MONTHS_DE = [
 ];
 const DAYS_DE = ['Mo','Di','Mi','Do','Fr','Sa','So'];
 
-function today() {
+function today(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function sameDay(a, b) {
-  return a && b &&
+function sameDay(a: Date | null, b: Date | null): boolean {
+  return !!(a && b &&
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
+    a.getDate() === b.getDate());
 }
 
-function fmtDate(d) {
+function fmtDate(d: Date | null): string {
   if (!d) return '';
   return d.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function fmtTime(d) {
+function fmtTime(d: Date | null): string {
   if (!d) return '';
   return d.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
 }
 
-function fmtDateShort(d) {
+function fmtDateShort(d: Date | null): string {
   if (!d) return '—';
   return `${fmtDate(d)}  ${fmtTime(d)}`;
 }
 
-function daysBetween(a, b) {
+function daysBetween(a: Date | null, b: Date | null): number | null {
   if (!a || !b) return null;
-  const n = Math.round((b - a) / 86400000);
+  const n = Math.round((b.getTime() - a.getTime()) / 86400000);
   return n > 0 ? n : null;
 }
 
-function calDaysInMonth(year, month) {
+function calDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function calFirstWeekday(year, month) {
+function calFirstWeekday(year: number, month: number): number {
   const wd = new Date(year, month, 1).getDay();
   return (wd + 6) % 7;
 }
 
-function roundToFive(min) {
+function roundToFive(min: number): number {
   const rounded = Math.round((Number(min) || 0) / 5) * 5;
   return Math.min(55, Math.max(0, rounded));
 }
 
-function initials(name) {
+function initials(name: string | undefined): string {
   return (name || '?')
     .trim()
     .split(/\s+/)
-    .map(w => w[0])
+    .map((w) => w[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
 }
 
-// ─── TimeWheel ────────────────────────────────────────────────────────────────
-const TIME_WHEEL_ITEM_HEIGHT = 24;
+// ─── TimeStepper ──────────────────────────────────────────────────────────────
+interface TimeStepperProps {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (val: number) => void;
+}
 
-function TimeStepper({ value, min, max, step, onChange }) {
-  function applyDelta(delta) {
+function TimeStepper({ value, min, max, step, onChange }: TimeStepperProps) {
+  function applyDelta(delta: number) {
     const next = Math.min(max, Math.max(min, value + delta));
     if (next !== value) onChange(next);
   }
@@ -165,15 +181,24 @@ function TimeStepper({ value, min, max, step, onChange }) {
   );
 }
 
-function TimeWheel({ value, options, onChange }) {
-  const wheelRef = useRef(null);
+// ─── TimeWheel ────────────────────────────────────────────────────────────────
+const TIME_WHEEL_ITEM_HEIGHT = 24;
+
+interface TimeWheelProps {
+  value: number;
+  options: number[];
+  onChange: (val: number) => void;
+}
+
+function TimeWheel({ value, options, onChange }: TimeWheelProps) {
+  const wheelRef = useRef<FlatList<number>>(null);
 
   useEffect(() => {
     const idx = Math.max(0, options.indexOf(value));
     wheelRef.current?.scrollToOffset({ offset: idx * TIME_WHEEL_ITEM_HEIGHT, animated: false });
   }, [value, options]);
 
-  const syncValueFromOffset = useCallback((offsetY) => {
+  const syncValueFromOffset = useCallback((offsetY: number) => {
     const idx = Math.round(offsetY / TIME_WHEEL_ITEM_HEIGHT);
     const clampedIdx = Math.min(Math.max(idx, 0), options.length - 1);
     const next = options[clampedIdx];
@@ -181,7 +206,7 @@ function TimeWheel({ value, options, onChange }) {
   }, [onChange, options, value]);
 
   return (
-    <FlatList
+    <FlatList<number>
       ref={wheelRef}
       style={tw.wheel}
       data={options}
@@ -253,11 +278,20 @@ const tw = StyleSheet.create({
 });
 
 // ─── Calendar Picker ──────────────────────────────────────────────────────────
-function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) {
+interface CalendarPickerProps {
+  visible: boolean;
+  value: Date | null;
+  minDate?: Date;
+  onConfirm: (d: Date) => void;
+  onClose: () => void;
+  title?: string;
+}
+
+function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }: CalendarPickerProps) {
   const now = new Date();
   const [viewYear,  setViewYear]  = useState(value ? value.getFullYear()  : now.getFullYear());
   const [viewMonth, setViewMonth] = useState(value ? value.getMonth()     : now.getMonth());
-  const [picked,    setPicked]    = useState(value || null);
+  const [picked,    setPicked]    = useState<Date | null>(value || null);
   const [hour,      setHour]      = useState(value ? value.getHours()     : 8);
   const [minute,    setMinute]    = useState(value ? value.getMinutes()   : 0);
 
@@ -273,15 +307,15 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
   }, [visible]);
 
   function prevMonth() {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
-    else setViewMonth(m => m - 1);
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
+    else setViewMonth((m) => m - 1);
   }
   function nextMonth() {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
-    else setViewMonth(m => m + 1);
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
+    else setViewMonth((m) => m + 1);
   }
 
-  function selectDay(day) {
+  function selectDay(day: number) {
     const d = new Date(viewYear, viewMonth, day);
     if (minDate && d < minDate) return;
     setPicked(d);
@@ -296,7 +330,7 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
 
   const daysInMonth  = calDaysInMonth(viewYear, viewMonth);
   const firstWeekday = calFirstWeekday(viewYear, viewMonth);
-  const cells = [];
+  const cells: (number | null)[] = [];
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length < 42) cells.push(null);
@@ -333,7 +367,7 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
             </View>
 
             <View style={cal.weekRow}>
-              {DAYS_DE.map(d => (
+              {DAYS_DE.map((d) => (
                 <View key={d} style={cal.weekCell}>
                   <Text style={cal.weekLabel}>{d}</Text>
                 </View>
@@ -343,16 +377,16 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
             <View style={cal.grid}>
               {cells.map((day, i) => {
                 if (!day) return <View key={`e${i}`} style={cal.cell} />;
-                const cellDate  = new Date(viewYear, viewMonth, day);
-                const isTodayD  = sameDay(cellDate, today());
+                const cellDate   = new Date(viewYear, viewMonth, day);
+                const isTodayD   = sameDay(cellDate, today());
                 const isSelected = picked && sameDay(cellDate, picked);
-                const isDisabled = minDate && cellDate < minDate;
+                const isDisabled = !!(minDate && cellDate < minDate);
                 return (
                   <TouchableOpacity
                     key={day}
                     style={[
                       cal.cell,
-                      isTodayD  && cal.cellToday,
+                      isTodayD   && cal.cellToday,
                       isSelected && cal.cellSelected,
                       isDisabled && cal.cellDisabled,
                     ]}
@@ -361,7 +395,7 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
                   >
                     <Text style={[
                       cal.cellText,
-                      isTodayD  && cal.cellTextToday,
+                      isTodayD   && cal.cellTextToday,
                       isSelected && cal.cellTextSelected,
                       isDisabled && cal.cellTextDisabled,
                     ]}>
@@ -381,10 +415,10 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
                 {IS_WEB ? (
                   <select
                     value={hour}
-                    onChange={e => setHour(Number(e.target.value))}
+                    onChange={(e) => setHour(Number(e.target.value))}
                     style={{ fontSize: 16, padding: '6px 10px', borderRadius: 8, border: `1.5px solid ${T.border}`, color: T.text, background: T.surfaceAlt, fontFamily: 'inherit', outline: 'none' }}
                   >
-                    {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}</option>)}
+                    {HOURS.map((h) => <option key={h} value={h}>{String(h).padStart(2,'0')}</option>)}
                   </select>
                 ) : Platform.OS === 'android' ? (
                   <TimeStepper value={hour} min={0} max={23} step={1} onChange={setHour} />
@@ -398,10 +432,10 @@ function CalendarPicker({ visible, value, minDate, onConfirm, onClose, title }) 
                 {IS_WEB ? (
                   <select
                     value={minute}
-                    onChange={e => setMinute(Number(e.target.value))}
+                    onChange={(e) => setMinute(Number(e.target.value))}
                     style={{ fontSize: 16, padding: '6px 10px', borderRadius: 8, border: `1.5px solid ${T.border}`, color: T.text, background: T.surfaceAlt, fontFamily: 'inherit', outline: 'none' }}
                   >
-                    {MINUTES.map(m => <option key={m} value={m}>{String(m).padStart(2,'0')}</option>)}
+                    {MINUTES.map((m) => <option key={m} value={m}>{String(m).padStart(2,'0')}</option>)}
                   </select>
                 ) : Platform.OS === 'android' ? (
                   <TimeStepper value={minute} min={0} max={55} step={5} onChange={setMinute} />
@@ -450,10 +484,10 @@ const cal = StyleSheet.create({
     borderRadius: 20,
     padding: 14,
     width: Math.min(360, W - 32),
-    maxHeight: IS_MOBILE ? '78%' : '82%',
+    maxHeight: IS_MOBILE ? ('78%' as any) : ('82%' as any),
     flexShrink: 1,
     ...(IS_WEB
-      ? { boxShadow: '0 8px 40px rgba(10,25,18,0.22)' }
+      ? ({ boxShadow: '0 8px 40px rgba(10,25,18,0.22)' } as any)
       : { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 }),
   },
   scrollContent: { paddingBottom: 4 },
@@ -471,7 +505,7 @@ const cal = StyleSheet.create({
   weekCell: { flex: 1, alignItems: 'center', paddingVertical: 2 },
   weekLabel: { fontSize: 11, fontWeight: '600', color: T.textMuted },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 6, marginBottom: 1 },
+  cell: { width: `${100 / 7}%` as any, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 6, marginBottom: 1 },
   cellToday: { backgroundColor: T.calToday },
   cellSelected: { backgroundColor: T.calSelected },
   cellDisabled: { opacity: 0.3 },
@@ -497,7 +531,16 @@ const cal = StyleSheet.create({
 });
 
 // ─── DateField ────────────────────────────────────────────────────────────────
-function DateField({ label, required, value, onChange, minDate, error }) {
+interface DateFieldProps {
+  label?: string;
+  required?: boolean;
+  value: Date | null;
+  onChange: (d: Date | null) => void;
+  minDate?: Date;
+  error?: string | null;
+}
+
+function DateField({ label, required, value, onChange, minDate, error }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const hasVal = !!value;
   return (
@@ -518,7 +561,7 @@ function DateField({ label, required, value, onChange, minDate, error }) {
         </View>
         {hasVal && (
           <TouchableOpacity
-            onPress={(e) => { e?.stopPropagation?.(); onChange(null); }}
+            onPress={(e) => { (e as any)?.stopPropagation?.(); onChange(null); }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={s.dateBtnClear}>×</Text>
@@ -539,7 +582,7 @@ function DateField({ label, required, value, onChange, minDate, error }) {
 }
 
 // ─── Section heading ──────────────────────────────────────────────────────────
-function SectionHead({ title, subtitle }) {
+function SectionHead({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={s.secHead}>
       <Text style={s.secTitle}>{title}</Text>
@@ -548,7 +591,7 @@ function SectionHead({ title, subtitle }) {
   );
 }
 
-function Card({ children, style }) {
+function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[s.card, style]}>{children}</View>;
 }
 
@@ -557,7 +600,21 @@ function HRule() {
 }
 
 // ─── User row ─────────────────────────────────────────────────────────────────
-function UserRow({ user, selected, onToggle }) {
+interface UserItem {
+  id: number | string;
+  name?: string;
+  fullname?: string;
+  full_name?: string;
+  username?: string;
+}
+
+interface UserRowProps {
+  user: UserItem;
+  selected: boolean;
+  onToggle: (id: number | string) => void;
+}
+
+function UserRow({ user, selected, onToggle }: UserRowProps) {
   const avatarUri = getDisplayAvatarUri(user);
   const [imgErr, setImgErr] = useState(false);
   const displayName = user.name ?? user.fullname ?? user.full_name ?? user.username ?? 'Unbekannt';
@@ -593,7 +650,19 @@ function UserRow({ user, selected, onToggle }) {
 }
 
 // ─── Team row ─────────────────────────────────────────────────────────────────
-function TeamRow({ team, selected, onToggle }) {
+interface TeamItem {
+  id: number;
+  name: string;
+  memberCount?: number;
+}
+
+interface TeamRowProps {
+  team: TeamItem;
+  selected: boolean;
+  onToggle: (id: number) => void;
+}
+
+function TeamRow({ team, selected, onToggle }: TeamRowProps) {
   const ini = initials(team.name);
   return (
     <TouchableOpacity
@@ -622,6 +691,23 @@ function TeamRow({ team, selected, onToggle }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const PAGE_SIZE = 5;
 
+type ChallengeMode = 'individual' | 'team';
+
+interface ToastState {
+  type: 'success' | 'error';
+  message: string;
+  onPress?: () => void;
+}
+
+interface FormErrors {
+  name?: string | null;
+  startLoc?: string | null;
+  targetLoc?: string | null;
+  distance?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export default function CreateChallengeScreen() {
   const router = useRouter();
 
@@ -630,39 +716,36 @@ export default function CreateChallengeScreen() {
   const [startLoc,  setStartLoc]  = useState('');
   const [targetLoc, setTargetLoc] = useState('');
   const [distance,  setDistance]  = useState('');
-  const [startDate, setStartDate] = useState(null);
-  const [endDate,   setEndDate]   = useState(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate,   setEndDate]   = useState<Date | null>(null);
 
   // Mode
-  const [mode, setMode] = useState('individual');
+  const [mode, setMode] = useState<ChallengeMode>('individual');
 
   // Users (individual mode)
-  const [users,           setUsers]           = useState([]);
+  const [users,           setUsers]           = useState<UserItem[]>([]);
   const [userQuery,       setUserQuery]       = useState('');
   const [loadingUsers,    setLoadingUsers]    = useState(false);
   const [visibleUsers,    setVisibleUsers]    = useState(PAGE_SIZE);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<(number | string)[]>([]);
 
   // Teams (team mode)
-  const [teams,           setTeams]           = useState([]);
+  const [teams,           setTeams]           = useState<TeamItem[]>([]);
   const [teamQuery,       setTeamQuery]       = useState('');
   const [loadingTeams,    setLoadingTeams]    = useState(false);
   const [visibleTeams,    setVisibleTeams]    = useState(PAGE_SIZE);
-  const [selectedTeamIds, setSelectedTeamIds] = useState([]);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
 
   // Form errors + submit
-  const [errors,     setErrors]     = useState({});
+  const [errors,     setErrors]     = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
   // Toast
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const toastAnim  = useRef(new Animated.Value(-140)).current;
-  const toastTimer = useRef(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load users on mount
   useEffect(() => { loadUsers(''); }, []);
-
-  // Load teams on mount
   useEffect(() => { loadAllTeams(); }, []);
 
   const loadUsers = async (q = '') => {
@@ -682,10 +765,15 @@ export default function CreateChallengeScreen() {
     setLoadingTeams(true);
     try {
       const data = await getAllTeams(100);
-      const mapped = (Array.isArray(data) ? data : [])
-        .map(t => ({ id: Number(t.id), name: t.name ?? `Team ${t.id}` }))
-        .filter(t => t.id)
-        .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+      const mapped: TeamItem[] = (Array.isArray(data) ? data : [])
+        .map((t: { id: number | string; name?: string }) => ({
+          id: Number(t.id),
+          name: t.name ?? `Team ${t.id}`,
+        }))
+        .filter((t: TeamItem) => t.id)
+        .sort((a: TeamItem, b: TeamItem) =>
+          a.name.localeCompare(b.name, 'de', { sensitivity: 'base' })
+        );
       setTeams(mapped);
     } finally {
       setVisibleTeams(PAGE_SIZE);
@@ -693,24 +781,28 @@ export default function CreateChallengeScreen() {
     }
   };
 
-  const filteredTeams = teams.filter(t => {
+  const filteredTeams = teams.filter((t) => {
     const q = teamQuery.trim().toLowerCase();
     if (!q) return true;
     return t.name.toLowerCase().includes(q) || String(t.id).includes(q);
   });
 
-  const toggleUser = useCallback((id) => {
-    setSelectedUserIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleUser = useCallback((id: number | string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }, []);
 
-  const toggleTeam = useCallback((id) => {
-    setSelectedTeamIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleTeam = useCallback((id: number) => {
+    setSelectedTeamIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }, []);
 
   const duration = daysBetween(startDate, endDate);
 
-  const validate = () => {
-    const e = {};
+  const validate = (): boolean => {
+    const e: FormErrors = {};
     if (!name.trim())                                     e.name      = 'Name ist erforderlich';
     if (!startLoc.trim())                                 e.startLoc  = 'Startort eingeben';
     if (!targetLoc.trim())                                e.targetLoc = 'Zielort eingeben';
@@ -733,13 +825,13 @@ export default function CreateChallengeScreen() {
         start_location:  startLoc.trim(),
         target_location: targetLoc.trim(),
         distance:        parseFloat(distance),
-        start_date:      startDate.toISOString(),
-        end_date:        endDate.toISOString(),
+        start_date:      startDate!.toISOString(),
+        end_date:        endDate!.toISOString(),
         mode,
         team_ids:        mode === 'team' ? selectedTeamIds : [],
         creator_id:      parseInt(storedUserId || '0', 10),
       };
-      const timeout = new Promise((_, reject) =>
+      const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Zeitüberschreitung. Bitte Verbindung prüfen.')), 10000)
       );
       const created = await Promise.race([createChallenge(payload), timeout]);
@@ -752,13 +844,14 @@ export default function CreateChallengeScreen() {
       }
       showToast('success', 'Challenge erfolgreich erstellt!', () => router.replace('/challenges'));
     } catch (err) {
-      showToast('error', extractErrorMessage(err));
+      showToast('error', extractErrorMessage(err as AppError));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const clearError = (key) => setErrors(prev => ({ ...prev, [key]: null }));
+  const clearError = (key: keyof FormErrors) =>
+    setErrors((prev) => ({ ...prev, [key]: null }));
 
   function dismissToast() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -766,7 +859,7 @@ export default function CreateChallengeScreen() {
       .start(() => setToast(null));
   }
 
-  function showToast(type, message, onPress) {
+  function showToast(type: 'success' | 'error', message: string, onPress?: () => void) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ type, message, onPress });
   }
@@ -815,7 +908,7 @@ export default function CreateChallengeScreen() {
                 placeholder="z.B. Graz nach Wien 2026"
                 placeholderTextColor={T.textLight}
                 value={name}
-                onChangeText={v => { setName(v); clearError('name'); }}
+                onChangeText={(v) => { setName(v); clearError('name'); }}
                 maxLength={80}
               />
               {errors.name && <Text style={s.errorMsg}>{errors.name}</Text>}
@@ -831,7 +924,7 @@ export default function CreateChallengeScreen() {
                   placeholder="z.B. Graz"
                   placeholderTextColor={T.textLight}
                   value={startLoc}
-                  onChangeText={v => { setStartLoc(v); clearError('startLoc'); }}
+                  onChangeText={(v) => { setStartLoc(v); clearError('startLoc'); }}
                 />
                 {errors.startLoc && <Text style={s.errorMsg}>{errors.startLoc}</Text>}
               </View>
@@ -842,7 +935,7 @@ export default function CreateChallengeScreen() {
                   placeholder="z.B. Wien"
                   placeholderTextColor={T.textLight}
                   value={targetLoc}
-                  onChangeText={v => { setTargetLoc(v); clearError('targetLoc'); }}
+                  onChangeText={(v) => { setTargetLoc(v); clearError('targetLoc'); }}
                 />
                 {errors.targetLoc && <Text style={s.errorMsg}>{errors.targetLoc}</Text>}
               </View>
@@ -858,7 +951,7 @@ export default function CreateChallengeScreen() {
                   placeholder="z.B. 200"
                   placeholderTextColor={T.textLight}
                   value={distance}
-                  onChangeText={v => { setDistance(v.replace(/[^0-9.]/g, '')); clearError('distance'); }}
+                  onChangeText={(v) => { setDistance(v.replace(/[^0-9.]/g, '')); clearError('distance'); }}
                   keyboardType="numeric"
                 />
                 <View style={s.unitChip}>
@@ -879,7 +972,7 @@ export default function CreateChallengeScreen() {
                   required
                   minDate={today()}
                   value={startDate}
-                  onChange={v => { setStartDate(v); clearError('startDate'); if (endDate && v && endDate <= v) setEndDate(null); }}
+                  onChange={(v) => { setStartDate(v); clearError('startDate'); if (endDate && v && endDate <= v) setEndDate(null); }}
                   error={errors.startDate}
                 />
               </View>
@@ -889,7 +982,7 @@ export default function CreateChallengeScreen() {
                   required
                   value={endDate}
                   minDate={startDate ? new Date(startDate.getTime() + 60000) : undefined}
-                  onChange={v => { setEndDate(v); clearError('endDate'); }}
+                  onChange={(v) => { setEndDate(v); clearError('endDate'); }}
                   error={errors.endDate}
                 />
               </View>
@@ -976,7 +1069,7 @@ export default function CreateChallengeScreen() {
                 ) : (
                   <>
                     {users.slice(0, visibleUsers).map((user, i, arr) => (
-                      <View key={user.id}>
+                      <View key={String(user.id)}>
                         <UserRow
                           user={user}
                           selected={selectedUserIds.includes(user.id)}
@@ -990,7 +1083,7 @@ export default function CreateChallengeScreen() {
                     {visibleUsers < users.length && (
                       <TouchableOpacity
                         style={s.showMoreBtn}
-                        onPress={() => setVisibleUsers(v => v + PAGE_SIZE)}
+                        onPress={() => setVisibleUsers((v) => v + PAGE_SIZE)}
                       >
                         <Text style={s.showMoreText}>
                           Mehr Nutzer anzeigen ({users.length - visibleUsers} weitere)
@@ -1048,7 +1141,7 @@ export default function CreateChallengeScreen() {
                     {visibleTeams < filteredTeams.length && (
                       <TouchableOpacity
                         style={s.showMoreBtn}
-                        onPress={() => setVisibleTeams(v => v + PAGE_SIZE)}
+                        onPress={() => setVisibleTeams((v) => v + PAGE_SIZE)}
                       >
                         <Text style={s.showMoreText}>
                           Mehr Teams anzeigen ({filteredTeams.length - visibleTeams} weitere)
@@ -1161,7 +1254,7 @@ const s = StyleSheet.create({
     padding: IS_MOBILE ? 16 : 20,
     marginBottom: 4,
     ...(IS_WEB
-      ? { boxShadow: '0 1px 6px rgba(15,31,23,0.08)' }
+      ? ({ boxShadow: '0 1px 6px rgba(15,31,23,0.08)' } as any)
       : { shadowColor: '#0F1F17', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 1 }, elevation: 1 }),
   },
 
@@ -1174,7 +1267,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === 'ios' ? 13 : 11,
     fontSize: 15, color: T.text,
-    ...(IS_WEB ? { outlineStyle: 'none', transition: 'border-color 0.15s' } : {}),
+    ...(IS_WEB ? ({ outlineStyle: 'none', transition: 'border-color 0.15s' } as any) : {}),
   },
   inputError: { borderColor: T.danger, backgroundColor: T.dangerSoft },
   errorMsg:   { fontSize: 12, color: T.danger, marginTop: 5, fontWeight: '500' },
@@ -1200,7 +1293,7 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: T.border,
     borderRadius: INPUT_RADIUS,
     paddingHorizontal: 16, paddingVertical: 12,
-    ...(IS_WEB ? { cursor: 'pointer', transition: 'border-color 0.15s' } : {}),
+    ...(IS_WEB ? ({ cursor: 'pointer', transition: 'border-color 0.15s' } as any) : {}),
   },
   dateBtnFilled:      { borderColor: T.accentLight, backgroundColor: T.primarySofter },
   dateBtnError:       { borderColor: T.danger, backgroundColor: T.dangerSoft },
@@ -1218,7 +1311,6 @@ const s = StyleSheet.create({
   },
   durationVal: { fontSize: 14, fontWeight: '700', color: T.success },
 
-  // Mode toggle
   modeRow: { flexDirection: 'row', gap: 12 },
   modeBtn: {
     flex: 1,
@@ -1230,19 +1322,18 @@ const s = StyleSheet.create({
     backgroundColor: T.surfaceAlt,
     alignItems: 'center',
     gap: 6,
-    ...(IS_WEB ? { cursor: 'pointer', transition: 'border-color 0.15s, background-color 0.15s' } : {}),
+    ...(IS_WEB ? ({ cursor: 'pointer', transition: 'border-color 0.15s, background-color 0.15s' } as any) : {}),
   },
   modeBtnActive: {
     borderColor: T.primaryLight,
     backgroundColor: T.primarySoft,
-    ...(IS_WEB ? { boxShadow: '0 2px 14px rgba(30,92,58,0.18)' } : {}),
+    ...(IS_WEB ? ({ boxShadow: '0 2px 14px rgba(30,92,58,0.18)' } as any) : {}),
   },
-  modeBtnLabel:      { fontSize: 18, fontWeight: '700', color: T.textSec, letterSpacing: 0.2 },
-  modeBtnLabelActive:{ color: T.text },
-  modeBtnSub:        { fontSize: 12, fontWeight: '500', color: T.textMuted },
-  modeBtnSubActive:  { color: T.textSec },
+  modeBtnLabel:       { fontSize: 18, fontWeight: '700', color: T.textSec, letterSpacing: 0.2 },
+  modeBtnLabelActive: { color: T.text },
+  modeBtnSub:         { fontSize: 12, fontWeight: '500', color: T.textMuted },
+  modeBtnSubActive:   { color: T.textSec },
 
-  // List widget (users/teams)
   listCard: { padding: 0, overflow: 'hidden', marginBottom: 4 },
   widgetSearchWrap: {
     paddingHorizontal: 14,
@@ -1256,12 +1347,12 @@ const s = StyleSheet.create({
     borderRadius: INPUT_RADIUS,
     paddingHorizontal: 14, gap: 8,
     marginBottom: 10,
-    ...(IS_WEB ? { boxShadow: '0 1px 4px rgba(15,31,23,0.07)' } : {}),
+    ...(IS_WEB ? ({ boxShadow: '0 1px 4px rgba(15,31,23,0.07)' } as any) : {}),
   },
   searchIcon:  { fontSize: 18, color: T.textMuted },
   searchInput: {
     flex: 1, fontSize: 15, color: T.text, paddingVertical: 12,
-    ...(IS_WEB ? { outlineStyle: 'none', border: 'none', background: 'transparent' } : {}),
+    ...(IS_WEB ? ({ outlineStyle: 'none', border: 'none', background: 'transparent' } as any) : {}),
   },
   searchClear: { fontSize: 22, color: T.textMuted, paddingHorizontal: 4, lineHeight: 24 },
 
@@ -1337,9 +1428,9 @@ const s = StyleSheet.create({
     borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', justifyContent: 'center',
     marginTop: 20,
-    ...(IS_WEB ? { cursor: 'pointer', boxShadow: '0 4px 18px rgba(74,158,110,0.35)' } : {
-      shadowColor: T.primaryLight, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 5,
-    }),
+    ...(IS_WEB
+      ? ({ cursor: 'pointer', boxShadow: '0 4px 18px rgba(74,158,110,0.35)' } as any)
+      : { shadowColor: T.primaryLight, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 5 }),
   },
   submitBtnDisabled: { backgroundColor: T.textLight },
   submitText: { fontSize: 17, fontWeight: '700', color: T.white, letterSpacing: 0.1 },
@@ -1364,7 +1455,7 @@ const ts = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
     ...(IS_WEB
-      ? { boxShadow: '0 6px 24px rgba(10,25,18,0.35)' }
+      ? ({ boxShadow: '0 6px 24px rgba(10,25,18,0.35)' } as any)
       : { shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 12 }),
   },
   success: { backgroundColor: '#1E5C3A' },

@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -11,12 +12,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ChallengeCard from '../../components/ChallengeCard';
 import {
   deleteChallenge,
-  getChallenges,
+  getActiveParticipantsCounts,
+  getChallengeParticipants,
   getChallengeTeams,
+  getMyChallenges,
 } from '../../services/challengeService';
 
 const { height: screenHeight } = Dimensions.get('window');
@@ -31,136 +35,105 @@ const COLORS = {
   accentSoft: 'rgba(85,128,92,0.12)',
 };
 
+interface Challenge {
+  id: number | string;
+  name?: string;
+  startLocation?: string;
+  targetLocation?: string;
+  distance?: number;
+  startDate?: string;
+  endDate?: string;
+  creatorId?: number | string;
+  teamId?: number | string;
+  mode?: string;
+  activeParticipants?: number;
+  teamCount?: number;
+  participantCount?: number;
+}
+
+interface ParticipantCount {
+  challenge_id: number | string;
+  active_participants: number;
+}
+
 export default function AllChallengesScreen() {
-  const [challenges, setChallenges] = useState([]);
-  const [skip, setSkip] = useState(0);
-  const limit = 10;
-
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  const filteredChallenges = useMemo(() => {
+  const filteredChallenges = useMemo<Challenge[]>(() => {
     if (!searchQuery.trim()) return challenges;
 
     const query = searchQuery.toLowerCase().trim();
     return challenges.filter((challenge) => {
       const name = challenge?.name?.toLowerCase?.() ?? '';
       const id = challenge?.id?.toString?.() ?? '';
-      const start = challenge?.startLocation?.toLowerCase?.() ?? '';
-      const target = challenge?.targetLocation?.toLowerCase?.() ?? '';
-      const teamId = challenge?.teamId?.toString?.() ?? '';
-      const teamCount = challenge?.teamCount?.toString?.() ?? '';
+      const start = (challenge?.startLocation ?? '').toLowerCase();
+      const target = (challenge?.targetLocation ?? '').toLowerCase();
 
       return (
         name.includes(query) ||
         id.includes(query) ||
         start.includes(query) ||
-        target.includes(query) ||
-        teamId.includes(query) ||
-        teamCount.includes(query)
+        target.includes(query)
       );
     });
   }, [searchQuery, challenges]);
 
-  const loadChallenges = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-
-    const isInitial = challenges.length === 0;
-    if (isInitial) setLoadingInitial(true);
-    else setLoadingMore(true);
-
+  const loadChallenges = async () => {
+    setLoadingInitial(true);
     try {
-      const data = await getChallenges(skip, limit);
-      const safe = Array.isArray(data) ? data : [];
+      const data = await getMyChallenges();
+      const safe: Challenge[] = Array.isArray(data) ? data : [];
 
-      const enrichedChallenges = await Promise.all(
+      const count = await getActiveParticipantsCounts();
+      const countMap: Record<string | number, number> = {};
+      (Array.isArray(count) ? count : []).forEach((c: ParticipantCount) => {
+        countMap[c.challenge_id] = c.active_participants;
+      });
+
+      const enriched = await Promise.all(
         safe.map(async (challenge) => {
-          try {
-            const teams = await getChallengeTeams(challenge.id);
+          const base: Challenge = { ...challenge, activeParticipants: countMap[challenge.id] ?? 0 };
 
-            return {
-              ...challenge,
-              teamCount: Array.isArray(teams) ? teams.length : 0,
-            };
-          } catch (err) {
-            console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
-            return {
-              ...challenge,
-              teamCount: 0,
-            };
+          if (challenge.mode === 'team') {
+            try {
+              const teams = await getChallengeTeams(challenge.id);
+              return { ...base, teamCount: Array.isArray(teams) ? teams.length : 0 };
+            } catch {
+              return { ...base, teamCount: 0 };
+            }
           }
+
+          if (challenge.mode === 'individual') {
+            try {
+              const participants = await getChallengeParticipants(challenge.id);
+              return { ...base, participantCount: Array.isArray(participants) ? participants.length : 0 };
+            } catch {
+              return { ...base, participantCount: 0 };
+            }
+          }
+
+          return base;
         })
       );
 
-      setChallenges((prev) => [...prev, ...enrichedChallenges]);
-      setSkip((prev) => prev + safe.length);
-
-      if (safe.length < limit) setHasMore(false);
+      setChallenges(enriched);
     } catch (err) {
       console.error('Failed to load challenges:', err);
     } finally {
-      if (isInitial) setLoadingInitial(false);
-      else setLoadingMore(false);
+      setLoadingInitial(false);
     }
-  }, [skip, limit, loadingMore, hasMore, challenges.length]);
+  };
 
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-
-      const resetAndLoad = async () => {
-        setSkip(0);
-        setChallenges([]);
-        setHasMore(true);
-        setSearchQuery('');
-
-        try {
-          setLoadingInitial(true);
-
-          const data = await getChallenges(0, limit);
-          const safe = Array.isArray(data) ? data : [];
-
-          const enrichedChallenges = await Promise.all(
-            safe.map(async (challenge) => {
-              try {
-                const teams = await getChallengeTeams(challenge.id);
-
-                return {
-                  ...challenge,
-                  teamCount: Array.isArray(teams) ? teams.length : 0,
-                };
-              } catch (err) {
-                console.error(`Failed to load teams for challenge ${challenge.id}:`, err);
-                return {
-                  ...challenge,
-                  teamCount: 0,
-                };
-              }
-            })
-          );
-
-          if (!isActive) return;
-
-          setChallenges(enrichedChallenges);
-          setSkip(safe.length);
-          setHasMore(safe.length >= limit);
-        } catch (err) {
-          console.error('Failed to load challenges:', err);
-        } finally {
-          if (isActive) setLoadingInitial(false);
-        }
-      };
-
-      resetAndLoad();
-
-      return () => {
-        isActive = false;
-      };
-    }, [limit])
+      setChallenges([]);
+      setSearchQuery('');
+      loadChallenges();
+    }, [])
   );
 
   if (loadingInitial && challenges.length === 0) {
@@ -174,9 +147,24 @@ export default function AllChallengesScreen() {
 
   return (
     <View style={styles.screen}>
+      <View style={[styles.tabBarWrap, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.tabBarRow}>
+          <Pressable style={[styles.tabPill, styles.tabPillActive]}>
+            <MaterialIcons name="list" size={18} color="#6B8F71" />
+            <Text style={[styles.tabPillLabel, styles.tabPillLabelActive]}>Verwaltung</Text>
+          </Pressable>
+          <Pressable style={styles.tabPill} onPress={() => router.replace('/userHistory')}>
+            <MaterialIcons name="history" size={18} color="#9CA3AF" />
+            <Text style={styles.tabPillLabel}>Verlauf</Text>
+          </Pressable>
+        </View>
+      </View>
+
       <View style={styles.container}>
         <View style={styles.headerCard}>
-          <Text style={styles.title}>Alle Challenges</Text>
+          <View style={styles.accentLine} />
+          <Text style={styles.title}>Challenge Verwaltung</Text>
+          <Text style={styles.heroSub}>Verwalte deine Challenges und erstell neue.</Text>
 
           <View style={styles.searchWrap}>
             <TextInput
@@ -202,20 +190,20 @@ export default function AllChallengesScreen() {
             <View style={styles.searchInfoPill}>
               <Text style={styles.searchInfoText}>
                 {filteredChallenges.length} von {challenges.length} gefunden · „
-                {searchQuery.trim()}“
+                {searchQuery.trim()}"
               </Text>
             </View>
           ) : null}
 
           <Pressable
-            onPress={() => router.push('/challenges/create')}
+            onPress={() => router.push('/CreateHybridChallenge')}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
           >
             <Text style={styles.primaryBtnText}>+ Neue Challenge</Text>
           </Pressable>
         </View>
 
-        <FlatList
+        <FlatList<Challenge>
           data={filteredChallenges}
           keyExtractor={(item) => String(item?.id)}
           renderItem={({ item }) => (
@@ -231,7 +219,7 @@ export default function AllChallengesScreen() {
                 }
                 onUpdate={() =>
                   router.push({
-                    pathname: '/challenges/update',
+                    pathname: '/hybridUpdate',
                     params: {
                       id: item.id,
                       name: item.name,
@@ -256,8 +244,6 @@ export default function AllChallengesScreen() {
               />
             </View>
           )}
-          onEndReached={searchQuery.trim() ? undefined : loadChallenges}
-          onEndReachedThreshold={0.5}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -267,27 +253,13 @@ export default function AllChallengesScreen() {
               </Text>
               <Text style={styles.emptyText}>
                 {searchQuery.trim()
-                  ? `Für „${searchQuery.trim()}“ wurde nichts gefunden.`
+                  ? `Für „${searchQuery.trim()}" wurde nichts gefunden.`
                   : 'Erstell deine erste Challenge und leg los.'}
               </Text>
-
-              {!searchQuery.trim() && (
-                <Pressable
-                  onPress={() => router.push('/challenges/create')}
-                  style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-                >
-                  <Text style={styles.secondaryBtnText}>Challenge erstellen</Text>
-                </Pressable>
-              )}
             </View>
           }
-          ListFooterComponent={
-            loadingMore && !searchQuery.trim() ? (
-              <ActivityIndicator style={{ marginVertical: 18 }} />
-            ) : null
-          }
           contentContainerStyle={{
-            paddingBottom: 100,
+            paddingBottom: 150,
             flexGrow: 1,
             minHeight: screenHeight - 180,
           }}
@@ -305,7 +277,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 56,
+    paddingTop: 12,
   },
 
   loadingWrap: {
@@ -323,23 +295,36 @@ const styles = StyleSheet.create({
 
   headerCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    padding: 16,
+    borderRadius: 26,
+    padding: 22,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 14,
+    marginBottom: 16,
 
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
     elevation: 4,
   },
+  accentLine: {
+    width: 140,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
+    marginBottom: 14,
+  },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: 0.2,
+    marginBottom: 6,
+  },
+  heroSub: {
+    fontSize: 15,
+    color: COLORS.sub,
+    lineHeight: 21,
   },
   searchWrap: {
     marginTop: 14,
@@ -388,6 +373,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.sub,
     fontWeight: '700',
+  },
+
+  tabBarWrap: {
+    backgroundColor: '#F5F7F4',
+    paddingHorizontal: 18,
+    paddingBottom: 2,
+  },
+  tabBarRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  tabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  tabPillActive: {
+    backgroundColor: 'rgba(107,143,113,0.12)',
+  },
+  tabPillLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  tabPillLabelActive: {
+    color: '#6B8F71',
   },
 
   primaryBtn: {
@@ -453,8 +468,5 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
 
-  cardWrap: {
-    marginBottom: 0,
-  },
-
+  cardWrap: {},
 });
