@@ -307,7 +307,6 @@ const contentTopPadding = useMemo(
           <Stack.Screen name="challenges/adminCreate" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/hybridIndex" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/challengesDashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/create" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/update" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} />
@@ -318,7 +317,6 @@ const contentTopPadding = useMemo(
           <Stack.Screen name="settings/profile" options={{ headerShown: false }} />
           <Stack.Screen name="settings/password" options={{ headerShown: false }} />
           <Stack.Screen name="settings/userDelete" options={{ headerShown: false }} />
-          <Stack.Screen name="users/create" options={{ headerShown: false }} />
           <Stack.Screen name="help/start" options={{ headerShown: false }} />
           <Stack.Screen name="help/help" options={{ headerShown: false }} />
           <Stack.Screen name="help/about" options={{ headerShown: false }} />

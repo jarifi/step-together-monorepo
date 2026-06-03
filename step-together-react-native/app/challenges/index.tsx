@@ -224,7 +224,7 @@ export default function AllChallengesScreen() {
           ) : null}
 
           <Pressable
-            onPress={() => router.push('/challenges/create')}
+            onPress={() => router.push('/challenges/adminCreate')}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
           >
             <Text style={styles.primaryBtnText}>+ Neue Challenge</Text>
@@ -258,6 +258,7 @@ export default function AllChallengesScreen() {
                       endDate: item.endDate,
                       creatorId: item.creatorId,
                       teamId: item.teamId,
+                      mode: item.mode,
                     },
                   })
                 }
@@ -289,7 +290,7 @@ export default function AllChallengesScreen() {
 
               {!searchQuery.trim() && (
                 <Pressable
-                  onPress={() => router.push('/challenges/create')}
+                  onPress={() => router.push('/challenges/adminCreate')}
                   style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
                 >
                   <Text style={styles.secondaryBtnText}>Challenge erstellen</Text>

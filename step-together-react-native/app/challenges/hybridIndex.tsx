@@ -219,7 +219,7 @@ export default function AllChallengesScreen() {
                 }
                 onUpdate={() =>
                   router.push({
-                    pathname: '/hybridUpdate',
+                    pathname: '/challenges/update',
                     params: {
                       id: item.id,
                       name: item.name,
@@ -230,6 +230,7 @@ export default function AllChallengesScreen() {
                       endDate: item.endDate,
                       creatorId: item.creatorId,
                       teamId: item.teamId,
+                      mode: item.mode,
                     },
                   })
                 }
