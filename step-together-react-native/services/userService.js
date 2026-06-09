@@ -5,11 +5,48 @@ import { apiDelete, apiGet, apiPost, apiPut, publicPost } from './api';
 const API_BASE_URL = String(Constants.expoConfig?.extra?.apiBaseUrl ?? '').replace(/\/+$/, '');
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
 
+const tryParseUrl = (value) => {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+
+const normalizeAbsoluteMediaUrl = (rawAbsoluteUrl) => {
+  const incoming = tryParseUrl(rawAbsoluteUrl);
+  const apiOriginUrl = tryParseUrl(API_ORIGIN);
+  if (!incoming || !apiOriginUrl) return rawAbsoluteUrl;
+
+  // If backend generated http:// for the same host while API is https://,
+  // enforce https so Android release builds can load the image.
+  if (
+    incoming.protocol === 'http:' &&
+    apiOriginUrl.protocol === 'https:' &&
+    incoming.hostname === apiOriginUrl.hostname
+  ) {
+    incoming.protocol = 'https:';
+    if (incoming.port === '80') incoming.port = '';
+    return incoming.toString();
+  }
+
+  // If backend returned localhost/127.0.0.1 in an absolute media URL,
+  // rewrite to the configured API host so devices can actually resolve it.
+  if (/^(localhost|127\.0\.0\.1)$/i.test(incoming.hostname)) {
+    incoming.protocol = apiOriginUrl.protocol;
+    incoming.hostname = apiOriginUrl.hostname;
+    incoming.port = apiOriginUrl.port;
+    return incoming.toString();
+  }
+
+  return rawAbsoluteUrl;
+};
+
 export const makeAbsoluteMediaUrl = (maybePath) => {
   if (!maybePath) return null;
   const s = String(maybePath).trim();
   if (!s) return null;
-  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  if (s.startsWith('http://') || s.startsWith('https://')) return normalizeAbsoluteMediaUrl(s);
   if (s.startsWith('/')) return `${API_ORIGIN}${s}`;
   return `${API_ORIGIN}/${s}`;
 };
@@ -83,23 +120,47 @@ const buildUserQuery = ({ skip = 0, limit = 10, isVerified = null, query = '' } 
 // ------------------------------
 // UPLOAD profile picture
 // ------------------------------
-export const uploadMyProfilePicture = async (imageUri) => {
-  const formData = new FormData();
-  const filename = `profile_${Date.now()}.jpg`;
+export const uploadMyProfilePicture = async (imageInput) => {
+  const asset = typeof imageInput === 'string' ? { uri: imageInput } : (imageInput ?? {});
+  const imageUri = String(asset?.uri ?? '').trim();
+  if (!imageUri) throw new Error('Missing image URI');
 
-  if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
-    const r = await fetch(imageUri);
-    const blob = await r.blob();
-    formData.append('file', blob, filename);
-  } else {
-    formData.append('file', {
-      uri: imageUri,
-      name: filename,
-      type: 'image/jpeg',
-    });
+  const ext = (() => {
+    const m = imageUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+    return m?.[1]?.toLowerCase() ?? 'jpg';
+  })();
+
+  const mimeType =
+    String(asset?.mimeType || '').trim() ||
+    (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
+
+  const filename =
+    String(asset?.fileName || '').trim() ||
+    `profile_${Date.now()}.${ext === 'jpeg' ? 'jpg' : ext}`;
+
+  // Strategy 1: URI file part (works for most iOS/Android builds)
+  const fdFromUri = new FormData();
+  fdFromUri.append('file', {
+    uri: imageUri,
+    name: filename,
+    type: mimeType,
+  });
+
+  try {
+    return await apiPost('/users/me/profile-picture', fdFromUri);
+  } catch (err) {
+    const msg = String(err?.message ?? '');
+    const isNetworkFailure = /Network request failed/i.test(msg);
+    if (!isNetworkFailure) throw err;
+    console.warn('🟠 [UPLOAD] URI multipart failed, retrying with blob fallback...');
   }
 
-  return await apiPost('/users/me/profile-picture', formData);
+  // Strategy 2: Blob part (fallback for some Android release multipart edge cases)
+  const fileResp = await fetch(imageUri);
+  const fileBlob = await fileResp.blob();
+  const fdFromBlob = new FormData();
+  fdFromBlob.append('file', fileBlob, filename);
+  return await apiPost('/users/me/profile-picture', fdFromBlob);
 };
 
 // ---------------------------------------------------------------------------

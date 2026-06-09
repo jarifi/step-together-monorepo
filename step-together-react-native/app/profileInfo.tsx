@@ -90,11 +90,12 @@ export default function ProfileInfoScreen() {
     });
     if (res.canceled || !res.assets?.length) return;
 
-    const uri = res.assets[0].uri;
+    const pickedAsset = res.assets[0];
+    const uri = pickedAsset.uri;
     setImageUri(uri);
     setUploading(true);
     try {
-      await uploadMyProfilePicture(uri);
+      await uploadMyProfilePicture(pickedAsset);
       const fresh = await getMe();
       if (fresh) {
         setUser(fresh);
