@@ -34,6 +34,7 @@ interface UserItem {
   id: number | string;
   name?: string;
   email?: string;
+  avatar?: string;
   isVerified?: boolean;
   is_verified?: boolean;
   verified?: boolean;
@@ -331,6 +332,7 @@ export default function UsersScreen() {
                     name: item.name,
                     email: item.email,
                     stepLength: item.stepLength,
+                    avatar: item.avatar,
                   },
                 })
               }

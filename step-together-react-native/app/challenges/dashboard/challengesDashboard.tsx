@@ -348,7 +348,7 @@ export default function AllChallengesScreen() {
             </Pressable>
           </View>
         }
-        ListFooterComponent={<View style={{ height: 40 }} />}
+        ListFooterComponent={<View style={{ height: 100 }} />}
       />
     </View>
   );

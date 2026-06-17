@@ -1,13 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useUser } from '../../context/UserContext';
 import { validateEmail, validateName, validateStepLength } from '../../lib/userValidation';
-import { getMe, makeAbsoluteMediaUrl, updateUser, uploadMyProfilePicture } from '../../services/userService';
+import { makeAbsoluteMediaUrl, updateUser } from '../../services/userService';
 
 const sanitizeStepLengthInput = (raw: unknown): string => {
   let v = String(raw ?? '').replace(/[^\d.,]/g, '');
@@ -54,7 +50,7 @@ const COLORS = {
 
 export default function UpdateUserScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string; name?: string; email?: string; stepLength?: string }>();
+  const params = useLocalSearchParams<{ id?: string; name?: string; email?: string; stepLength?: string; avatar?: string }>();
   const { user, setUser } = useUser() as any;
 
   const userId = useMemo(() => {
@@ -84,12 +80,16 @@ export default function UpdateUserScreen() {
   const [stepLength, setStepLength] = useState(initialStepLength);
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    const av = pickAvatar(user);
-    if (av) setImageUri(av);
-  }, [user]);
+    const paramAvatar = Array.isArray(params?.avatar) ? params.avatar[0] : params?.avatar;
+    if (paramAvatar) {
+      setImageUri(paramAvatar);
+    } else if (userId === user?.id) {
+      const av = pickAvatar(user);
+      if (av) setImageUri(av);
+    }
+  }, []);
 
   const displayImageUri = useMemo(() => {
     if (!imageUri) return null;
@@ -103,41 +103,6 @@ export default function UpdateUserScreen() {
     const parts = n.split(' ').filter(Boolean);
     return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[1][0]).toUpperCase();
   }, [name]);
-
-  const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Zugriff benötigt', 'Bitte erlaube den Zugriff auf deine Fotos.');
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (res.canceled || !res.assets?.length) return;
-
-    const uri = res.assets[0].uri;
-    setImageUri(uri);
-    setUploading(true);
-    try {
-      await uploadMyProfilePicture(uri);
-      const fresh = await getMe();
-      if (fresh) {
-        setUser(fresh);
-        const av = pickAvatar(fresh);
-        const abs = av ? (makeAbsoluteMediaUrl(av) ?? av) : null;
-        if (abs) setImageUri(abs);
-      }
-    } catch {
-      Alert.alert('Fehler', 'Foto konnte nicht hochgeladen werden.');
-      const av = pickAvatar(user);
-      setImageUri(av ? (makeAbsoluteMediaUrl(av) ?? av) : null);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const showError = (msg: string) => {
     Toast.show({ type: 'error', text1: 'Fehler', text2: String(msg), position: 'top', topOffset: 100 });
@@ -191,16 +156,12 @@ export default function UpdateUserScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={true}
         >
           <View style={styles.topBar}>
             <Pressable
@@ -216,11 +177,7 @@ export default function UpdateUserScreen() {
 
           <View style={styles.card}>
             <View style={styles.headerBlock}>
-              <Pressable
-                onPress={handlePickImage}
-                disabled={uploading}
-                style={({ pressed }) => [styles.avatarWrap, pressed && { opacity: 0.8 }]}
-              >
+              <View style={styles.avatarWrap}>
                 <View style={styles.avatarCircle}>
                   {displayImageUri ? (
                     <Image
@@ -232,14 +189,8 @@ export default function UpdateUserScreen() {
                     <Text style={styles.avatarInitials}>{initials}</Text>
                   )}
                 </View>
-                <View style={styles.cameraTag}>
-                  {uploading
-                    ? <ActivityIndicator size="small" color="#fff" />
-                    : <Ionicons name="camera" size={13} color="#fff" />}
-                </View>
-              </Pressable>
+              </View>
               <Text style={styles.headerTitle}>Profil bearbeiten</Text>
-              <Text style={styles.headerHint}>Foto antippen zum Ändern</Text>
             </View>
 
             <View style={styles.field}>
@@ -253,6 +204,7 @@ export default function UpdateUserScreen() {
                   placeholderTextColor="#9AA4A0"
                   style={styles.input}
                   editable={!loading}
+                  autoCapitalize="words"
                   autoCapitalize="words"
                   returnKeyType="next"
                 />
@@ -315,7 +267,6 @@ export default function UpdateUserScreen() {
 
           <View style={{ height: 22 }} />
         </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -69,20 +69,20 @@ const PENDING_STEPS_KEY = 'step_together_pending_save';
 const DAILY_GOAL_KEY = 'step_together_daily_goal';
 const DEFAULT_GOAL = 8000;
 const GOAL_MESSAGES = [
-    'Na endlich.',
-    'Gut gemacht. Für deine Verhältnisse.',
-    'Hätte früher auch nicht geschadet.',
-    'Super. Jetzt jeden Tag so.',
-    'Immerhin.',
-    'Wenigstens das.',
-    'Morgen auch bitte.',
-    "Ich sag's ungern, aber: gut.",
-    'Heute ausnahmsweise mal: Respekt.',
-    'Okay. Reicht.',
-    'lowkey impressed ngl.',
-    'Niemand hat damit gerechnet. Wirklich niemand.',
-    'Heute mal kein Versagen. Schön.',
-    'Dein Therapeut wäre stolz.',
+    'Fantastisch! Du hast dein Tagesziel erreicht!',
+    'Großartige Leistung heute – du kannst stolz auf dich sein!',
+    'Du bist auf dem richtigen Weg. Weiter so!',
+    'Was für ein Tag! Du hast alles gegeben.',
+    'Beeindruckend! Du machst das wirklich toll.',
+    'Top-Form heute – so macht Bewegung Spaß!',
+    'Jeden Schritt wert – du bist großartig!',
+    'Ziel erreicht! Das hast du dir verdient.',
+    'Bewegung macht glücklich, und du machst es perfekt!',
+    'Starke Leistung! Morgen noch einen drauflegen?',
+    'Du gibst alles – das sieht man!',
+    'Heute war dein Tag – und du hast ihn genutzt!',
+    'Schritt für Schritt zum Ziel – du schaffst das!',
+    'Respekt! Du machst einen tollen Job.',
 ];
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
