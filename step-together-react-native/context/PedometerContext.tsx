@@ -11,8 +11,9 @@ type PedometerSession = {
     // watchStepCount resets its counter each time a new subscription starts, so we
     // carry over whatever was already counted before the current subscription began.
     stepOffset?: number;
-    // Legacy key from previous implementation.
-    sessionStartTime?: number;
+    // ISO timestamp of when tracking started — used to query system pedometer
+    // history (getStepCountAsync) so background/locked steps are not lost.
+    sessionStartTime?: string;
     baseSteps: number;
     challengeId: number;
     dateISO: string;
@@ -59,6 +60,11 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // watchStepCount resets to 0 on each new subscription, so we track the
     // cumulative offset from previous windows here.
     const stepOffsetRef = useRef(0);
+
+    // ISO string of when the current session started — needed so we can query
+    // getStepCountAsync(sessionStart, now) to capture steps taken while the app
+    // was in the background or the phone was locked.
+    const sessionStartTimeRef = useRef<string | null>(null);
 
     const toSafeStepNumber = useCallback((value: unknown) => {
         const num = typeof value === 'number' ? value : Number(value);
@@ -109,6 +115,23 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return false;
     }, []);
 
+    // Query system pedometer history from sessionStart until now.
+    // The system pedometer (iOS CoreMotion / Android step-counter sensor) keeps
+    // counting even when the app is backgrounded or the phone is locked, so this
+    // gives us all steps — not just the ones watchStepCount observed.
+    // Falls back to `fallbackSteps` when the API is unavailable (older Android).
+    const getSystemStepsSinceStart = useCallback(async (fallbackSteps: number): Promise<number> => {
+        const startISO = sessionStartTimeRef.current;
+        if (!startISO) return fallbackSteps;
+        try {
+            const result = await Pedometer.getStepCountAsync(new Date(startISO), new Date());
+            const steps = toSafeStepNumber(result?.steps);
+            return steps;
+        } catch {
+            return fallbackSteps;
+        }
+    }, [toSafeStepNumber]);
+
     const stopSubscription = useCallback(() => {
         if (subscriptionRef.current) {
             subscriptionRef.current.remove();
@@ -146,7 +169,24 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     await AsyncStorage.removeItem(PEDOMETER_SESSION_KEY);
                     return;
                 }
-                const restoredOffset = toSafeStepNumber(session.stepOffset);
+                const savedOffset = toSafeStepNumber(session.stepOffset);
+                // Restore the session start time so getStepCountAsync works.
+                sessionStartTimeRef.current = session.sessionStartTime ?? null;
+
+                // Use system pedometer history to recover steps taken while the
+                // app was killed / phone was locked since the session started.
+                let restoredOffset = savedOffset;
+                if (session.sessionStartTime) {
+                    try {
+                        const result = await Pedometer.getStepCountAsync(
+                            new Date(session.sessionStartTime),
+                            new Date(),
+                        );
+                        restoredOffset = toSafeStepNumber(result?.steps);
+                    } catch {
+                        // Older Android without step-count history — keep savedOffset.
+                    }
+                }
 
                 if (isMountedRef.current) {
                     setIsTracking(true);
@@ -171,18 +211,26 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // When the app goes to background: save accumulated steps and stop the
     // subscription (Android kills sensors in the background).
-    // When it comes back to foreground: restart from saved offset.
+    // When it comes back to foreground: query system pedometer history to recover
+    // any steps taken while the phone was locked / app was backgrounded.
     useEffect(() => {
-        const sub = AppState.addEventListener('change', (state) => {
+        const sub = AppState.addEventListener('change', async (state) => {
             if (!isTrackingRef.current) return;
 
             if (state === 'active') {
-                // sessionSteps state already holds the persisted offset
-                setSessionSteps((prev) => {
-                    const safePrev = toSafeStepNumber(prev);
-                    startSubscription(safePrev);
-                    return safePrev;
+                // Read saved offset from state (synchronously available via setSessionSteps callback)
+                const savedOffset = await new Promise<number>((resolve) => {
+                    setSessionSteps((prev) => {
+                        resolve(toSafeStepNumber(prev));
+                        return prev;
+                    });
                 });
+                // Prefer system pedometer history so background/locked steps are included.
+                const catchUpSteps = await getSystemStepsSinceStart(savedOffset);
+                if (isMountedRef.current) {
+                    setSessionSteps(catchUpSteps);
+                    startSubscription(catchUpSteps);
+                }
             } else {
                 // Capture current count, persist it, then stop subscription
                 setSessionSteps((prev) => {
@@ -194,6 +242,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                                     const session: PedometerSession = {
                                         isTracking: true,
                                         stepOffset: safePrev,
+                                        sessionStartTime: sessionStartTimeRef.current ?? undefined,
                                         baseSteps: base,
                                         challengeId: cId,
                                         dateISO: dISO,
@@ -215,7 +264,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
         });
         return () => sub.remove();
-    }, [startSubscription, stopSubscription, toSafeStepNumber]);
+    }, [startSubscription, stopSubscription, toSafeStepNumber, getSystemStepsSinceStart]);
 
     const startTracking = useCallback(async (base: number, cId: number, dISO: string) => {
         const hasPermission = await ensureActivityPermission();
@@ -228,9 +277,13 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsPedometerAvailable(available);
         if (!available) throw new Error('Pedometer nicht verfuegbar');
 
+        const startTime = new Date().toISOString();
+        sessionStartTimeRef.current = startTime;
+
         const session: PedometerSession = {
             isTracking: true,
             stepOffset: 0,
+            sessionStartTime: startTime,
             baseSteps: base,
             challengeId: cId,
             dateISO: dISO,
@@ -264,6 +317,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setDateISO(null);
         setBaseSteps(0);
         stepOffsetRef.current = 0;
+        sessionStartTimeRef.current = null;
 
         return { sessionSteps: finalSteps };
     }, [stopSubscription]);
