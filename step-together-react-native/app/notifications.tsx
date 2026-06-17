@@ -94,6 +94,16 @@ function getCountdownInfo(dateStr: string, endDateStr?: string) {
   return           { days, label: `${days} Tage`,         pillBg: 'rgba(0,0,0,0.05)',      pillColor: SUB,       icon: 'calendar-outline' as const,       isEnded: false };
 }
 
+function isChallengeEnded(item: any): boolean {
+  const endDate = item?.endDate ?? item?.end_date ?? '';
+  if (!endDate) return false;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  return !isNaN(end.getTime()) && end < now;
+}
+
 function getMonthKey(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -382,7 +392,7 @@ export default function NotificationsScreen() {
   );
 
   const pendingInvites = useMemo(() =>
-    [...challenges.filter((c) => c.inviteStatus === 'pending')]
+    [...challenges.filter((c) => c.inviteStatus === 'pending' && !isChallengeEnded(c))]
       .sort((a, b) => (Number(b.inviteId) || 0) - (Number(a.inviteId) || 0)),
     [challenges]
   );
@@ -392,7 +402,7 @@ export default function NotificationsScreen() {
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const map: Record<string, NotifChallenge[]> = {};
-    challenges.filter((c) => c.inviteStatus !== 'pending').forEach((c) => {
+    challenges.filter((c) => c.inviteStatus !== 'pending' && !isChallengeEnded(c)).forEach((c) => {
       let key = getMonthKey(getStartDate(c));
       if (!key || key < currentMonthKey) key = currentMonthKey;
       if (!map[key]) map[key] = [];
