@@ -65,6 +65,8 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // getStepCountAsync(sessionStart, now) to capture steps taken while the app
     // was in the background or the phone was locked.
     const sessionStartTimeRef = useRef<string | null>(null);
+    const subscriptionBaselineRef = useRef<number | null>(null);
+    const backgroundedAtRef = useRef<number | null>(null);
 
     const toSafeStepNumber = useCallback((value: unknown) => {
         const num = typeof value === 'number' ? value : Number(value);
@@ -124,8 +126,19 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const startISO = sessionStartTimeRef.current;
         if (!startISO) return fallbackSteps;
         try {
+            const safeFallback = toSafeStepNumber(fallbackSteps);
             const result = await Pedometer.getStepCountAsync(new Date(startISO), new Date());
             const steps = toSafeStepNumber(result?.steps);
+
+            // Android can sometimes report one phantom step immediately after
+            // resuming/restarting the pedometer subscription.
+            const backgroundedAt = backgroundedAtRef.current;
+            const wasQuicklyBackgrounded =
+                backgroundedAt !== null && Date.now() - backgroundedAt <= 30000;
+            if (steps === safeFallback + 1 && wasQuicklyBackgrounded) {
+                return safeFallback;
+            }
+
             return steps;
         } catch {
             return fallbackSteps;
@@ -142,11 +155,16 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const startSubscription = useCallback((offset: number) => {
         stopSubscription();
         stepOffsetRef.current = toSafeStepNumber(offset);
+        subscriptionBaselineRef.current = null;
 
         subscriptionRef.current = Pedometer.watchStepCount((result) => {
             if (isMountedRef.current) {
                 const liveSteps = toSafeStepNumber(result?.steps);
-                setSessionSteps(stepOffsetRef.current + liveSteps);
+                if (subscriptionBaselineRef.current === null) {
+                    subscriptionBaselineRef.current = liveSteps;
+                }
+                const adjustedSteps = Math.max(0, liveSteps - subscriptionBaselineRef.current);
+                setSessionSteps(stepOffsetRef.current + adjustedSteps);
             }
         });
     }, [stopSubscription, toSafeStepNumber]);
@@ -218,6 +236,8 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (!isTrackingRef.current) return;
 
             if (state === 'active') {
+                backgroundedAtRef.current = null;
+
                 // Read saved offset from state (synchronously available via setSessionSteps callback)
                 const savedOffset = await new Promise<number>((resolve) => {
                     setSessionSteps((prev) => {
@@ -232,6 +252,8 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     startSubscription(catchUpSteps);
                 }
             } else {
+                backgroundedAtRef.current = Date.now();
+
                 // Capture current count, persist it, then stop subscription
                 setSessionSteps((prev) => {
                     const safePrev = toSafeStepNumber(prev);
