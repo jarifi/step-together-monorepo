@@ -28,8 +28,23 @@ const COLORS = {
   accentSoft: 'rgba(85,128,92,0.12)',
 };
 
+type VerifiedFilter = 'all' | 'verified' | 'unverified';
+
+interface UserItem {
+  id: number | string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+  isVerified?: boolean;
+  is_verified?: boolean;
+  verified?: boolean;
+  failedLoginAttempts?: number;
+  failed_login_attempts?: number;
+  stepLength?: number;
+}
+
 export default function UsersScreen() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [skip, setSkip] = useState(0);
   const limit = 10;
 
@@ -38,16 +53,15 @@ export default function UsersScreen() {
   const [hasMore, setHasMore] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<UserItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  const [verifiedFilter, setVerifiedFilter] = useState('all');
-  // 'all' | 'verified' | 'unverified'
+  const [verifiedFilter, setVerifiedFilter] = useState<VerifiedFilter>('all');
 
-  const searchTimeoutRef = useRef(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
-  const isUserVerified = useCallback((user) => {
+  const isUserVerified = useCallback((user: UserItem) => {
     return (
       user?.isVerified === true ||
       user?.is_verified === true ||
@@ -134,7 +148,7 @@ export default function UsersScreen() {
 
     try {
       const data = await getUsers(0, limit);
-      const safe = Array.isArray(data) ? data : [];
+      const safe: UserItem[] = Array.isArray(data) ? data : [];
 
       setUsers(safe);
       setSkip(safe.length);
@@ -155,7 +169,7 @@ export default function UsersScreen() {
 
     try {
       const data = await getUsers(skip, limit);
-      const safe = Array.isArray(data) ? data : [];
+      const safe: UserItem[] = Array.isArray(data) ? data : [];
 
       setUsers((prev) => [...prev, ...safe]);
       setSkip((prev) => prev + safe.length);
@@ -168,36 +182,18 @@ export default function UsersScreen() {
     }
   };
 
-  const handleVerifyUser = async (user) => {
+  const handleVerifyUser = async (user: UserItem) => {
     try {
       const result = await verifyUser(user.id);
       const verifiedValue = result?.isVerified ?? true;
 
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === user.id
-            ? {
-                ...u,
-                isVerified: verifiedValue,
-                is_verified: verifiedValue,
-                verified: verifiedValue,
-              }
-            : u
-        )
-      );
+      const applyVerified = (u: UserItem): UserItem =>
+        u.id === user.id
+          ? { ...u, isVerified: verifiedValue, is_verified: verifiedValue, verified: verifiedValue }
+          : u;
 
-      setSearchResults((prev) =>
-        prev.map((u) =>
-          u.id === user.id
-            ? {
-                ...u,
-                isVerified: verifiedValue,
-                is_verified: verifiedValue,
-                verified: verifiedValue,
-              }
-            : u
-        )
-      );
+      setUsers((prev) => prev.map(applyVerified));
+      setSearchResults((prev) => prev.map(applyVerified));
 
       Alert.alert('Erfolg', 'Benutzer wurde verifiziert.');
     } catch (error) {
@@ -206,17 +202,17 @@ export default function UsersScreen() {
     }
   };
 
-  const handleUnlockUser = async (user) => {
+  const handleUnlockUser = async (user: UserItem) => {
     try {
       await unlockUser(user.id);
-      const update = (list) =>
+      const applyUnlock = (list: UserItem[]): UserItem[] =>
         list.map((u) =>
           u.id === user.id
             ? { ...u, failedLoginAttempts: 0, failed_login_attempts: 0 }
             : u
         );
-      setUsers(update);
-      setSearchResults(update);
+      setUsers(applyUnlock);
+      setSearchResults(applyUnlock);
       Alert.alert('Erfolg', 'Konto wurde entsperrt.');
     } catch (error) {
       console.error('Unlock failed:', error);
@@ -251,6 +247,12 @@ export default function UsersScreen() {
         ? 'nur nicht verifiziert'
         : '';
 
+  const filterItems: { key: VerifiedFilter; label: string }[] = [
+    { key: 'all', label: 'Alle' },
+    { key: 'verified', label: 'Verifiziert' },
+    { key: 'unverified', label: 'Nicht verifiziert' },
+  ];
+
   return (
     <View style={styles.screen}>
       <View style={styles.container}>
@@ -279,11 +281,7 @@ export default function UsersScreen() {
           </View>
 
           <View style={styles.filterRow}>
-            {[
-              { key: 'all', label: 'Alle' },
-              { key: 'verified', label: 'Verifiziert' },
-              { key: 'unverified', label: 'Nicht verifiziert' },
-            ].map((item) => {
+            {filterItems.map((item) => {
               const active = verifiedFilter === item.key;
 
               return (
@@ -310,18 +308,12 @@ export default function UsersScreen() {
                 {isSearching
                   ? 'Suche in der Datenbank…'
                   : `${filteredUsers.length} Ergebnis(se)${
-                      searchQuery.trim() ? ` · „${searchQuery.trim()}“` : ''
+                      searchQuery.trim() ? ` · „${searchQuery.trim()}"` : ''
                     }${filterLabel ? ` · ${filterLabel}` : ''}`}
               </Text>
             </View>
           ) : null}
 
-          <Pressable
-            onPress={() => router.push('/users/create')}
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-          >
-            <Text style={styles.primaryBtnText}>+ Neuer Benutzer</Text>
-          </Pressable>
         </View>
 
         <FlatList
@@ -340,6 +332,7 @@ export default function UsersScreen() {
                     name: item.name,
                     email: item.email,
                     stepLength: item.stepLength,
+                    avatar: item.avatar,
                   },
                 })
               }
@@ -369,14 +362,6 @@ export default function UsersScreen() {
                   : 'Erstell deinen ersten Benutzer.'}
               </Text>
 
-              {!searchQuery.trim() && verifiedFilter === 'all' && (
-                <Pressable
-                  onPress={() => router.push('/users/create')}
-                  style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-                >
-                  <Text style={styles.secondaryBtnText}>Benutzer erstellen</Text>
-                </Pressable>
-              )}
             </View>
           }
           ListFooterComponent={

@@ -1,15 +1,15 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import ChallengeTabs from '../../components/ChallengeTabs';
+import ChallengeTabs from '../../../components/ChallengeTabs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import Avatar from '../../components/Avatar';
-import { LeafletOSMMap } from '../../components/LeafletOSMMap';
-import { getChallengeById } from '../../services/challengeService';
-import { getHomeInit } from '../../services/dashboardService';
-import { mapHomeInitToDashboard } from '../../services/dto/dashboardDto';
-import { getTeamRanking } from '../../services/teamService';
-import styles from '../styles/dashboardStyles';
+import Avatar from '../../../components/Avatar';
+import { LeafletOSMMap } from '../../../components/LeafletOSMMap';
+import { getChallengeById } from '../../../services/challengeService';
+import { getHomeInit } from '../../../services/dashboardService';
+import { mapHomeInitToDashboard } from '../../../services/dto/dashboardDto';
+import { getTeamRanking } from '../../../services/teamService';
+import styles from '../../styles/dashboardStyles';
 
 const FIX_STEP_LENGTH_M = 0.78;
 
@@ -378,23 +378,6 @@ const challengeTeamDashboardDetailsScreen: React.FC = () => {
           </Text>
 
           <TouchableOpacity
-            onPress={() => router.push('/challenges/activeChallenges')}
-            activeOpacity={0.9}
-            style={{
-              backgroundColor: '#658869ff',
-              paddingVertical: 14,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 10,
-            }}
-          >
-            <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>
-              Zu den Challenges
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             onPress={() => router.push('/userHistory')}
             activeOpacity={0.85}
             style={{
@@ -418,8 +401,8 @@ const challengeTeamDashboardDetailsScreen: React.FC = () => {
 
   const startLocation = vm?.challenge?.startLocation || '—';
   const targetLocation = vm?.challenge?.targetLocation || '—';
-  const overviewPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboard';
-  const rankingPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboardDetails';
+  const overviewPath = vm?.challenge?.id ? `/challenges/dashboard/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/dashboard/challengeTeamDashboard';
+  const rankingPath = vm?.challenge?.id ? `/challenges/dashboard/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/dashboard/challengeTeamDashboardDetails';
 
   return (
     <View style={{ flex: 1 }}>

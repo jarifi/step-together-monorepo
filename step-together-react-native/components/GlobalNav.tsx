@@ -12,7 +12,7 @@ export const GLOBAL_NAV_HEIGHT = 64;
 
 type Props = { pathname: string };
 
-const HOME_PATH = '/challenges/challengesDashboard';
+const HOME_PATH = '/challenges/dashboard/challengesDashboard';
 
 export default function GlobalNav({ pathname }: Props) {
   const insets = useSafeAreaInsets();

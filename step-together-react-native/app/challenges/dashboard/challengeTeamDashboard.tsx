@@ -28,13 +28,13 @@ import {
   startOfWeek,
   stripTime,
   toIsoDate as toISO,
-} from '../../services/dto/dashboardDto';
+} from '../../../services/dto/dashboardDto';
 
-import ChallengeTabs from '../../components/ChallengeTabs';
-import { getChallengeById } from '../../services/challengeService';
-import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../services/dashboardService';
-import { getTeamRanking } from '../../services/teamService';
-import styles from '../styles/dashboardStyles';
+import ChallengeTabs from '../../../components/ChallengeTabs';
+import { getChallengeById } from '../../../services/challengeService';
+import { getHomeInit, getWeekSteps, upsertStepsForDate } from '../../../services/dashboardService';
+import { getTeamRanking } from '../../../services/teamService';
+import styles from '../../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -69,20 +69,20 @@ const MAX_STEP_DELTA = 100000;
 const DAILY_GOAL_KEY = 'step_together_daily_goal';
 const DEFAULT_GOAL = 8000;
 const GOAL_MESSAGES = [
-  'Na endlich.',
-  'Gut gemacht. Für deine Verhältnisse.',
-  'Hätte früher auch nicht geschadet.',
-  'Super. Jetzt jeden Tag so.',
-  'Immerhin.',
-  'Wenigstens das.',
-  'Morgen auch bitte.',
-  "Ich sag's ungern, aber: gut.",
-  'Heute ausnahmsweise mal: Respekt.',
-  'Okay. Reicht.',
-  'lowkey impressed ngl.',
-  'Niemand hat damit gerechnet. Wirklich niemand.',
-  'Heute mal kein Versagen. Schön.',
-  'Dein Therapeut wäre stolz.',
+  'Fantastisch! Du hast dein Tagesziel erreicht!',
+  'Großartige Leistung heute – du kannst stolz auf dich sein!',
+  'Du bist auf dem richtigen Weg. Weiter so!',
+  'Was für ein Tag! Du hast alles gegeben.',
+  'Beeindruckend! Du machst das wirklich toll.',
+  'Top-Form heute – so macht Bewegung Spaß!',
+  'Jeden Schritt wert – du bist großartig!',
+  'Ziel erreicht! Das hast du dir verdient.',
+  'Bewegung macht glücklich, und du machst es perfekt!',
+  'Starke Leistung! Morgen noch einen drauflegen?',
+  'Du gibst alles – das sieht man!',
+  'Heute war dein Tag – und du hast ihn genutzt!',
+  'Schritt für Schritt zum Ziel – du schaffst das!',
+  'Respekt! Du machst einen tollen Job.',
 ];
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
@@ -746,21 +746,6 @@ const Dashboard: React.FC = () => {
         </Text>
 
         <TouchableOpacity
-          onPress={() => router.push('/challenges/activeChallenges')}
-          activeOpacity={0.9}
-          style={{
-            backgroundColor: '#658869ff',
-            paddingVertical: 14,
-            borderRadius: 18,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 10,
-          }}
-        >
-          <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>Zu den Challenges</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           onPress={() => router.push('/userHistory')}
           activeOpacity={0.85}
           style={{
@@ -782,7 +767,7 @@ const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
-        <ChallengeTabs active="overview" overviewPath="/challenges/challengeTeamDashboard" rankingPath="/challenges/challengeTeamDashboardDetails" />
+        <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeTeamDashboard" rankingPath="/challenges/dashboard/challengeTeamDashboardDetails" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" />
           <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
@@ -798,7 +783,7 @@ const Dashboard: React.FC = () => {
   if (!vm || errorMsg || !canShowChallenge) {
     return (
       <View style={{ flex: 1 }}>
-        <ChallengeTabs active="overview" overviewPath="/challenges/challengeTeamDashboard" rankingPath="/challenges/challengeTeamDashboardDetails" />
+        <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeTeamDashboard" rankingPath="/challenges/dashboard/challengeTeamDashboardDetails" />
         <EmptyChallengeCard />
       </View>
     );
@@ -831,8 +816,8 @@ const Dashboard: React.FC = () => {
 
   const isTodaySelected = sameDay(displayDate, today);
 
-  const overviewPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboard';
-  const rankingPath = vm?.challenge?.id ? `/challenges/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeTeamDashboardDetails';
+  const overviewPath = vm?.challenge?.id ? `/challenges/dashboard/challengeTeamDashboard?id=${vm.challenge.id}` : '/challenges/dashboard/challengeTeamDashboard';
+  const rankingPath = vm?.challenge?.id ? `/challenges/dashboard/challengeTeamDashboardDetails?id=${vm.challenge.id}` : '/challenges/dashboard/challengeTeamDashboardDetails';
 
   return (
     <View style={{ flex: 1 }}>

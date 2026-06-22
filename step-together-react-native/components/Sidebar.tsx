@@ -160,7 +160,7 @@ export default function Sidebar({
         )}
 
         <View style={styles.linkContainer}>
-          {renderNavLink('/challenges/challengesDashboard', 'Dashboard', 'dashboard', MaterialIcons)}
+          {renderNavLink('/challenges/dashboard/challengesDashboard', 'Dashboard', 'dashboard', MaterialIcons)}
           {(() => {
             const active = isActive('/notifications');
             const iconSize = width < 380 ? 22 : 24;

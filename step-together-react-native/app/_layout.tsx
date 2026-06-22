@@ -20,6 +20,7 @@ import Toast from 'react-native-toast-message';
 
 import GlobalNav from '../components/GlobalNav';
 import Sidebar from '../components/Sidebar';
+import { PedometerProvider } from '../context/PedometerContext';
 import { UserProvider, useUser } from '../context/UserContext';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { isLoggedIn } from '../lib/auth';
@@ -44,9 +45,11 @@ const asArray = (x: any): any[] => {
 export default function RootLayout() {
   return (
     <UserProvider>
-      <QueryClientProvider client={queryClient}>
-        <AppContent />
-      </QueryClientProvider>
+      <PedometerProvider>
+        <QueryClientProvider client={queryClient}>
+          <AppContent />
+        </QueryClientProvider>
+      </PedometerProvider>
     </UserProvider>
   );
 }
@@ -195,6 +198,7 @@ const contentTopPadding = useMemo(
       await AsyncStorage.setItem(SHOWN_POPUP_KEY, JSON.stringify([...shown]));
 
       const challenge = await getChallengeById(newInvite.challengeId ?? newInvite.challenge_id);
+      if (!challenge) return;
       showAlertRef.current(
         challenge,
         newInvite.id,
@@ -297,25 +301,22 @@ const contentTopPadding = useMemo(
           <Stack.Screen name="teams/create" options={{ headerShown: false }} />
           <Stack.Screen name="teams/members" options={{ headerShown: false }} />
           <Stack.Screen name="users/index" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/challengeTeamDashboardDetails" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/challengeIndividualDashboardDetails" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/dashboard/challengeTeamDashboardDetails" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/dashboard/challengeIndividualDashboardDetails" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/index" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/adminCreate" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/hybridIndex" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/challengesDashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/create" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/dashboard/challengesDashboard" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/update" options={{ headerShown: false }} />
           <Stack.Screen name="challenges/details" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/challengeTeamDashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/challengeIndividualDashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="challenges/activeChallenges" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/dashboard/challengeTeamDashboard" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/dashboard/challengeIndividualDashboard" options={{ headerShown: false }} />
           <Stack.Screen name="userHistory" options={{ headerShown: false }} />
           <Stack.Screen name="profileInfo" options={{ headerShown: false }} />
           <Stack.Screen name="settings/settings" options={{ headerShown: false }} />
           <Stack.Screen name="settings/profile" options={{ headerShown: false }} />
           <Stack.Screen name="settings/password" options={{ headerShown: false }} />
           <Stack.Screen name="settings/userDelete" options={{ headerShown: false }} />
-          <Stack.Screen name="users/create" options={{ headerShown: false }} />
           <Stack.Screen name="help/start" options={{ headerShown: false }} />
           <Stack.Screen name="help/help" options={{ headerShown: false }} />
           <Stack.Screen name="help/about" options={{ headerShown: false }} />
@@ -324,8 +325,8 @@ const contentTopPadding = useMemo(
           <Stack.Screen name="help/terms" options={{ headerShown: false }} />
           <Stack.Screen name="teams/update" options={{ headerShown: false }} />
           <Stack.Screen name="verifyInfo" options={{ headerShown: false }} />
-          <Stack.Screen name="CreateHybridChallenge" options={{ headerShown: false }} />
-          <Stack.Screen name="hybridUpdate" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/hybridCreate" options={{ headerShown: false }} />
+          <Stack.Screen name="challenges/hybridUpdate" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
         </Stack>
 

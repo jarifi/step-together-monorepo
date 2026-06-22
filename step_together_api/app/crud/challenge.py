@@ -167,6 +167,11 @@ def delete_challenge(db: Session, challenge_id: int) -> Optional[ChallengeModel]
     if not challenge_obj:
         return None
 
+    db.query(ChallengeInvite).filter(
+        ChallengeInvite.challenge_id == challenge_id,
+        ChallengeInvite.status == ChallengeInvite.STATUS_PENDING,
+    ).update({"status": ChallengeInvite.STATUS_CANCELLED})
+
     challenge_obj.is_deleted = True
     db.commit()
     db.refresh(challenge_obj)
@@ -731,10 +736,14 @@ def respond_to_challenge_invite(
 
 def get_invites_for_user(db: Session, user_id: int):
     """
-    Fetches all invites received by a specific user.
+    Fetches all invites received by a specific user for non-deleted challenges.
     """
     return (
         db.query(ChallengeInvite)
-        .filter(ChallengeInvite.invitee_user_id == user_id)
+        .join(ChallengeModel, ChallengeModel.id == ChallengeInvite.challenge_id)
+        .filter(
+            ChallengeInvite.invitee_user_id == user_id,
+            ChallengeModel.is_deleted == False,
+        )
         .all()
     )

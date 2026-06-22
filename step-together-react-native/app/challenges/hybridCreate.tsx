@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -10,31 +10,40 @@ import {
   Modal,
   Platform,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   createBulkChallengeInvites,
   createChallenge,
 } from "../../services/challengeService";
-import { getAllTeams } from "../../services/teamService";
 import {
   getDisplayAvatarUri,
   getUsers,
   searchUsers,
 } from "../../services/userService";
 
-function extractErrorMessage(err) {
+interface AppError {
+  payload?: { message?: string; detail?: string | Array<{ msg?: string }> } | string;
+  message?: string;
+  status?: number;
+  name?: string;
+}
+
+function extractErrorMessage(err: AppError): string {
   const p = err?.payload;
   if (p) {
-    if (typeof p.message === "string" && p.message) return p.message;
-    if (typeof p.detail === "string" && p.detail) return p.detail;
-    if (Array.isArray(p.detail))
-      return p.detail.map((d) => d.msg || JSON.stringify(d)).join(" · ");
+    if (typeof p === "object") {
+      if (typeof p.message === "string" && p.message) return p.message;
+      if (typeof p.detail === "string" && p.detail) return p.detail;
+      if (Array.isArray(p.detail))
+        return p.detail.map((d) => d.msg || JSON.stringify(d)).join(" · ");
+    }
     if (typeof p === "string") return p;
   }
   const m = err?.message;
@@ -45,12 +54,13 @@ function extractErrorMessage(err) {
   if (s === 403) return "Keine Berechtigung für diese Aktion.";
   if (s === 404) return "Ressource nicht gefunden.";
   if (s === 422) return "Eingabefehler. Bitte alle Felder korrekt ausfüllen.";
-  if (s >= 500) return "Serverfehler. Bitte später erneut versuchen.";
+  if (s != null && s >= 500) return "Serverfehler. Bitte später erneut versuchen.";
   if (err?.name === "TypeError")
     return "Netzwerkfehler. Bitte Internetverbindung prüfen.";
   return "Unbekannter Fehler. Bitte erneut versuchen.";
 }
 
+// ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
   white: "#FFFFFF",
   bg: "#F2F5F3",
@@ -82,30 +92,21 @@ const { width: W } = Dimensions.get("window");
 const IS_MOBILE = W < 680;
 const IS_WEB = Platform.OS === "web";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const MONTHS_DE = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
 ];
 const DAYS_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
-function today() {
+function today(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function sameDay(a, b) {
-  return (
+function sameDay(a: Date | null, b: Date | null): boolean {
+  return !!(
     a &&
     b &&
     a.getFullYear() === b.getFullYear() &&
@@ -114,7 +115,7 @@ function sameDay(a, b) {
   );
 }
 
-function fmtDate(d) {
+function fmtDate(d: Date | null): string {
   if (!d) return "";
   return d.toLocaleDateString("de-AT", {
     day: "2-digit",
@@ -123,37 +124,37 @@ function fmtDate(d) {
   });
 }
 
-function fmtTime(d) {
+function fmtTime(d: Date | null): string {
   if (!d) return "";
   return d.toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" });
 }
 
-function fmtDateShort(d) {
+function fmtDateShort(d: Date | null): string {
   if (!d) return "—";
   return `${fmtDate(d)}  ${fmtTime(d)}`;
 }
 
-function daysBetween(a, b) {
+function daysBetween(a: Date | null, b: Date | null): number | null {
   if (!a || !b) return null;
-  const n = Math.round((b - a) / 86400000);
+  const n = Math.round((b.getTime() - a.getTime()) / 86400000);
   return n > 0 ? n : null;
 }
 
-function calDaysInMonth(year, month) {
+function calDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function calFirstWeekday(year, month) {
+function calFirstWeekday(year: number, month: number): number {
   const wd = new Date(year, month, 1).getDay();
   return (wd + 6) % 7;
 }
 
-function roundToFive(min) {
+function roundToFive(min: number): number {
   const rounded = Math.round((Number(min) || 0) / 5) * 5;
   return Math.min(55, Math.max(0, rounded));
 }
 
-function initials(name) {
+function initials(name: string | undefined): string {
   return (name || "?")
     .trim()
     .split(/\s+/)
@@ -163,8 +164,17 @@ function initials(name) {
     .toUpperCase();
 }
 
-function TimeStepper({ value, min, max, step, onChange }) {
-  function applyDelta(delta) {
+// ─── TimeStepper ──────────────────────────────────────────────────────────────
+interface TimeStepperProps {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (val: number) => void;
+}
+
+function TimeStepper({ value, min, max, step, onChange }: TimeStepperProps) {
+  function applyDelta(delta: number) {
     const next = Math.min(max, Math.max(min, value + delta));
     if (next !== value) onChange(next);
   }
@@ -184,7 +194,14 @@ function TimeStepper({ value, min, max, step, onChange }) {
   );
 }
 
-function TimeWheel({ value, options, onChange }) {
+// ─── TimeWheel ────────────────────────────────────────────────────────────────
+interface TimeWheelProps {
+  value: number;
+  options: number[];
+  onChange: (val: number) => void;
+}
+
+function TimeWheel({ value, options, onChange }: TimeWheelProps) {
   return (
     <ScrollView
       style={tw.wheel}
@@ -257,6 +274,16 @@ const tw = StyleSheet.create({
   stepValueText: { fontSize: 16, fontWeight: "700", color: T.primary },
 });
 
+// ─── Modern Calendar Picker ───────────────────────────────────────────────────
+interface CalendarPickerProps {
+  visible: boolean;
+  value: Date | null;
+  minDate?: Date;
+  onConfirm: (d: Date) => void;
+  onClose: () => void;
+  title?: string;
+}
+
 function CalendarPicker({
   visible,
   value,
@@ -264,7 +291,7 @@ function CalendarPicker({
   onConfirm,
   onClose,
   title,
-}) {
+}: CalendarPickerProps) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(
     value ? value.getFullYear() : now.getFullYear(),
@@ -272,7 +299,7 @@ function CalendarPicker({
   const [viewMonth, setViewMonth] = useState(
     value ? value.getMonth() : now.getMonth(),
   );
-  const [picked, setPicked] = useState(value || null);
+  const [picked, setPicked] = useState<Date | null>(value || null);
   const [hour, setHour] = useState(value ? value.getHours() : 8);
   const [minute, setMinute] = useState(
     value ? roundToFive(value.getMinutes()) : 0,
@@ -302,7 +329,7 @@ function CalendarPicker({
     } else setViewMonth((m) => m + 1);
   }
 
-  function selectDay(day) {
+  function selectDay(day: number) {
     const d = new Date(viewYear, viewMonth, day);
     if (minDate && d < minDate) return;
     setPicked(d);
@@ -317,7 +344,7 @@ function CalendarPicker({
 
   const daysInMonth = calDaysInMonth(viewYear, viewMonth);
   const firstWeekday = calFirstWeekday(viewYear, viewMonth);
-  const cells = [];
+  const cells: (number | null)[] = [];
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length < 42) cells.push(null);
@@ -329,6 +356,7 @@ function CalendarPicker({
 
   const calContent = (
     <View style={cal.sheet}>
+      {/* Title bar */}
       <View style={cal.titleBar}>
         <Text style={cal.titleText}>{title || "Datum wählen"}</Text>
         <TouchableOpacity
@@ -344,6 +372,7 @@ function CalendarPicker({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={cal.scrollContent}
       >
+        {/* Month nav */}
         <View style={cal.monthNav}>
           <TouchableOpacity onPress={prevMonth} style={cal.navBtn}>
             <Text style={cal.navArrow}>‹</Text>
@@ -356,6 +385,7 @@ function CalendarPicker({
           </TouchableOpacity>
         </View>
 
+        {/* Weekday headers */}
         <View style={cal.weekRow}>
           {DAYS_DE.map((d) => (
             <View key={d} style={cal.weekCell}>
@@ -364,13 +394,14 @@ function CalendarPicker({
           ))}
         </View>
 
+        {/* Day grid */}
         <View style={cal.grid}>
           {cells.map((day, i) => {
             if (!day) return <View key={`e${i}`} style={cal.cell} />;
             const cellDate = new Date(viewYear, viewMonth, day);
             const isTodayD = sameDay(cellDate, today());
             const isSelected = picked && sameDay(cellDate, picked);
-            const isDisabled = minDate && cellDate < minDate;
+            const isDisabled = !!(minDate && cellDate < minDate);
             return (
               <TouchableOpacity
                 key={day}
@@ -398,8 +429,10 @@ function CalendarPicker({
           })}
         </View>
 
+        {/* Divider */}
         <View style={cal.divider} />
 
+        {/* Time picker */}
         <Text style={cal.timeLabel}>Uhrzeit</Text>
         <View style={cal.timeRow}>
           <View style={cal.timeBlock}>
@@ -407,7 +440,7 @@ function CalendarPicker({
             {IS_WEB ? (
               <select
                 value={hour}
-                onChange={(e) => setHour(Number(e.target.value))}
+                onChange={(e: any) => setHour(Number(e.target.value))}
                 style={{
                   fontSize: 16,
                   padding: "6px 10px",
@@ -417,7 +450,7 @@ function CalendarPicker({
                   background: T.surfaceAlt,
                   fontFamily: "inherit",
                   outline: "none",
-                }}
+                } as any}
               >
                 {HOURS.map((h) => (
                   <option key={h} value={h}>
@@ -443,7 +476,7 @@ function CalendarPicker({
             {IS_WEB ? (
               <select
                 value={minute}
-                onChange={(e) => setMinute(Number(e.target.value))}
+                onChange={(e: any) => setMinute(Number(e.target.value))}
                 style={{
                   fontSize: 16,
                   padding: "6px 10px",
@@ -453,7 +486,7 @@ function CalendarPicker({
                   background: T.surfaceAlt,
                   fontFamily: "inherit",
                   outline: "none",
-                }}
+                } as any}
               >
                 {MINUTES.map((m) => (
                   <option key={m} value={m}>
@@ -491,6 +524,7 @@ function CalendarPicker({
         </View>
       </ScrollView>
 
+      {/* Actions */}
       <View style={cal.actions}>
         <TouchableOpacity style={cal.cancelBtn} onPress={onClose}>
           <Text style={cal.cancelTxt}>Abbrechen</Text>
@@ -519,6 +553,7 @@ function CalendarPicker({
 }
 
 const CAL_CELL = Math.min(26, (Math.min(W, 360) - 28 - 12) / 7);
+void CAL_CELL;
 
 const cal = StyleSheet.create({
   backdrop: {
@@ -535,7 +570,7 @@ const cal = StyleSheet.create({
     maxHeight: IS_MOBILE ? "78%" : "82%",
     flexShrink: 1,
     ...(IS_WEB
-      ? { boxShadow: "0 8px 40px rgba(10,25,18,0.22)" }
+      ? ({ boxShadow: "0 8px 40px rgba(10,25,18,0.22)" } as any)
       : {
           shadowColor: "#000",
           shadowOpacity: 0.25,
@@ -687,7 +722,17 @@ const cal = StyleSheet.create({
   confirmTxt: { fontSize: 15, fontWeight: "700", color: T.white },
 });
 
-function DateField({ label, required, value, onChange, minDate, error }) {
+// ─── DateField ────────────────────────────────────────────────────────────────
+interface DateFieldProps {
+  label?: string;
+  required?: boolean;
+  value: Date | null;
+  onChange: (date: Date | null) => void;
+  minDate?: Date;
+  error?: string | null;
+}
+
+function DateField({ label, required, value, onChange, minDate, error }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const hasVal = !!value;
   return (
@@ -737,7 +782,13 @@ function DateField({ label, required, value, onChange, minDate, error }) {
   );
 }
 
-function SectionHead({ title, subtitle }) {
+// ─── Section heading ──────────────────────────────────────────────────────────
+interface SectionHeadProps {
+  title: string;
+  subtitle?: string;
+}
+
+function SectionHead({ title, subtitle }: SectionHeadProps) {
   return (
     <View style={s.secHead}>
       <Text style={s.secTitle}>{title}</Text>
@@ -746,7 +797,13 @@ function SectionHead({ title, subtitle }) {
   );
 }
 
-function Card({ children, style }) {
+// ─── Card ─────────────────────────────────────────────────────────────────────
+interface CardProps {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}
+
+function Card({ children, style }: CardProps) {
   return <View style={[s.card, style]}>{children}</View>;
 }
 
@@ -754,33 +811,22 @@ function HRule() {
   return <View style={s.hrule} />;
 }
 
-function TeamRow({ team, selected, onToggle }) {
-  const ini = initials(team.name);
-  return (
-    <TouchableOpacity
-      style={[s.teamRow, selected && s.teamRowSel]}
-      onPress={() => onToggle(team.id)}
-      activeOpacity={0.65}
-    >
-      <View style={s.avatar}>
-        <Text style={s.avatarText}>{ini}</Text>
-      </View>
-      <View style={s.teamBody}>
-        <Text style={[s.teamName, selected && s.teamNameSel]} numberOfLines={1}>
-          {team.name}
-        </Text>
-        {team.memberCount != null && (
-          <Text style={s.teamMeta}>{team.memberCount} Mitglieder</Text>
-        )}
-      </View>
-      <View style={[s.checkbox, selected && s.checkboxOn]}>
-        {selected && <Text style={s.checkTick}>✓</Text>}
-      </View>
-    </TouchableOpacity>
-  );
+// ─── User row ─────────────────────────────────────────────────────────────────
+interface UserItem {
+  id: number | string;
+  name?: string;
+  fullname?: string;
+  full_name?: string;
+  username?: string;
 }
 
-function UserRow({ user, selected, onToggle }) {
+interface UserRowProps {
+  user: UserItem;
+  selected: boolean;
+  onToggle: (id: number | string) => void;
+}
+
+function UserRow({ user, selected, onToggle }: UserRowProps) {
   const avatarUri = getDisplayAvatarUri(user);
   const [imgErr, setImgErr] = useState(false);
   const displayName =
@@ -820,56 +866,42 @@ function UserRow({ user, selected, onToggle }) {
   );
 }
 
-export default function AdminCreateChallenge() {
+// ─── Toast ────────────────────────────────────────────────────────────────────
+interface ToastState {
+  type: "success" | "error";
+  message: string;
+  onPress?: () => void;
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+export default function CreateHybridChallenge({ navigation }: { navigation?: object }) {
+  // Form state
   const [name, setName] = useState("");
   const [startLoc, setStartLoc] = useState("");
   const [targetLoc, setTargetLoc] = useState("");
   const [distance, setDistance] = useState("");
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
-  const [teams, setTeams] = useState([]);
-  const [teamsLoading, setTeamsLoading] = useState(false);
-  const [teamsError, setTeamsError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  const [users, setUsers] = useState([]);
+  // Users
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [query, setQuery] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [visibleUsers, setVisibleUsers] = useState(4);
-  const [visibleTeams, setVisibleTeams] = useState(4);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<(number | string)[]>([]);
 
-  const [errors, setErrors] = useState({});
+  // Form
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [teamModus, setTeamModus] = useState(null);
 
-  const [toast, setToast] = useState(null);
+  // Toast
+  const [toast, setToast] = useState<ToastState | null>(null);
   const toastAnim = useRef(new Animated.Value(-140)).current;
-  const toastTimer = useRef(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    loadTeams();
+    loadUsers("");
   }, []);
-
-  useEffect(() => {
-    if (teamModus === "individual") loadUsers("");
-  }, [teamModus]);
-
-  const loadTeams = async () => {
-    setTeamsLoading(true);
-    setTeamsError(null);
-    try {
-      const data = await getAllTeams();
-      setTeams(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to load teams:", err);
-      setTeamsError("Teams konnten nicht geladen werden.");
-    } finally {
-      setTeamsLoading(false);
-    }
-  };
 
   const loadUsers = async (q = query) => {
     setLoadingUsers(true);
@@ -879,37 +911,27 @@ export default function AdminCreateChallenge() {
     setLoadingUsers(false);
   };
 
-  const toggleTeam = useCallback((id) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  }, []);
-
-  const toggleUser = useCallback((id) => {
+  const toggleUser = useCallback((id: number | string) => {
     setSelectedUserIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   }, []);
 
-  const filteredTeams = teams.filter((t) =>
-    (t.name || "").toLowerCase().includes(search.toLowerCase()),
-  );
-
   const duration = daysBetween(startDate, endDate);
 
-  const validate = () => {
-    const e = {};
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Name ist erforderlich";
     if (!startLoc.trim()) e.startLoc = "Startort eingeben";
     if (!targetLoc.trim()) e.targetLoc = "Zielort eingeben";
     if (!distance || isNaN(+distance) || +distance <= 0)
       e.distance = "Gültige Distanz eingeben";
     if (!startDate) e.startDate = "Startdatum wählen";
+    if (startDate && startDate < today())
+      e.startDate = "Startdatum darf nicht in der Vergangenheit liegen";
     if (!endDate) e.endDate = "Enddatum wählen";
     if (startDate && endDate && endDate <= startDate)
       e.endDate = "Enddatum muss nach Startdatum liegen";
-    if (teamModus !== "individual" && selectedIds.length === 0)
-      e.teams = "Mindestens ein Team auswählen";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -924,13 +946,13 @@ export default function AdminCreateChallenge() {
         start_location: startLoc.trim(),
         target_location: targetLoc.trim(),
         distance: parseFloat(distance),
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        mode: teamModus === "individual" ? "individual" : "team",
-        team_ids: teamModus === "individual" ? [] : selectedIds,
+        start_date: startDate!.toISOString(),
+        end_date: endDate!.toISOString(),
+        mode: "individual",
+        team_ids: [],
         creator_id: parseInt(storedUserId || "0", 10),
       };
-      const timeout = new Promise((_, reject) =>
+      const timeout = new Promise<never>((_, reject) =>
         setTimeout(
           () =>
             reject(
@@ -942,11 +964,7 @@ export default function AdminCreateChallenge() {
         ),
       );
       const created = await Promise.race([createChallenge(payload), timeout]);
-      if (
-        teamModus === "individual" &&
-        selectedUserIds.length > 0 &&
-        created?.id
-      ) {
+      if (selectedUserIds.length > 0 && created?.id) {
         try {
           await createBulkChallengeInvites(created.id, selectedUserIds);
         } catch (inviteErr) {
@@ -959,13 +977,14 @@ export default function AdminCreateChallenge() {
         () => router.push("/challenges/hybridIndex"),
       );
     } catch (err) {
-      showToast("error", extractErrorMessage(err));
+      showToast("error", extractErrorMessage(err as AppError));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const clearError = (key) => setErrors((prev) => ({ ...prev, [key]: null }));
+  const clearError = (key: string) =>
+    setErrors((prev) => ({ ...prev, [key]: null }));
 
   function dismissToast() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -976,7 +995,11 @@ export default function AdminCreateChallenge() {
     }).start(() => setToast(null));
   }
 
-  function showToast(type, message, onPress) {
+  function showToast(
+    type: "success" | "error",
+    message: string,
+    onPress?: () => void,
+  ) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ type, message, onPress });
   }
@@ -993,14 +1016,16 @@ export default function AdminCreateChallenge() {
     toastTimer.current = setTimeout(dismissToast, 5000);
   }, [toast]);
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={s.root}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        {/* Header */}
         <View style={s.header}>
-          <Text style={s.headerTitle}>Challenge erstellen (Admin)</Text>
+          <Text style={s.headerTitle}>Erstelle deine Challenge</Text>
         </View>
 
         <ScrollView
@@ -1015,6 +1040,7 @@ export default function AdminCreateChallenge() {
             subtitle="Name, Strecke und Distanz festlegen"
           />
           <Card>
+            {/* Name */}
             <View style={s.fieldWrap}>
               <Text style={s.label}>
                 Challenge-Name <Text style={{ color: T.primary }}>*</Text>
@@ -1035,6 +1061,7 @@ export default function AdminCreateChallenge() {
 
             <HRule />
 
+            {/* Start / Ziel */}
             <View style={IS_MOBILE ? s.col : s.row2}>
               <View style={[s.fieldWrap, !IS_MOBILE && { flex: 1 }]}>
                 <Text style={s.label}>
@@ -1076,17 +1103,14 @@ export default function AdminCreateChallenge() {
 
             <HRule />
 
+            {/* Distanz */}
             <View style={s.fieldWrap}>
               <Text style={s.label}>
                 Distanz <Text style={{ color: T.primary }}>*</Text>
               </Text>
               <View style={s.distRow}>
                 <TextInput
-                  style={[
-                    s.input,
-                    s.distInput,
-                    errors.distance && s.inputError,
-                  ]}
+                  style={[s.input, s.distInput, errors.distance && s.inputError]}
                   placeholder="z.B. 200"
                   placeholderTextColor={T.textLight}
                   value={distance}
@@ -1117,6 +1141,7 @@ export default function AdminCreateChallenge() {
                 <DateField
                   label="Startdatum"
                   required
+                  minDate={today()}
                   value={startDate}
                   onChange={(v) => {
                     setStartDate(v);
@@ -1158,205 +1183,62 @@ export default function AdminCreateChallenge() {
             )}
           </Card>
 
-          {/* ── 3. Team Modus ──────────────────────────────────────────────── */}
+          {/* ── 3. Einladungen ─────────────────────────────────────────────── */}
           <SectionHead
-            title="Team Modus"
-            subtitle="Wie soll die Challenge laufen?"
+            title="Einladungen"
+            subtitle="Lade Nutzer zur Challenge ein"
           />
-          <Card>
-            <Text style={s.teamModusDesc}>
-              Wähle zwischen Individual (Benutzer einzeln einladen) oder Gruppe
-              (Teams zuweisen).
-            </Text>
-            <View style={s.teamModusRow}>
-              <TouchableOpacity
-                style={[
-                  s.teamModusBtn,
-                  teamModus === "individual" && s.teamModusBtnActive,
-                ]}
-                onPress={() => setTeamModus("individual")}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    s.teamModusBtnLabel,
-                    teamModus === "individual" && s.teamModusBtnLabelActive,
-                  ]}
-                >
-                  Individual
-                </Text>
-                <Text
-                  style={[
-                    s.teamModusBtnSub,
-                    teamModus === "individual" && s.teamModusBtnSubActive,
-                  ]}
-                >
-                  Benutzer einladen
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  s.teamModusBtn,
-                  teamModus === "gruppe" && s.teamModusBtnActive,
-                ]}
-                onPress={() => setTeamModus("gruppe")}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    s.teamModusBtnLabel,
-                    teamModus === "gruppe" && s.teamModusBtnLabelActive,
-                  ]}
-                >
-                  Gruppe
-                </Text>
-                <Text
-                  style={[
-                    s.teamModusBtnSub,
-                    teamModus === "gruppe" && s.teamModusBtnSubActive,
-                  ]}
-                >
-                  Teams zuweisen
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-
-          {/* ── 4. Auswahl Widget ────────────────────────────────────────── */}
           <Card style={s.modeWidget}>
-            {teamModus == null && (
-              <View style={s.widgetEmpty}>
-                <Text style={s.widgetEmptyIcon}>⊙</Text>
-                <Text style={s.widgetEmptyTitle}>Modus auswählen</Text>
-                <Text style={s.widgetEmptySub}>
-                  Wähle oben «Individual» oder «Gruppe» aus
-                </Text>
+            <View style={s.widgetSearchWrap}>
+              <View style={s.searchBox}>
+                <Text style={s.searchIcon}>⌕</Text>
+                <TextInput
+                  style={s.searchInput}
+                  placeholder="User suchen…"
+                  placeholderTextColor={T.textMuted}
+                  value={query}
+                  onChangeText={(text) => {
+                    setQuery(text);
+                    loadUsers(text);
+                  }}
+                />
               </View>
-            )}
+            </View>
 
-            {/* ── USERS (Individual) ── */}
-            {teamModus === "individual" && (
-              <View>
-                <View style={s.widgetSearchWrap}>
-                  <View style={s.searchBox}>
-                    <Text style={s.searchIcon}>⌕</Text>
-                    <TextInput
-                      style={s.searchInput}
-                      placeholder="User suchen…"
-                      placeholderTextColor={T.textMuted}
-                      value={query}
-                      onChangeText={(text) => {
-                        setQuery(text);
-                        loadUsers(text);
-                      }}
+            {loadingUsers ? (
+              <View style={s.widgetCenter}>
+                <ActivityIndicator color={T.primary} />
+              </View>
+            ) : users.length === 0 ? (
+              <View style={s.widgetCenter}>
+                <Text style={s.emptyText}>Keine User gefunden</Text>
+              </View>
+            ) : (
+              <>
+                {users.slice(0, visibleUsers).map((user, i, arr) => (
+                  <View key={user.id}>
+                    <UserRow
+                      user={user}
+                      selected={selectedUserIds.includes(user.id)}
+                      onToggle={toggleUser}
                     />
+                    {i < arr.length - 1 && <View style={s.teamDivider} />}
                   </View>
-                </View>
-
-                {loadingUsers ? (
-                  <View style={s.widgetCenter}>
-                    <ActivityIndicator color={T.primary} />
-                  </View>
-                ) : users.length === 0 ? (
-                  <View style={s.widgetCenter}>
-                    <Text style={s.emptyText}>Keine User gefunden</Text>
-                  </View>
-                ) : (
-                  <>
-                    {users.slice(0, visibleUsers).map((user, i, arr) => (
-                      <View key={user.id}>
-                        <UserRow
-                          user={user}
-                          selected={selectedUserIds.includes(user.id)}
-                          onToggle={toggleUser}
-                        />
-                        {i < arr.length - 1 && <View style={s.teamDivider} />}
-                      </View>
-                    ))}
-                    {visibleUsers < Math.min(users.length, 15) && (
-                      <TouchableOpacity
-                        style={s.showMoreBtn}
-                        onPress={() =>
-                          setVisibleUsers((v) => Math.min(v + 5, 15))
-                        }
-                      >
-                        <Text style={s.showMoreText}>
-                          Mehr anzeigen (
-                          {Math.min(users.length, 15) - visibleUsers} weitere)
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
+                ))}
+                {visibleUsers < Math.min(users.length, 15) && (
+                  <TouchableOpacity
+                    style={s.showMoreBtn}
+                    onPress={() => setVisibleUsers((v) => Math.min(v + 5, 15))}
+                  >
+                    <Text style={s.showMoreText}>
+                      Mehr anzeigen ({Math.min(users.length, 15) - visibleUsers}{" "}
+                      weitere)
+                    </Text>
+                  </TouchableOpacity>
                 )}
-              </View>
-            )}
-
-            {/* ── TEAMS (Gruppe) ── */}
-            {teamModus === "gruppe" && (
-              <View>
-                <View style={s.widgetSearchWrap}>
-                  <View style={s.searchBox}>
-                    <Text style={s.searchIcon}>⌕</Text>
-                    <TextInput
-                      style={s.searchInput}
-                      placeholder="Teams durchsuchen…"
-                      placeholderTextColor={T.textMuted}
-                      value={search}
-                      onChangeText={(text) => {
-                        setSearch(text);
-                        setVisibleTeams(4);
-                      }}
-                    />
-                  </View>
-                </View>
-
-                {teamsLoading ? (
-                  <View style={s.widgetCenter}>
-                    <ActivityIndicator color={T.primary} />
-                  </View>
-                ) : filteredTeams.length === 0 ? (
-                  <View style={s.widgetCenter}>
-                    <Text style={s.emptyText}>Keine Teams gefunden</Text>
-                  </View>
-                ) : (
-                  <>
-                    {filteredTeams
-                      .slice(0, visibleTeams)
-                      .map((team, i, arr) => (
-                        <View key={team.id}>
-                          <TeamRow
-                            team={team}
-                            selected={selectedIds.includes(team.id)}
-                            onToggle={toggleTeam}
-                          />
-                          {i < arr.length - 1 && <View style={s.teamDivider} />}
-                        </View>
-                      ))}
-                    {visibleTeams < Math.min(filteredTeams.length, 15) && (
-                      <TouchableOpacity
-                        style={s.showMoreBtn}
-                        onPress={() =>
-                          setVisibleTeams((v) => Math.min(v + 5, 15))
-                        }
-                      >
-                        <Text style={s.showMoreText}>
-                          Mehr anzeigen (
-                          {Math.min(filteredTeams.length, 15) - visibleTeams}{" "}
-                          weitere)
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
-                )}
-              </View>
+              </>
             )}
           </Card>
-
-          {errors.teams && (
-            <View style={s.teamsErrorWrap}>
-              <Text style={s.teamsErrorMsg}>{errors.teams}</Text>
-            </View>
-          )}
 
           {/* ── Submit ─────────────────────────────────────────────────────── */}
           <TouchableOpacity
@@ -1372,10 +1254,11 @@ export default function AdminCreateChallenge() {
             )}
           </TouchableOpacity>
 
-          <View style={{ height: 32 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* ── Toast ── absolute sibling of KAV, always renders on top ───────── */}
       {toast && (
         <Animated.View
           style={[ts.wrap, { transform: [{ translateY: toastAnim }] }]}
@@ -1388,7 +1271,6 @@ export default function AdminCreateChallenge() {
               dismissToast();
             }}
             activeOpacity={1}
-            pointerEvents="auto"
           >
             <View style={ts.iconWrap}>
               <Text style={ts.iconText}>
@@ -1407,10 +1289,11 @@ export default function AdminCreateChallenge() {
           </TouchableOpacity>
         </Animated.View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const INPUT_RADIUS = 12;
 const CARD_RADIUS = 16;
 
@@ -1418,7 +1301,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
 
   header: {
-    paddingTop: 25,
+    paddingTop: 74,
     paddingBottom: 22,
     paddingHorizontal: 20,
     backgroundColor: T.white,
@@ -1467,7 +1350,7 @@ const s = StyleSheet.create({
     padding: IS_MOBILE ? 16 : 20,
     marginBottom: 4,
     ...(IS_WEB
-      ? { boxShadow: "0 1px 6px rgba(15,31,23,0.08)" }
+      ? ({ boxShadow: "0 1px 6px rgba(15,31,23,0.08)" } as any)
       : {
           shadowColor: "#0F1F17",
           shadowOpacity: 0.06,
@@ -1495,7 +1378,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: T.text,
     ...(IS_WEB
-      ? { outlineStyle: "none", transition: "border-color 0.15s" }
+      ? ({ outlineStyle: "none", transition: "border-color 0.15s" } as any)
       : {}),
   },
   inputError: { borderColor: T.danger, backgroundColor: T.dangerSoft },
@@ -1542,7 +1425,9 @@ const s = StyleSheet.create({
     borderRadius: INPUT_RADIUS,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    ...(IS_WEB ? { cursor: "pointer", transition: "border-color 0.15s" } : {}),
+    ...(IS_WEB
+      ? ({ cursor: "pointer", transition: "border-color 0.15s" } as any)
+      : {}),
   },
   dateBtnFilled: {
     borderColor: T.accentLight,
@@ -1592,7 +1477,9 @@ const s = StyleSheet.create({
     gap: 8,
     marginTop: 10,
     marginBottom: 10,
-    ...(IS_WEB ? { boxShadow: "0 1px 4px rgba(15,31,23,0.07)" } : {}),
+    ...(IS_WEB
+      ? ({ boxShadow: "0 1px 4px rgba(15,31,23,0.07)" } as any)
+      : {}),
   },
   searchIcon: { fontSize: 18, color: T.textMuted },
   searchInput: {
@@ -1601,10 +1488,33 @@ const s = StyleSheet.create({
     color: T.text,
     paddingVertical: 12,
     ...(IS_WEB
-      ? { outlineStyle: "none", border: "none", background: "transparent" }
+      ? ({ outlineStyle: "none", border: "none", background: "transparent" } as any)
       : {}),
   },
+  searchClear: {
+    fontSize: 22,
+    color: T.textMuted,
+    paddingHorizontal: 4,
+    lineHeight: 24,
+  },
 
+  pillsScroll: { flexGrow: 0, marginBottom: 10 },
+  pillsContent: { flexDirection: "row", gap: 8, paddingRight: 4 },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: T.primarySoft,
+    borderWidth: 1,
+    borderColor: T.accentLight,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  pillText: { fontSize: 13, fontWeight: "600", color: T.primary },
+  pillX: { fontSize: 18, color: T.primaryMid, lineHeight: 20 },
+
+  teamCard: { padding: 0, overflow: "hidden", marginBottom: 4 },
   teamRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1632,7 +1542,9 @@ const s = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
+  avatarSel: { backgroundColor: T.primaryLight, borderColor: T.primaryLight },
   avatarText: { fontSize: 13, fontWeight: "700", color: T.textSec },
+  avatarTextSel: { color: T.white },
   teamBody: { flex: 1 },
   teamName: { fontSize: 15, fontWeight: "600", color: T.text },
   teamNameSel: { color: T.primary },
@@ -1656,6 +1568,17 @@ const s = StyleSheet.create({
     lineHeight: 14,
   },
 
+  teamsCenter: { padding: 36, alignItems: "center", gap: 12 },
+  teamsCenterText: { fontSize: 14, color: T.textMuted },
+  teamsErrorText: { fontSize: 14, color: T.danger, textAlign: "center" },
+  retryBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: T.primary,
+  },
+  retryText: { fontSize: 14, fontWeight: "600", color: T.primary },
   emptyText: {
     fontSize: 14,
     color: T.textMuted,
@@ -1701,16 +1624,18 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     ...(IS_WEB
-      ? {
+      ? ({
           cursor: "pointer",
           transition: "border-color 0.15s, background-color 0.15s",
-        }
+        } as any)
       : {}),
   },
   teamModusBtnActive: {
     borderColor: T.primary,
     backgroundColor: T.primarySoft,
-    ...(IS_WEB ? { boxShadow: "0 2px 14px rgba(30,92,58,0.18)" } : {}),
+    ...(IS_WEB
+      ? ({ boxShadow: "0 2px 14px rgba(30,92,58,0.18)" } as any)
+      : {}),
   },
   teamModusBtnLabel: {
     fontSize: 18,
@@ -1718,17 +1643,13 @@ const s = StyleSheet.create({
     color: T.textSec,
     letterSpacing: 0.2,
   },
-  teamModusBtnLabelActive: {
-    color: T.text,
-  },
+  teamModusBtnLabelActive: { color: T.text },
   teamModusBtnSub: {
     fontSize: 12,
     fontWeight: "500",
     color: T.textMuted,
   },
-  teamModusBtnSubActive: {
-    color: T.textSec,
-  },
+  teamModusBtnSubActive: { color: T.textSec },
 
   modeWidget: {
     padding: 0,
@@ -1780,9 +1701,7 @@ const s = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: "transparent",
   },
-  userRowSel: {
-    borderLeftColor: T.primary,
-  },
+  userRowSel: { borderLeftColor: T.primary },
   userAvatarImg: {
     width: 42,
     height: 42,
@@ -1793,6 +1712,10 @@ const s = StyleSheet.create({
     backgroundColor: T.primarySofter,
     borderColor: T.accentLight,
   },
+  userAvatarFallbackSel: {
+    backgroundColor: T.primaryLight,
+    borderColor: T.primaryLight,
+  },
 
   submitBtn: {
     backgroundColor: T.primaryLight,
@@ -1802,7 +1725,10 @@ const s = StyleSheet.create({
     justifyContent: "center",
     marginTop: 20,
     ...(IS_WEB
-      ? { cursor: "pointer", boxShadow: "0 4px 18px rgba(74,158,110,0.35)" }
+      ? ({
+          cursor: "pointer",
+          boxShadow: "0 4px 18px rgba(74,158,110,0.35)",
+        } as any)
       : {
           shadowColor: T.primaryLight,
           shadowOpacity: 0.4,
@@ -1820,6 +1746,7 @@ const s = StyleSheet.create({
   },
 });
 
+// ─── Toast styles ─────────────────────────────────────────────────────────────
 const ts = StyleSheet.create({
   wrap: {
     position: "absolute",
@@ -1841,7 +1768,7 @@ const ts = StyleSheet.create({
     gap: 12,
     opacity: 1,
     ...(IS_WEB
-      ? { boxShadow: "0 6px 24px rgba(10,25,18,0.35)" }
+      ? ({ boxShadow: "0 6px 24px rgba(10,25,18,0.35)" } as any)
       : {
           shadowColor: "#000",
           shadowOpacity: 0.28,

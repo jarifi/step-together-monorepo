@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -16,43 +16,42 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   createBulkChallengeInvites,
   createChallenge,
-} from "../services/challengeService";
+} from "../../services/challengeService";
+import { getAllTeams } from "../../services/teamService";
 import {
   getDisplayAvatarUri,
   getUsers,
   searchUsers,
-} from "../services/userService";
+} from "../../services/userService";
 
-function extractErrorMessage(err) {
-  // Unpack a FastAPI / structured payload first
-  const p = err?.payload;
+function extractErrorMessage(err: unknown): string {
+  const e = err as any;
+  const p = e?.payload;
   if (p) {
     if (typeof p.message === "string" && p.message) return p.message;
     if (typeof p.detail === "string" && p.detail) return p.detail;
     if (Array.isArray(p.detail))
-      return p.detail.map((d) => d.msg || JSON.stringify(d)).join(" · ");
+      return p.detail.map((d: any) => d.msg || JSON.stringify(d)).join(" · ");
     if (typeof p === "string") return p;
   }
-  // err.message can be "[object Object]" when the API bug fires
-  const m = err?.message;
+  const m = e?.message;
   if (typeof m === "string" && m && m !== "[object Object]") return m;
-  // Status-based fallbacks in German
-  const s = err?.status;
+  const s = e?.status;
   if (s === 400) return "Ungültige Eingabe. Bitte alle Felder prüfen.";
   if (s === 401) return "Nicht autorisiert. Bitte erneut anmelden.";
   if (s === 403) return "Keine Berechtigung für diese Aktion.";
   if (s === 404) return "Ressource nicht gefunden.";
   if (s === 422) return "Eingabefehler. Bitte alle Felder korrekt ausfüllen.";
   if (s >= 500) return "Serverfehler. Bitte später erneut versuchen.";
-  if (err?.name === "TypeError")
+  if (e?.name === "TypeError")
     return "Netzwerkfehler. Bitte Internetverbindung prüfen.";
   return "Unbekannter Fehler. Bitte erneut versuchen.";
 }
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
   white: "#FFFFFF",
   bg: "#F2F5F3",
@@ -84,7 +83,6 @@ const { width: W } = Dimensions.get("window");
 const IS_MOBILE = W < 680;
 const IS_WEB = Platform.OS === "web";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const MONTHS_DE = [
   "Januar",
   "Februar",
@@ -101,23 +99,23 @@ const MONTHS_DE = [
 ];
 const DAYS_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
-function today() {
+function today(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function sameDay(a, b) {
+function sameDay(a: Date | null, b: Date | null): boolean {
   return (
-    a &&
-    b &&
+    a != null &&
+    b != null &&
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
 }
 
-function fmtDate(d) {
+function fmtDate(d: Date | null): string {
   if (!d) return "";
   return d.toLocaleDateString("de-AT", {
     day: "2-digit",
@@ -126,38 +124,37 @@ function fmtDate(d) {
   });
 }
 
-function fmtTime(d) {
+function fmtTime(d: Date | null): string {
   if (!d) return "";
   return d.toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" });
 }
 
-function fmtDateShort(d) {
+function fmtDateShort(d: Date | null): string {
   if (!d) return "—";
   return `${fmtDate(d)}  ${fmtTime(d)}`;
 }
 
-function daysBetween(a, b) {
+function daysBetween(a: Date | null, b: Date | null): number | null {
   if (!a || !b) return null;
-  const n = Math.round((b - a) / 86400000);
+  const n = Math.round((b.getTime() - a.getTime()) / 86400000);
   return n > 0 ? n : null;
 }
 
-function calDaysInMonth(year, month) {
+function calDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function calFirstWeekday(year, month) {
-  // Monday-based: Mon=0 … Sun=6
+function calFirstWeekday(year: number, month: number): number {
   const wd = new Date(year, month, 1).getDay();
   return (wd + 6) % 7;
 }
 
-function roundToFive(min) {
+function roundToFive(min: number): number {
   const rounded = Math.round((Number(min) || 0) / 5) * 5;
   return Math.min(55, Math.max(0, rounded));
 }
 
-function initials(name) {
+function initials(name: string | undefined): string {
   return (name || "?")
     .trim()
     .split(/\s+/)
@@ -167,8 +164,16 @@ function initials(name) {
     .toUpperCase();
 }
 
-function TimeStepper({ value, min, max, step, onChange }) {
-  function applyDelta(delta) {
+interface TimeStepperProps {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}
+
+function TimeStepper({ value, min, max, step, onChange }: TimeStepperProps) {
+  function applyDelta(delta: number) {
     const next = Math.min(max, Math.max(min, value + delta));
     if (next !== value) onChange(next);
   }
@@ -188,9 +193,13 @@ function TimeStepper({ value, min, max, step, onChange }) {
   );
 }
 
-// ─── TimeWheel ────────────────────────────────────────────────────────────────
-// Minimal scroll-drum for hour / minute
-function TimeWheel({ value, options, onChange }) {
+interface TimeWheelProps {
+  value: number;
+  options: number[];
+  onChange: (v: number) => void;
+}
+
+function TimeWheel({ value, options, onChange }: TimeWheelProps) {
   return (
     <ScrollView
       style={tw.wheel}
@@ -263,7 +272,15 @@ const tw = StyleSheet.create({
   stepValueText: { fontSize: 16, fontWeight: "700", color: T.primary },
 });
 
-// ─── Modern Calendar Picker ───────────────────────────────────────────────────
+interface CalendarPickerProps {
+  visible: boolean;
+  value: Date | null;
+  minDate?: Date;
+  onConfirm: (d: Date) => void;
+  onClose: () => void;
+  title?: string;
+}
+
 function CalendarPicker({
   visible,
   value,
@@ -271,21 +288,20 @@ function CalendarPicker({
   onConfirm,
   onClose,
   title,
-}) {
+}: CalendarPickerProps) {
   const now = new Date();
-  const [viewYear, setViewYear] = useState(
+  const [viewYear, setViewYear] = useState<number>(
     value ? value.getFullYear() : now.getFullYear(),
   );
-  const [viewMonth, setViewMonth] = useState(
+  const [viewMonth, setViewMonth] = useState<number>(
     value ? value.getMonth() : now.getMonth(),
   );
-  const [picked, setPicked] = useState(value || null);
-  const [hour, setHour] = useState(value ? value.getHours() : 8);
-  const [minute, setMinute] = useState(
+  const [picked, setPicked] = useState<Date | null>(value || null);
+  const [hour, setHour] = useState<number>(value ? value.getHours() : 8);
+  const [minute, setMinute] = useState<number>(
     value ? roundToFive(value.getMinutes()) : 0,
   );
 
-  // reset when opening
   useEffect(() => {
     if (visible) {
       const base = value || new Date();
@@ -310,7 +326,7 @@ function CalendarPicker({
     } else setViewMonth((m) => m + 1);
   }
 
-  function selectDay(day) {
+  function selectDay(day: number) {
     const d = new Date(viewYear, viewMonth, day);
     if (minDate && d < minDate) return;
     setPicked(d);
@@ -325,7 +341,7 @@ function CalendarPicker({
 
   const daysInMonth = calDaysInMonth(viewYear, viewMonth);
   const firstWeekday = calFirstWeekday(viewYear, viewMonth);
-  const cells = [];
+  const cells: (number | null)[] = [];
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length < 42) cells.push(null);
@@ -337,7 +353,6 @@ function CalendarPicker({
 
   const calContent = (
     <View style={cal.sheet}>
-      {/* Title bar */}
       <View style={cal.titleBar}>
         <Text style={cal.titleText}>{title || "Datum wählen"}</Text>
         <TouchableOpacity
@@ -353,7 +368,6 @@ function CalendarPicker({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={cal.scrollContent}
       >
-        {/* Month nav */}
         <View style={cal.monthNav}>
           <TouchableOpacity onPress={prevMonth} style={cal.navBtn}>
             <Text style={cal.navArrow}>‹</Text>
@@ -366,7 +380,6 @@ function CalendarPicker({
           </TouchableOpacity>
         </View>
 
-        {/* Weekday headers */}
         <View style={cal.weekRow}>
           {DAYS_DE.map((d) => (
             <View key={d} style={cal.weekCell}>
@@ -375,14 +388,13 @@ function CalendarPicker({
           ))}
         </View>
 
-        {/* Day grid */}
         <View style={cal.grid}>
           {cells.map((day, i) => {
             if (!day) return <View key={`e${i}`} style={cal.cell} />;
             const cellDate = new Date(viewYear, viewMonth, day);
             const isTodayD = sameDay(cellDate, today());
             const isSelected = picked && sameDay(cellDate, picked);
-            const isDisabled = minDate && cellDate < minDate;
+            const isDisabled = minDate != null && cellDate < minDate;
             return (
               <TouchableOpacity
                 key={day}
@@ -410,10 +422,8 @@ function CalendarPicker({
           })}
         </View>
 
-        {/* Divider */}
         <View style={cal.divider} />
 
-        {/* Time picker */}
         <Text style={cal.timeLabel}>Uhrzeit</Text>
         <View style={cal.timeRow}>
           <View style={cal.timeBlock}>
@@ -505,7 +515,6 @@ function CalendarPicker({
         </View>
       </ScrollView>
 
-      {/* Actions */}
       <View style={cal.actions}>
         <TouchableOpacity style={cal.cancelBtn} onPress={onClose}>
           <Text style={cal.cancelTxt}>Abbrechen</Text>
@@ -547,10 +556,10 @@ const cal = StyleSheet.create({
     borderRadius: 20,
     padding: 14,
     width: Math.min(360, W - 32),
-    maxHeight: IS_MOBILE ? "78%" : "82%",
+    maxHeight: (IS_MOBILE ? "78%" : "82%") as any,
     flexShrink: 1,
     ...(IS_WEB
-      ? { boxShadow: "0 8px 40px rgba(10,25,18,0.22)" }
+      ? ({ boxShadow: "0 8px 40px rgba(10,25,18,0.22)" } as any)
       : {
           shadowColor: "#000",
           shadowOpacity: 0.25,
@@ -604,7 +613,7 @@ const cal = StyleSheet.create({
   weekLabel: { fontSize: 11, fontWeight: "600", color: T.textMuted },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   cell: {
-    width: `${100 / 7}%`,
+    width: `${100 / 7}%` as any,
     aspectRatio: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -702,8 +711,16 @@ const cal = StyleSheet.create({
   confirmTxt: { fontSize: 15, fontWeight: "700", color: T.white },
 });
 
-// ─── DateField ────────────────────────────────────────────────────────────────
-function DateField({ label, required, value, onChange, minDate, error }) {
+interface DateFieldProps {
+  label?: string;
+  required?: boolean;
+  value: Date | null;
+  onChange: (v: Date | null) => void;
+  minDate?: Date;
+  error?: string | null;
+}
+
+function DateField({ label, required, value, onChange, minDate, error }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const hasVal = !!value;
   return (
@@ -753,8 +770,12 @@ function DateField({ label, required, value, onChange, minDate, error }) {
   );
 }
 
-// ─── Section heading ──────────────────────────────────────────────────────────
-function SectionHead({ title, subtitle }) {
+interface SectionHeadProps {
+  title: string;
+  subtitle?: string;
+}
+
+function SectionHead({ title, subtitle }: SectionHeadProps) {
   return (
     <View style={s.secHead}>
       <Text style={s.secTitle}>{title}</Text>
@@ -763,8 +784,7 @@ function SectionHead({ title, subtitle }) {
   );
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
-function Card({ children, style }) {
+function Card({ children, style }: { children: ReactNode; style?: object }) {
   return <View style={[s.card, style]}>{children}</View>;
 }
 
@@ -772,8 +792,60 @@ function HRule() {
   return <View style={s.hrule} />;
 }
 
-// ─── User row ─────────────────────────────────────────────────────────────────
-function UserRow({ user, selected, onToggle }) {
+interface Team {
+  id: number | string;
+  name?: string;
+  memberCount?: number;
+}
+
+interface TeamRowProps {
+  team: Team;
+  selected: boolean;
+  onToggle: (id: number | string) => void;
+}
+
+function TeamRow({ team, selected, onToggle }: TeamRowProps) {
+  const ini = initials(team.name);
+  return (
+    <TouchableOpacity
+      style={[s.teamRow, selected && s.teamRowSel]}
+      onPress={() => onToggle(team.id)}
+      activeOpacity={0.65}
+    >
+      <View style={s.avatar}>
+        <Text style={s.avatarText}>{ini}</Text>
+      </View>
+      <View style={s.teamBody}>
+        <Text style={[s.teamName, selected && s.teamNameSel]} numberOfLines={1}>
+          {team.name}
+        </Text>
+        {team.memberCount != null && (
+          <Text style={s.teamMeta}>{team.memberCount} Mitglieder</Text>
+        )}
+      </View>
+      <View style={[s.checkbox, selected && s.checkboxOn]}>
+        {selected && <Text style={s.checkTick}>✓</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+interface User {
+  id: number | string;
+  name?: string;
+  fullname?: string;
+  full_name?: string;
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface UserRowProps {
+  user: User;
+  selected: boolean;
+  onToggle: (id: number | string) => void;
+}
+
+function UserRow({ user, selected, onToggle }: UserRowProps) {
   const avatarUri = getDisplayAvatarUri(user);
   const [imgErr, setImgErr] = useState(false);
   const displayName =
@@ -813,35 +885,74 @@ function UserRow({ user, selected, onToggle }) {
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function CreateHybridChallenge({ navigation }) {
-  // Form state
+type TeamModus = "individual" | "gruppe" | null;
+
+interface FormErrors {
+  name?: string | null;
+  startLoc?: string | null;
+  targetLoc?: string | null;
+  distance?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  teams?: string | null;
+}
+
+interface ToastState {
+  type: "success" | "error";
+  message: string;
+  onPress?: () => void;
+}
+
+export default function AdminCreateChallenge() {
   const [name, setName] = useState("");
   const [startLoc, setStartLoc] = useState("");
   const [targetLoc, setTargetLoc] = useState("");
   const [distance, setDistance] = useState("");
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
-  // Users
-  const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [teamsError, setTeamsError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<(number | string)[]>([]);
+
+  const [users, setUsers] = useState<User[]>([]);
   const [query, setQuery] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [visibleUsers, setVisibleUsers] = useState(4);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [visibleTeams, setVisibleTeams] = useState(4);
+  const [selectedUserIds, setSelectedUserIds] = useState<(number | string)[]>([]);
 
-  // Form
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [teamModus, setTeamModus] = useState<TeamModus>(null);
 
-  // Toast
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const toastAnim = useRef(new Animated.Value(-140)).current;
-  const toastTimer = useRef(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    loadUsers("");
+    loadTeams();
   }, []);
+
+  useEffect(() => {
+    if (teamModus === "individual") loadUsers("");
+  }, [teamModus]);
+
+  const loadTeams = async () => {
+    setTeamsLoading(true);
+    setTeamsError(null);
+    try {
+      const data = await getAllTeams();
+      setTeams(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to load teams:", err);
+      setTeamsError("Teams konnten nicht geladen werden.");
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
 
   const loadUsers = async (q = query) => {
     setLoadingUsers(true);
@@ -851,27 +962,37 @@ export default function CreateHybridChallenge({ navigation }) {
     setLoadingUsers(false);
   };
 
-  const toggleUser = useCallback((id) => {
+  const toggleTeam = useCallback((id: number | string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }, []);
+
+  const toggleUser = useCallback((id: number | string) => {
     setSelectedUserIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   }, []);
 
+  const filteredTeams = teams.filter((t) =>
+    (t.name || "").toLowerCase().includes(search.toLowerCase()),
+  );
+
   const duration = daysBetween(startDate, endDate);
 
-  const validate = () => {
-    const e = {};
+  const validate = (): boolean => {
+    const e: FormErrors = {};
     if (!name.trim()) e.name = "Name ist erforderlich";
     if (!startLoc.trim()) e.startLoc = "Startort eingeben";
     if (!targetLoc.trim()) e.targetLoc = "Zielort eingeben";
     if (!distance || isNaN(+distance) || +distance <= 0)
       e.distance = "Gültige Distanz eingeben";
     if (!startDate) e.startDate = "Startdatum wählen";
-    if (startDate && startDate < today())
-      e.startDate = "Startdatum darf nicht in der Vergangenheit liegen";
     if (!endDate) e.endDate = "Enddatum wählen";
     if (startDate && endDate && endDate <= startDate)
       e.endDate = "Enddatum muss nach Startdatum liegen";
+    if (teamModus !== "individual" && selectedIds.length === 0)
+      e.teams = "Mindestens ein Team auswählen";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -886,13 +1007,13 @@ export default function CreateHybridChallenge({ navigation }) {
         start_location: startLoc.trim(),
         target_location: targetLoc.trim(),
         distance: parseFloat(distance),
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        mode: "individual",
-        team_ids: [],
+        start_date: (startDate as Date).toISOString(),
+        end_date: (endDate as Date).toISOString(),
+        mode: teamModus === "individual" ? "individual" : "team",
+        team_ids: teamModus === "individual" ? [] : selectedIds,
         creator_id: parseInt(storedUserId || "0", 10),
       };
-      const timeout = new Promise((_, reject) =>
+      const timeout = new Promise<never>((_, reject) =>
         setTimeout(
           () =>
             reject(
@@ -904,7 +1025,11 @@ export default function CreateHybridChallenge({ navigation }) {
         ),
       );
       const created = await Promise.race([createChallenge(payload), timeout]);
-      if (selectedUserIds.length > 0 && created?.id) {
+      if (
+        teamModus === "individual" &&
+        selectedUserIds.length > 0 &&
+        created?.id
+      ) {
         try {
           await createBulkChallengeInvites(created.id, selectedUserIds);
         } catch (inviteErr) {
@@ -923,7 +1048,8 @@ export default function CreateHybridChallenge({ navigation }) {
     }
   };
 
-  const clearError = (key) => setErrors((prev) => ({ ...prev, [key]: null }));
+  const clearError = (key: keyof FormErrors) =>
+    setErrors((prev) => ({ ...prev, [key]: null }));
 
   function dismissToast() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -934,13 +1060,11 @@ export default function CreateHybridChallenge({ navigation }) {
     }).start(() => setToast(null));
   }
 
-  function showToast(type, message, onPress) {
+  function showToast(type: "success" | "error", message: string, onPress?: () => void) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ type, message, onPress });
-    // Animation starts in useEffect below, AFTER the Modal is mounted
   }
 
-  // Start slide-in only after the toast Modal is actually in the native tree
   useEffect(() => {
     if (!toast) return;
     toastAnim.setValue(-140);
@@ -953,16 +1077,14 @@ export default function CreateHybridChallenge({ navigation }) {
     toastTimer.current = setTimeout(dismissToast, 5000);
   }, [toast]);
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={s.root}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Header */}
         <View style={s.header}>
-          <Text style={s.headerTitle}>Erstelle deine Challenge</Text>
+          <Text style={s.headerTitle}>Challenge erstellen (Admin)</Text>
         </View>
 
         <ScrollView
@@ -977,7 +1099,6 @@ export default function CreateHybridChallenge({ navigation }) {
             subtitle="Name, Strecke und Distanz festlegen"
           />
           <Card>
-            {/* Name */}
             <View style={s.fieldWrap}>
               <Text style={s.label}>
                 Challenge-Name <Text style={{ color: T.primary }}>*</Text>
@@ -998,7 +1119,6 @@ export default function CreateHybridChallenge({ navigation }) {
 
             <HRule />
 
-            {/* Start / Ziel */}
             <View style={IS_MOBILE ? s.col : s.row2}>
               <View style={[s.fieldWrap, !IS_MOBILE && { flex: 1 }]}>
                 <Text style={s.label}>
@@ -1040,7 +1160,6 @@ export default function CreateHybridChallenge({ navigation }) {
 
             <HRule />
 
-            {/* Distanz */}
             <View style={s.fieldWrap}>
               <Text style={s.label}>
                 Distanz <Text style={{ color: T.primary }}>*</Text>
@@ -1082,7 +1201,6 @@ export default function CreateHybridChallenge({ navigation }) {
                 <DateField
                   label="Startdatum"
                   required
-                  minDate={today()}
                   value={startDate}
                   onChange={(v) => {
                     setStartDate(v);
@@ -1124,62 +1242,205 @@ export default function CreateHybridChallenge({ navigation }) {
             )}
           </Card>
 
-          {/* ── 3. Einladungen ─────────────────────────────────────────────── */}
+          {/* ── 3. Team Modus ──────────────────────────────────────────────── */}
           <SectionHead
-            title="Einladungen"
-            subtitle="Lade Nutzer zur Challenge ein"
+            title="Team Modus"
+            subtitle="Wie soll die Challenge laufen?"
           />
-          <Card style={s.modeWidget}>
-            <View style={s.widgetSearchWrap}>
-              <View style={s.searchBox}>
-                <Text style={s.searchIcon}>⌕</Text>
-                <TextInput
-                  style={s.searchInput}
-                  placeholder="User suchen…"
-                  placeholderTextColor={T.textMuted}
-                  value={query}
-                  onChangeText={(text) => {
-                    setQuery(text);
-                    loadUsers(text);
-                  }}
-                />
-              </View>
+          <Card>
+            <Text style={s.teamModusDesc}>
+              Wähle zwischen Individual (Benutzer einzeln einladen) oder Gruppe
+              (Teams zuweisen).
+            </Text>
+            <View style={s.teamModusRow}>
+              <TouchableOpacity
+                style={[
+                  s.teamModusBtn,
+                  teamModus === "individual" && s.teamModusBtnActive,
+                ]}
+                onPress={() => setTeamModus("individual")}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    s.teamModusBtnLabel,
+                    teamModus === "individual" && s.teamModusBtnLabelActive,
+                  ]}
+                >
+                  Individual
+                </Text>
+                <Text
+                  style={[
+                    s.teamModusBtnSub,
+                    teamModus === "individual" && s.teamModusBtnSubActive,
+                  ]}
+                >
+                  Benutzer einladen
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  s.teamModusBtn,
+                  teamModus === "gruppe" && s.teamModusBtnActive,
+                ]}
+                onPress={() => setTeamModus("gruppe")}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    s.teamModusBtnLabel,
+                    teamModus === "gruppe" && s.teamModusBtnLabelActive,
+                  ]}
+                >
+                  Gruppe
+                </Text>
+                <Text
+                  style={[
+                    s.teamModusBtnSub,
+                    teamModus === "gruppe" && s.teamModusBtnSubActive,
+                  ]}
+                >
+                  Teams zuweisen
+                </Text>
+              </TouchableOpacity>
             </View>
+          </Card>
 
-            {loadingUsers ? (
-              <View style={s.widgetCenter}>
-                <ActivityIndicator color={T.primary} />
+          {/* ── 4. Auswahl Widget ────────────────────────────────────────── */}
+          <Card style={s.modeWidget}>
+            {teamModus == null && (
+              <View style={s.widgetEmpty}>
+                <Text style={s.widgetEmptyIcon}>⊙</Text>
+                <Text style={s.widgetEmptyTitle}>Modus auswählen</Text>
+                <Text style={s.widgetEmptySub}>
+                  Wähle oben «Individual» oder «Gruppe» aus
+                </Text>
               </View>
-            ) : users.length === 0 ? (
-              <View style={s.widgetCenter}>
-                <Text style={s.emptyText}>Keine User gefunden</Text>
-              </View>
-            ) : (
-              <>
-                {users.slice(0, visibleUsers).map((user, i, arr) => (
-                  <View key={user.id}>
-                    <UserRow
-                      user={user}
-                      selected={selectedUserIds.includes(user.id)}
-                      onToggle={toggleUser}
+            )}
+
+            {/* ── USERS (Individual) ── */}
+            {teamModus === "individual" && (
+              <View>
+                <View style={s.widgetSearchWrap}>
+                  <View style={s.searchBox}>
+                    <Text style={s.searchIcon}>⌕</Text>
+                    <TextInput
+                      style={s.searchInput}
+                      placeholder="User suchen…"
+                      placeholderTextColor={T.textMuted}
+                      value={query}
+                      onChangeText={(text) => {
+                        setQuery(text);
+                        loadUsers(text);
+                      }}
                     />
-                    {i < arr.length - 1 && <View style={s.teamDivider} />}
                   </View>
-                ))}
-                {visibleUsers < Math.min(users.length, 15) && (
-                  <TouchableOpacity
-                    style={s.showMoreBtn}
-                    onPress={() => setVisibleUsers((v) => Math.min(v + 5, 15))}
-                  >
-                    <Text style={s.showMoreText}>
-                      Mehr anzeigen ({Math.min(users.length, 15) - visibleUsers}{" "}
-                      weitere)
-                    </Text>
-                  </TouchableOpacity>
+                </View>
+
+                {loadingUsers ? (
+                  <View style={s.widgetCenter}>
+                    <ActivityIndicator color={T.primary} />
+                  </View>
+                ) : users.length === 0 ? (
+                  <View style={s.widgetCenter}>
+                    <Text style={s.emptyText}>Keine User gefunden</Text>
+                  </View>
+                ) : (
+                  <>
+                    {users.slice(0, visibleUsers).map((user, i, arr) => (
+                      <View key={String(user.id)}>
+                        <UserRow
+                          user={user}
+                          selected={selectedUserIds.includes(user.id)}
+                          onToggle={toggleUser}
+                        />
+                        {i < arr.length - 1 && <View style={s.teamDivider} />}
+                      </View>
+                    ))}
+                    {visibleUsers < Math.min(users.length, 15) && (
+                      <TouchableOpacity
+                        style={s.showMoreBtn}
+                        onPress={() =>
+                          setVisibleUsers((v) => Math.min(v + 5, 15))
+                        }
+                      >
+                        <Text style={s.showMoreText}>
+                          Mehr anzeigen (
+                          {Math.min(users.length, 15) - visibleUsers} weitere)
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
-              </>
+              </View>
+            )}
+
+            {/* ── TEAMS (Gruppe) ── */}
+            {teamModus === "gruppe" && (
+              <View>
+                <View style={s.widgetSearchWrap}>
+                  <View style={s.searchBox}>
+                    <Text style={s.searchIcon}>⌕</Text>
+                    <TextInput
+                      style={s.searchInput}
+                      placeholder="Teams durchsuchen…"
+                      placeholderTextColor={T.textMuted}
+                      value={search}
+                      onChangeText={(text) => {
+                        setSearch(text);
+                        setVisibleTeams(4);
+                      }}
+                    />
+                  </View>
+                </View>
+
+                {teamsLoading ? (
+                  <View style={s.widgetCenter}>
+                    <ActivityIndicator color={T.primary} />
+                  </View>
+                ) : filteredTeams.length === 0 ? (
+                  <View style={s.widgetCenter}>
+                    <Text style={s.emptyText}>Keine Teams gefunden</Text>
+                  </View>
+                ) : (
+                  <>
+                    {filteredTeams
+                      .slice(0, visibleTeams)
+                      .map((team, i, arr) => (
+                        <View key={String(team.id)}>
+                          <TeamRow
+                            team={team}
+                            selected={selectedIds.includes(team.id)}
+                            onToggle={toggleTeam}
+                          />
+                          {i < arr.length - 1 && <View style={s.teamDivider} />}
+                        </View>
+                      ))}
+                    {visibleTeams < Math.min(filteredTeams.length, 15) && (
+                      <TouchableOpacity
+                        style={s.showMoreBtn}
+                        onPress={() =>
+                          setVisibleTeams((v) => Math.min(v + 5, 15))
+                        }
+                      >
+                        <Text style={s.showMoreText}>
+                          Mehr anzeigen (
+                          {Math.min(filteredTeams.length, 15) - visibleTeams}{" "}
+                          weitere)
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
             )}
           </Card>
+
+          {errors.teams && (
+            <View style={s.teamsErrorWrap}>
+              <Text style={s.teamsErrorMsg}>{errors.teams}</Text>
+            </View>
+          )}
 
           {/* ── Submit ─────────────────────────────────────────────────────── */}
           <TouchableOpacity
@@ -1195,11 +1456,10 @@ export default function CreateHybridChallenge({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 32 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Toast ── absolute sibling of KAV, always renders on top ───────── */}
       {toast && (
         <Animated.View
           style={[ts.wrap, { transform: [{ translateY: toastAnim }] }]}
@@ -1231,20 +1491,18 @@ export default function CreateHybridChallenge({ navigation }) {
           </TouchableOpacity>
         </Animated.View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const INPUT_RADIUS = 12;
 const CARD_RADIUS = 16;
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
 
-  // Header
   header: {
-    paddingTop: 74,
+    paddingTop: 25,
     paddingBottom: 22,
     paddingHorizontal: 20,
     backgroundColor: T.white,
@@ -1261,7 +1519,6 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Scroll
   scroll: { flex: 1 },
   scrollContent: {
     padding: IS_MOBILE ? 16 : 24,
@@ -1271,7 +1528,6 @@ const s = StyleSheet.create({
     alignSelf: "center",
   },
 
-  // Section heading
   secHead: {
     marginBottom: 10,
     marginTop: 20,
@@ -1287,7 +1543,6 @@ const s = StyleSheet.create({
   },
   secSub: { fontSize: 13, color: T.textMuted, marginTop: 2 },
 
-  // Card
   card: {
     backgroundColor: T.white,
     borderRadius: CARD_RADIUS,
@@ -1296,7 +1551,7 @@ const s = StyleSheet.create({
     padding: IS_MOBILE ? 16 : 20,
     marginBottom: 4,
     ...(IS_WEB
-      ? { boxShadow: "0 1px 6px rgba(15,31,23,0.08)" }
+      ? ({ boxShadow: "0 1px 6px rgba(15,31,23,0.08)" } as any)
       : {
           shadowColor: "#0F1F17",
           shadowOpacity: 0.06,
@@ -1306,7 +1561,6 @@ const s = StyleSheet.create({
         }),
   },
 
-  // Fields
   fieldWrap: { marginBottom: 0 },
   label: {
     fontSize: 13,
@@ -1325,7 +1579,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: T.text,
     ...(IS_WEB
-      ? { outlineStyle: "none", transition: "border-color 0.15s" }
+      ? ({ outlineStyle: "none", transition: "border-color 0.15s" } as any)
       : {}),
   },
   inputError: { borderColor: T.danger, backgroundColor: T.dangerSoft },
@@ -1347,11 +1601,9 @@ const s = StyleSheet.create({
     marginVertical: 16,
   },
 
-  // Layout
   row2: { flexDirection: "row", gap: 14 },
   col: { flexDirection: "column", gap: 14 },
 
-  // Distance
   distRow: { flexDirection: "row", gap: 10, alignItems: "center" },
   distInput: { flex: 1, maxWidth: IS_MOBILE ? undefined : 200 },
   unitChip: {
@@ -1364,7 +1616,6 @@ const s = StyleSheet.create({
   },
   unitText: { fontSize: 15, fontWeight: "700", color: T.primary },
 
-  // Date button
   dateBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1375,7 +1626,9 @@ const s = StyleSheet.create({
     borderRadius: INPUT_RADIUS,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    ...(IS_WEB ? { cursor: "pointer", transition: "border-color 0.15s" } : {}),
+    ...(IS_WEB
+      ? ({ cursor: "pointer", transition: "border-color 0.15s" } as any)
+      : {}),
   },
   dateBtnFilled: {
     borderColor: T.accentLight,
@@ -1398,7 +1651,6 @@ const s = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Duration
   durationRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1415,7 +1667,6 @@ const s = StyleSheet.create({
   },
   durationVal: { fontSize: 14, fontWeight: "700", color: T.success },
 
-  // Search
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -1427,7 +1678,9 @@ const s = StyleSheet.create({
     gap: 8,
     marginTop: 10,
     marginBottom: 10,
-    ...(IS_WEB ? { boxShadow: "0 1px 4px rgba(15,31,23,0.07)" } : {}),
+    ...(IS_WEB
+      ? ({ boxShadow: "0 1px 4px rgba(15,31,23,0.07)" } as any)
+      : {}),
   },
   searchIcon: { fontSize: 18, color: T.textMuted },
   searchInput: {
@@ -1436,35 +1689,10 @@ const s = StyleSheet.create({
     color: T.text,
     paddingVertical: 12,
     ...(IS_WEB
-      ? { outlineStyle: "none", border: "none", background: "transparent" }
+      ? ({ outlineStyle: "none", border: "none", background: "transparent" } as any)
       : {}),
   },
-  searchClear: {
-    fontSize: 22,
-    color: T.textMuted,
-    paddingHorizontal: 4,
-    lineHeight: 24,
-  },
 
-  // Pills
-  pillsScroll: { flexGrow: 0, marginBottom: 10 },
-  pillsContent: { flexDirection: "row", gap: 8, paddingRight: 4 },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: T.primarySoft,
-    borderWidth: 1,
-    borderColor: T.accentLight,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  pillText: { fontSize: 13, fontWeight: "600", color: T.primary },
-  pillX: { fontSize: 18, color: T.primaryMid, lineHeight: 20 },
-
-  // Team list
-  teamCard: { padding: 0, overflow: "hidden", marginBottom: 4 },
   teamRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1492,9 +1720,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  avatarSel: { backgroundColor: T.primaryLight, borderColor: T.primaryLight },
   avatarText: { fontSize: 13, fontWeight: "700", color: T.textSec },
-  avatarTextSel: { color: T.white },
   teamBody: { flex: 1 },
   teamName: { fontSize: 15, fontWeight: "600", color: T.text },
   teamNameSel: { color: T.primary },
@@ -1518,18 +1744,6 @@ const s = StyleSheet.create({
     lineHeight: 14,
   },
 
-  // States
-  teamsCenter: { padding: 36, alignItems: "center", gap: 12 },
-  teamsCenterText: { fontSize: 14, color: T.textMuted },
-  teamsErrorText: { fontSize: 14, color: T.danger, textAlign: "center" },
-  retryBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: T.primary,
-  },
-  retryText: { fontSize: 14, fontWeight: "600", color: T.primary },
   emptyText: {
     fontSize: 14,
     color: T.textMuted,
@@ -1554,7 +1768,6 @@ const s = StyleSheet.create({
     color: T.primary,
   },
 
-  // Team Modus
   teamModusDesc: {
     fontSize: 14,
     color: T.textSec,
@@ -1576,16 +1789,18 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     ...(IS_WEB
-      ? {
+      ? ({
           cursor: "pointer",
           transition: "border-color 0.15s, background-color 0.15s",
-        }
+        } as any)
       : {}),
   },
   teamModusBtnActive: {
     borderColor: T.primary,
     backgroundColor: T.primarySoft,
-    ...(IS_WEB ? { boxShadow: "0 2px 14px rgba(30,92,58,0.18)" } : {}),
+    ...(IS_WEB
+      ? ({ boxShadow: "0 2px 14px rgba(30,92,58,0.18)" } as any)
+      : {}),
   },
   teamModusBtnLabel: {
     fontSize: 18,
@@ -1605,7 +1820,6 @@ const s = StyleSheet.create({
     color: T.textSec,
   },
 
-  // Mode Widget
   modeWidget: {
     padding: 0,
     marginBottom: 4,
@@ -1646,7 +1860,6 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
 
-  // User row
   userRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1670,12 +1883,7 @@ const s = StyleSheet.create({
     backgroundColor: T.primarySofter,
     borderColor: T.accentLight,
   },
-  userAvatarFallbackSel: {
-    backgroundColor: T.primaryLight,
-    borderColor: T.primaryLight,
-  },
 
-  // Submit
   submitBtn: {
     backgroundColor: T.primaryLight,
     borderRadius: 14,
@@ -1684,7 +1892,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     marginTop: 20,
     ...(IS_WEB
-      ? { cursor: "pointer", boxShadow: "0 4px 18px rgba(74,158,110,0.35)" }
+      ? ({ cursor: "pointer", boxShadow: "0 4px 18px rgba(74,158,110,0.35)" } as any)
       : {
           shadowColor: T.primaryLight,
           shadowOpacity: 0.4,
@@ -1702,7 +1910,6 @@ const s = StyleSheet.create({
   },
 });
 
-// ─── Toast styles ─────────────────────────────────────────────────────────────
 const ts = StyleSheet.create({
   wrap: {
     position: "absolute",
@@ -1724,7 +1931,7 @@ const ts = StyleSheet.create({
     gap: 12,
     opacity: 1,
     ...(IS_WEB
-      ? { boxShadow: "0 6px 24px rgba(10,25,18,0.35)" }
+      ? ({ boxShadow: "0 6px 24px rgba(10,25,18,0.35)" } as any)
       : {
           shadowColor: "#000",
           shadowOpacity: 0.28,

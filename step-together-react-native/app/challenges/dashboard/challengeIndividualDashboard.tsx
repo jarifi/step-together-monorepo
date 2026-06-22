@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
-import { Pedometer } from 'expo-sensors';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -28,12 +27,13 @@ import {
     startOfWeek,
     stripTime,
     toIsoDate as toISO,
-} from '../../services/dto/dashboardDto';
+} from '../../../services/dto/dashboardDto';
 
-import ChallengeTabs from '../../components/ChallengeTabs';
-import { getChallengeById } from '../../services/challengeService';
-import { getHomeInit, getWeekSteps, listMyStepLogs, upsertStepsForDate } from '../../services/dashboardService';
-import styles from '../styles/dashboardStyles';
+import ChallengeTabs from '../../../components/ChallengeTabs';
+import { usePedometer } from '../../../context/PedometerContext';
+import { getChallengeById } from '../../../services/challengeService';
+import { getHomeInit, getWeekSteps, listMyStepLogs, upsertStepsForDate } from '../../../services/dashboardService';
+import styles from '../../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -69,20 +69,20 @@ const PENDING_STEPS_KEY = 'step_together_pending_save';
 const DAILY_GOAL_KEY = 'step_together_daily_goal';
 const DEFAULT_GOAL = 8000;
 const GOAL_MESSAGES = [
-  'Na endlich.',
-  'Gut gemacht. Für deine Verhältnisse.',
-  'Hätte früher auch nicht geschadet.',
-  'Super. Jetzt jeden Tag so.',
-  'Immerhin.',
-  'Wenigstens das.',
-  'Morgen auch bitte.',
-  "Ich sag's ungern, aber: gut.",
-  'Heute ausnahmsweise mal: Respekt.',
-  'Okay. Reicht.',
-  'lowkey impressed ngl.',
-  'Niemand hat damit gerechnet. Wirklich niemand.',
-  'Heute mal kein Versagen. Schön.',
-  'Dein Therapeut wäre stolz.',
+    'Fantastisch! Du hast dein Tagesziel erreicht!',
+    'Großartige Leistung heute – du kannst stolz auf dich sein!',
+    'Du bist auf dem richtigen Weg. Weiter so!',
+    'Was für ein Tag! Du hast alles gegeben.',
+    'Beeindruckend! Du machst das wirklich toll.',
+    'Top-Form heute – so macht Bewegung Spaß!',
+    'Jeden Schritt wert – du bist großartig!',
+    'Ziel erreicht! Das hast du dir verdient.',
+    'Bewegung macht glücklich, und du machst es perfekt!',
+    'Starke Leistung! Morgen noch einen drauflegen?',
+    'Du gibst alles – das sieht man!',
+    'Heute war dein Tag – und du hast ihn genutzt!',
+    'Schritt für Schritt zum Ziel – du schaffst das!',
+    'Respekt! Du machst einen tollen Job.',
 ];
 
 const buildWeekFromEntries = (entries?: StepsEntry[]) => {
@@ -170,12 +170,9 @@ const IndividualDashboard: React.FC = () => {
     const [goalReached, setGoalReached] = useState(false);
     const [showGoalModal, setShowGoalModal] = useState(false);
 
-    const [isTracking, setIsTracking] = useState(false);
+    const pedometer = usePedometer();
+    const isTracking = pedometer.isTracking && pedometer.challengeId === (vm?.challenge?.id ?? null);
     const [isStoppingTracking, setIsStoppingTracking] = useState(false);
-    const [sessionSteps, setSessionSteps] = useState(0);
-    const [sessionStart, setSessionStart] = useState<number | null>(null);
-    const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
-    const [trackingBaseSteps, setTrackingBaseSteps] = useState<number | null>(null);
     const [dailyGoal, setDailyGoal] = useState(DEFAULT_GOAL);
     const [goalModalVisible, setGoalModalVisible] = useState(false);
     const [goalInput, setGoalInput] = useState('');
@@ -185,7 +182,6 @@ const IndividualDashboard: React.FC = () => {
 
     const celebrationAnim = useRef(new Animated.Value(0)).current;
     const celebrationShownRef = useRef(false);
-    const subscriptionRef = useRef<any>(null);
     const isMountedRef = useRef(true);
     const initAbortRef = useRef<AbortController | null>(null);
     const weekAbortRef = useRef<AbortController | null>(null);
@@ -195,12 +191,6 @@ const IndividualDashboard: React.FC = () => {
 
         return () => {
             isMountedRef.current = false;
-
-            if (subscriptionRef.current) {
-                subscriptionRef.current.remove();
-                subscriptionRef.current = null;
-            }
-
             initAbortRef.current?.abort();
             weekAbortRef.current?.abort();
             initAbortRef.current = null;
@@ -276,11 +266,6 @@ const IndividualDashboard: React.FC = () => {
         setErrorMsg(null);
 
         try {
-            const available = await Pedometer.isAvailableAsync();
-            if (isMountedRef.current) {
-                setIsPedometerAvailable(available);
-            }
-
             const raw = await getHomeInit(controller.signal);
             if (!isMountedRef.current) return;
 
@@ -585,10 +570,7 @@ const IndividualDashboard: React.FC = () => {
 
     const startTracking = async () => {
         try {
-            const available = await Pedometer.isAvailableAsync();
-            setIsPedometerAvailable(available);
-
-            if (!available) {
+            if (pedometer.isPedometerAvailable === false) {
                 setErrorMsg('Pedometer ist auf diesem Gerät nicht verfügbar.');
                 return;
             }
@@ -603,75 +585,43 @@ const IndividualDashboard: React.FC = () => {
                 return;
             }
 
-            if (subscriptionRef.current) {
-                subscriptionRef.current.remove();
-                subscriptionRef.current = null;
-            }
-
             setErrorMsg(null);
-            setSessionSteps(0);
-            setSessionStart(null);
             const dateSafe = clampDate(displayDate, minDate, maxDate);
             const idx = (dateSafe.getDay() + 6) % 7;
             const base = Number(weekSteps[idx] ?? stepsToday ?? 0);
-            setTrackingBaseSteps(base);
-            setIsTracking(true);
+            const dateISO = toIsoUtcMidnight(dateSafe);
 
-            subscriptionRef.current = Pedometer.watchStepCount((result) => {
-                const total = Number(result?.steps ?? 0);
-
-                setSessionStart((prev) => {
-                    const base = prev ?? total;
-                    const counted = total - base;
-                    setSessionSteps(counted > 0 ? counted : 0);
-                    return base;
-                });
-            });
+            await pedometer.startTracking(base, vm.challenge.id, dateISO);
         } catch (e) {
             console.warn('startTracking failed:', e);
-            setIsTracking(false);
             setErrorMsg('Pedometer konnte nicht gestartet werden.');
         }
     };
 
     const stopTracking = async () => {
         if (isStoppingTracking) return;
-        const stepsToSave = Math.max(0, Math.floor(sessionSteps));
-        const dateSafe = clampDate(displayDate, minDate, maxDate);
-        const idx = (dateSafe.getDay() + 6) % 7;
-        const base = Number(trackingBaseSteps ?? weekSteps[idx] ?? stepsToday ?? 0);
-
+        const capturedBase = pedometer.baseSteps;
         try {
             setIsStoppingTracking(true);
-
-            if (subscriptionRef.current) {
-                subscriptionRef.current.remove();
-                subscriptionRef.current = null;
-            }
-
-            setIsTracking(false);
-
-            if (stepsToSave > 0) {
-                await saveAbsoluteStepsForSelectedDay(base + stepsToSave);
+            const { sessionSteps: stepsToSave } = await pedometer.stopTracking();
+            const finalSteps = Math.max(0, Math.floor(stepsToSave));
+            if (finalSteps > 0) {
+                await saveAbsoluteStepsForSelectedDay(capturedBase + finalSteps);
             }
         } catch (e) {
             console.warn('stopTracking failed:', e);
             setErrorMsg('Schritte konnten nicht gespeichert werden.');
         } finally {
-            setSessionSteps(0);
-            setSessionStart(null);
-            setTrackingBaseSteps(null);
             setIsStoppingTracking(false);
         }
     };
 
     const liveStepsToday = useMemo(() => {
         if (isTracking) {
-            const base = Number(trackingBaseSteps ?? stepsToday ?? 0);
-            return base + sessionSteps;
+            return pedometer.baseSteps + pedometer.sessionSteps;
         }
         return stepsToday;
-    }, [stepsToday, isTracking, sessionSteps, trackingBaseSteps]);
+    }, [stepsToday, isTracking, pedometer.sessionSteps, pedometer.baseSteps]);
 
     const weeklyMax = useMemo(() => Math.max(1, ...weekSteps), [weekSteps]);
     const weeklyTotal = useMemo(() => weekSteps.reduce((a, b) => a + b, 0), [weekSteps]);
@@ -808,21 +758,6 @@ const IndividualDashboard: React.FC = () => {
                 </Text>
 
                 <TouchableOpacity
-                    onPress={() => router.push('/challenges/activeChallenges')}
-                    activeOpacity={0.9}
-                    style={{
-                        backgroundColor: '#658869ff',
-                        paddingVertical: 14,
-                        borderRadius: 18,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: 10,
-                    }}
-                >
-                    <Text style={[styles.font, { color: '#fff', fontWeight: '800', fontSize: 15 }]}>Zu den Challenges</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
                     onPress={() => router.push('/userHistory')}
                     activeOpacity={0.85}
                     style={{
@@ -844,7 +779,7 @@ const IndividualDashboard: React.FC = () => {
     if (loading) {
         return (
             <View style={{ flex: 1, backgroundColor: '#F5F7F4' }}>
-                <ChallengeTabs active="overview" overviewPath="/challenges/challengeIndividualDashboard" rankingPath="/challenges/challengeIndividualDashboardDetails" />
+                <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeIndividualDashboard" rankingPath="/challenges/dashboard/challengeIndividualDashboardDetails" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator size="large" />
                     <Text style={[styles.font, { marginTop: 12, color: '#2F3E34' }]}>Lade Daten...</Text>
@@ -860,7 +795,7 @@ const IndividualDashboard: React.FC = () => {
     if (!vm || !canShowChallenge) {
         return (
             <View style={{ flex: 1 }}>
-                <ChallengeTabs active="overview" overviewPath="/challenges/challengeIndividualDashboard" rankingPath="/challenges/challengeIndividualDashboardDetails" />
+                <ChallengeTabs active="overview" overviewPath="/challenges/dashboard/challengeIndividualDashboard" rankingPath="/challenges/dashboard/challengeIndividualDashboardDetails" />
                 <EmptyChallengeCard />
             </View>
         );
@@ -893,8 +828,8 @@ const IndividualDashboard: React.FC = () => {
 
     const isTodaySelected = sameDay(displayDate, today);
 
-    const overviewPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboard';
-    const rankingPath = vm?.challenge?.id ? `/challenges/challengeIndividualDashboardDetails?id=${vm.challenge.id}` : '/challenges/challengeIndividualDashboardDetails';
+    const overviewPath = vm?.challenge?.id ? `/challenges/dashboard/challengeIndividualDashboard?id=${vm.challenge.id}` : '/challenges/dashboard/challengeIndividualDashboard';
+    const rankingPath = vm?.challenge?.id ? `/challenges/dashboard/challengeIndividualDashboardDetails?id=${vm.challenge.id}` : '/challenges/dashboard/challengeIndividualDashboardDetails';
 
     return (
         <View style={{ flex: 1 }}>
@@ -997,10 +932,30 @@ const IndividualDashboard: React.FC = () => {
                         </Text>
                     </View>
 
-                    <View style={{ alignItems: 'center', marginTop: 12 }}>
-                        <Text style={[styles.font, { color: '#6B7280' }]}>Session</Text>
-                        <Text style={[styles.font, { fontSize: 22, fontWeight: '800', color: '#2F3E34' }]}>{sessionSteps}</Text>
-                    </View>
+                    {isTracking && (
+                        <View style={{ marginTop: 14, alignItems: 'center' }}>
+                            <View style={{
+                                backgroundColor: '#EAF4ED',
+                                borderRadius: 18,
+                                paddingHorizontal: 28,
+                                paddingVertical: 12,
+                                alignItems: 'center',
+                                borderWidth: 1,
+                                borderColor: '#C8DFD0',
+                            }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2F6B45' }} />
+                                    <Text style={[styles.font, { fontSize: 11, color: '#5A8B6A', fontWeight: '700', letterSpacing: 0.8 }]}>SESSION</Text>
+                                </View>
+                                <Text style={[styles.font, { fontSize: 30, fontWeight: '800', color: '#2F6B45', lineHeight: 34 }]}>
+                                    {Number.isFinite(Number(pedometer.sessionSteps))
+                                        ? Number(pedometer.sessionSteps).toLocaleString('de-DE')
+                                        : '0'}
+                                </Text>
+                                <Text style={[styles.font, { fontSize: 12, color: '#7FA88C', marginTop: 2 }]}>Schritte</Text>
+                            </View>
+                        </View>
+                    )}
 
                     {errorMsg ? (
                         <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#B91C1C' }]}>
@@ -1022,7 +977,7 @@ const IndividualDashboard: React.FC = () => {
                         </View>
                     ) : null}
 
-                    {isPedometerAvailable === false ? (
+                    {pedometer.isPedometerAvailable === false ? (
                         <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#6B7280' }]}>
                             Pedometer ist auf diesem Gerät nicht verfügbar.
                         </Text>
@@ -1032,9 +987,9 @@ const IndividualDashboard: React.FC = () => {
                         <TouchableOpacity
                             style={[
                                 styles.primaryActionBtn,
-                                (isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || goalReached || !isTodaySelected) && styles.buttonDisabled,
+                                (isTracking || pedometer.isPedometerAvailable === false || isFutureSelected || isChallengeExpired || goalReached || !isTodaySelected) && styles.buttonDisabled,
                             ]}
-                            disabled={isTracking || isPedometerAvailable === false || isFutureSelected || isChallengeExpired || goalReached || !isTodaySelected}
+                            disabled={isTracking || pedometer.isPedometerAvailable === false || isFutureSelected || isChallengeExpired || goalReached || !isTodaySelected}
                             onPress={startTracking}
                             activeOpacity={0.9}
                         >

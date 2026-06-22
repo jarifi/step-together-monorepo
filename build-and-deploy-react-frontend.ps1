@@ -27,12 +27,28 @@ function Run-Checked {
     }
 }
 
-$buildTarget = (Read-Host "Build target [L=Local device / E=Expo EAS cloud] (default: L)").Trim().ToUpperInvariant()
+$buildTarget = (Read-Host "Build target [D=Dev mode / L=Local device / E=Expo EAS cloud] (default: D)").Trim().ToUpperInvariant()
 if ([string]::IsNullOrWhiteSpace($buildTarget)) {
-    $buildTarget = "L"
+    $buildTarget = "D"
 }
 
-if ($buildTarget -eq "E") {
+if ($buildTarget -eq "D") {
+    Write-Host "=== Expo Dev Mode ===" -ForegroundColor Cyan
+
+    $useClearCache = (Read-Host "Use --clear-cache? [Y/n]").Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($useClearCache)) {
+        $useClearCache = "y"
+    }
+
+    $devArgs = @("dotenv", "-e", ".env.development", "--", "expo", "start")
+    if ($useClearCache -ne "n") {
+        $devArgs += "-c"
+    }
+
+    Run-Checked -Command "npx.cmd" -Args $devArgs
+    return
+}
+elseif ($buildTarget -eq "E") {
     Write-Host "=== Expo EAS Build ===" -ForegroundColor Cyan
 
     $platform = (Read-Host "Platform [android/ios] (default: android)").Trim().ToLowerInvariant()
@@ -90,7 +106,7 @@ if ($buildTarget -eq "E") {
     return
 }
 elseif ($buildTarget -ne "L") {
-    throw "Unknown build target. Enter L (Local) or E (Expo EAS)."
+    throw "Unknown build target. Enter D (Dev), L (Local), or E (Expo EAS)."
 }
 
 function Get-AdbTlsConnectEndpoints {

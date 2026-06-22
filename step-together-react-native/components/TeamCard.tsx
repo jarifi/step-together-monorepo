@@ -5,7 +5,20 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 const BTN = 38;
 const R = 12;
 
-export default function TeamCard({ team, onPress, onUpdate, onDelete }) {
+interface Team {
+  id: number | string;
+  name: string;
+  description?: string;
+}
+
+interface TeamCardProps {
+  team: Team;
+  onPress?: () => void;
+  onUpdate?: () => void;
+  onDelete?: () => void;
+}
+
+export default function TeamCard({ team, onPress, onUpdate, onDelete }: TeamCardProps) {
   const [modalVisible, setModalVisible] = useState(false);
 
   if (!team) return null;
@@ -168,11 +181,11 @@ const styles = StyleSheet.create({
   },
 
   updateButton: {
-    backgroundColor: '#5B8EDB', 
+    backgroundColor: '#5B8EDB',
   },
 
   deleteButton: {
-    backgroundColor: '#E57373', 
+    backgroundColor: '#E57373',
   },
 
   pressedBtn: {

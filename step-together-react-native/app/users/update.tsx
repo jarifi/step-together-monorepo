@@ -1,13 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,9 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useUser } from '../../context/UserContext';
 import { validateEmail, validateName, validateStepLength } from '../../lib/userValidation';
-import { getMe, makeAbsoluteMediaUrl, updateUser, uploadMyProfilePicture } from '../../services/userService';
+import { makeAbsoluteMediaUrl, updateUser } from '../../services/userService';
 
-const sanitizeStepLengthInput = (raw) => {
+const sanitizeStepLengthInput = (raw: unknown): string => {
   let v = String(raw ?? '').replace(/[^\d.,]/g, '');
   const firstSepIndex = v.search(/[.,]/);
   if (firstSepIndex !== -1) {
@@ -31,10 +27,15 @@ const sanitizeStepLengthInput = (raw) => {
   }
   return v;
 };
-const normalizeStepLength = (v) => String(v ?? '').trim().replace(',', '.');
 
-const pickAvatar = (u) => u?.avatarUrl ?? u?.avatar_url ?? u?.avatar ?? null;
-const isLocalUri = (u) => u.startsWith('file://') || u.startsWith('blob:') || u.startsWith('data:');
+const normalizeStepLength = (v: unknown): string =>
+  String(v ?? '').trim().replace(',', '.');
+
+const pickAvatar = (u: any): string | null =>
+  u?.avatarUrl ?? u?.avatar_url ?? u?.avatar ?? null;
+
+const isLocalUri = (u: string): boolean =>
+  u.startsWith('file://') || u.startsWith('blob:') || u.startsWith('data:');
 
 const COLORS = {
   bg: '#F4F7F4',
@@ -49,8 +50,8 @@ const COLORS = {
 
 export default function UpdateUserScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { user, setUser } = useUser();
+  const params = useLocalSearchParams<{ id?: string; name?: string; email?: string; stepLength?: string; avatar?: string }>();
+  const { user, setUser } = useUser() as any;
 
   const userId = useMemo(() => {
     const raw = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -78,13 +79,17 @@ export default function UpdateUserScreen() {
   const [email, setEmail] = useState(initialEmail);
   const [stepLength, setStepLength] = useState(initialStepLength);
   const [loading, setLoading] = useState(false);
-  const [imageUri, setImageUri] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   useEffect(() => {
-    const av = pickAvatar(user);
-    if (av) setImageUri(av);
-  }, [user]);
+    const paramAvatar = Array.isArray(params?.avatar) ? params.avatar[0] : params?.avatar;
+    if (paramAvatar) {
+      setImageUri(paramAvatar);
+    } else if (userId === user?.id) {
+      const av = pickAvatar(user);
+      if (av) setImageUri(av);
+    }
+  }, []);
 
   const displayImageUri = useMemo(() => {
     if (!imageUri) return null;
@@ -99,42 +104,7 @@ export default function UpdateUserScreen() {
     return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[1][0]).toUpperCase();
   }, [name]);
 
-  const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Zugriff benötigt', 'Bitte erlaube den Zugriff auf deine Fotos.');
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (res.canceled || !res.assets?.length) return;
-
-    const uri = res.assets[0].uri;
-    setImageUri(uri);
-    setUploading(true);
-    try {
-      await uploadMyProfilePicture(uri);
-      const fresh = await getMe();
-      if (fresh) {
-        setUser(fresh);
-        const av = pickAvatar(fresh);
-        const abs = av ? (makeAbsoluteMediaUrl(av) ?? av) : null;
-        if (abs) setImageUri(abs);
-      }
-    } catch {
-      Alert.alert('Fehler', 'Foto konnte nicht hochgeladen werden.');
-      const av = pickAvatar(user);
-      setImageUri(av ? (makeAbsoluteMediaUrl(av) ?? av) : null);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const showError = (msg) => {
+  const showError = (msg: string) => {
     Toast.show({ type: 'error', text1: 'Fehler', text2: String(msg), position: 'top', topOffset: 100 });
   };
 
@@ -172,7 +142,7 @@ export default function UpdateUserScreen() {
 
       Toast.show({ type: 'success', text1: 'Gespeichert', text2: 'Dein Profil wurde aktualisiert.', position: 'top', topOffset: 100 });
       router.back();
-    } catch (error) {
+    } catch (error: any) {
       showError(
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
@@ -186,18 +156,13 @@ export default function UpdateUserScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={true}
         >
-          {/* Top bar */}
           <View style={styles.topBar}>
             <Pressable
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
@@ -210,15 +175,9 @@ export default function UpdateUserScreen() {
             <View style={{ width: 44, height: 44 }} />
           </View>
 
-          {/* Card */}
           <View style={styles.card}>
-            {/* Header */}
             <View style={styles.headerBlock}>
-              <Pressable
-                onPress={handlePickImage}
-                disabled={uploading}
-                style={({ pressed }) => [styles.avatarWrap, pressed && { opacity: 0.8 }]}
-              >
+              <View style={styles.avatarWrap}>
                 <View style={styles.avatarCircle}>
                   {displayImageUri ? (
                     <Image
@@ -230,17 +189,10 @@ export default function UpdateUserScreen() {
                     <Text style={styles.avatarInitials}>{initials}</Text>
                   )}
                 </View>
-                <View style={styles.cameraTag}>
-                  {uploading
-                    ? <ActivityIndicator size="small" color="#fff" />
-                    : <Ionicons name="camera" size={13} color="#fff" />}
-                </View>
-              </Pressable>
+              </View>
               <Text style={styles.headerTitle}>Profil bearbeiten</Text>
-              <Text style={styles.headerHint}>Foto antippen zum Ändern</Text>
             </View>
 
-            {/* Name */}
             <View style={styles.field}>
               <Text style={styles.label}>Name</Text>
               <View style={styles.inputRow}>
@@ -253,12 +205,12 @@ export default function UpdateUserScreen() {
                   style={styles.input}
                   editable={!loading}
                   autoCapitalize="words"
+                  autoCapitalize="words"
                   returnKeyType="next"
                 />
               </View>
             </View>
 
-            {/* Email */}
             <View style={styles.field}>
               <Text style={styles.label}>E-Mail</Text>
               <View style={styles.inputRow}>
@@ -277,7 +229,6 @@ export default function UpdateUserScreen() {
               </View>
             </View>
 
-            {/* Step length */}
             <View style={styles.field}>
               <Text style={styles.label}>Schrittlänge (in cm)</Text>
               <View style={styles.inputRow}>
@@ -296,7 +247,6 @@ export default function UpdateUserScreen() {
               </View>
             </View>
 
-            {/* Save button */}
             <Pressable
               style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, (!name.trim() || !email.trim() || loading) && styles.disabled]}
               disabled={loading || !name.trim() || !email.trim()}
@@ -307,7 +257,6 @@ export default function UpdateUserScreen() {
                 : <Text style={styles.buttonText}>Speichern</Text>}
             </Pressable>
 
-            {/* Info box */}
             <View style={styles.infoBox}>
               <Ionicons name="information-circle-outline" size={18} color="#111" />
               <Text style={styles.infoText}>
@@ -318,7 +267,6 @@ export default function UpdateUserScreen() {
 
           <View style={{ height: 22 }} />
         </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
