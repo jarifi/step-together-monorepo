@@ -29,7 +29,7 @@ export default function GlobalNav({ pathname }: Props) {
     setUser(null);
     setToken(null);
     setUserId(null);
-    router.replace('/login');
+    router.replace('/login' as any);
   };
 
   const profileActive = pathname === '/profileInfo';
@@ -68,14 +68,14 @@ export default function GlobalNav({ pathname }: Props) {
       <View style={[styles.wrap, { bottom: bottomOffset }]}>
         <View style={styles.bar}>
           {/* Profile avatar tab */}
-          <Pressable style={styles.tab} onPress={() => go('/profileInfo')}>
+          <Pressable testID='nav-profile' style={styles.tab} onPress={() => go('/profileInfo')}>
             <View style={[styles.avatarRing, profileActive && styles.avatarRingActive]}>
               <Avatar user={user} size={32} showRing={false} />
             </View>
           </Pressable>
 
           {/* Notifications */}
-          <Pressable style={styles.tab} onPress={() => go('/notifications')}>
+          <Pressable testID='nav-notifications' style={styles.tab} onPress={() => go('/notifications')}>
             <View style={styles.iconWrap}>
               <MaterialIcons
                 name="notifications"
@@ -103,6 +103,7 @@ export default function GlobalNav({ pathname }: Props) {
             />
             <Animated.View style={{ transform: [{ scale: homeScale }, { rotate: homeSpin }] }}>
               <Pressable
+                testID='nav-home'
                 style={styles.homeBtn}
                 onPressIn={onHomePressIn}
                 onPressOut={onHomePressOut}
@@ -114,7 +115,7 @@ export default function GlobalNav({ pathname }: Props) {
           </View>
 
           {/* Challenges */}
-          <Pressable style={styles.tab} onPress={() => go('/challenges/hybridIndex')}>
+          <Pressable testID='nav-challenges' style={styles.tab} onPress={() => go('/challenges/hybridIndex')}>
             <MaterialIcons
               name="flag"
               size={26}
@@ -123,7 +124,7 @@ export default function GlobalNav({ pathname }: Props) {
           </Pressable>
 
           {/* Logout */}
-          <Pressable style={styles.tab} onPress={handleLogout}>
+          <Pressable testID='nav-logout' style={styles.tab} onPress={handleLogout}>
             <Feather name="log-out" size={24} color="#B91C1C" />
           </Pressable>
         </View>

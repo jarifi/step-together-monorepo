@@ -94,3 +94,9 @@ eas build -p android --profile preview --clear-cache
 ```
 
 If the uploaded archive is still large, check for additional generated folders and add them to [.easignore](.easignore).
+
+# Running component tests
+`npm test` <br>
+_Runs all tests!_ <br>
+`npm test Avatar.test.tsx` <br>
+_Runs specific test!_ <br>

@@ -9,7 +9,8 @@ console.log(challenge.fortschrittKm +"f");
       <Text>{challenge.startOrt} → {challenge.zielOrt}</Text>
       <Text>{challenge.fortschrittKm} / {challenge.streckenlaenge} km</Text>
       <View style={styles.progressBarBg}>
-        <View style={[styles.progressBarFg, { width: `${progress}%` }]} />
+        <View style={[styles.progressBarFg, { width: `${progress}%` }]} 
+        testID="progress-bar"/>
       </View>
     </View>
   );

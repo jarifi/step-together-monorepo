@@ -64,6 +64,7 @@ export const LeafletOSMMap: React.FC<Props> = ({ start, end }) => {
   return (
     <View style={styles.container}>
       <WebView
+      testID='map-webview'
         originWhitelist={['*']}
         source={{ html }}
         style={{ flex: 1, borderRadius: 18 }}
