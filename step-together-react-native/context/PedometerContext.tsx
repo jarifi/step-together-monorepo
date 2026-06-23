@@ -67,6 +67,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const sessionStartTimeRef = useRef<string | null>(null);
     const subscriptionBaselineRef = useRef<number | null>(null);
     const backgroundedAtRef = useRef<number | null>(null);
+    const shouldStopSubscriptionWhenBackgrounded = Platform.OS !== 'android';
 
     const toSafeStepNumber = useCallback((value: unknown) => {
         const num = typeof value === 'number' ? value : Number(value);
@@ -236,7 +237,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (!isTrackingRef.current) return;
 
             if (state === 'active') {
-                backgroundedAtRef.current = null;
+                const lastBackgroundedAt = backgroundedAtRef.current;
 
                 // Read saved offset from state (synchronously available via setSessionSteps callback)
                 const savedOffset = await new Promise<number>((resolve) => {
@@ -249,8 +250,16 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 const catchUpSteps = await getSystemStepsSinceStart(savedOffset);
                 if (isMountedRef.current) {
                     setSessionSteps(catchUpSteps);
-                    startSubscription(catchUpSteps);
+                    // On Android, keep the same subscription while backgrounded to
+                    // improve lock-screen continuity on aggressive OEM power management.
+                    // Restart only if the subscription is missing.
+                    if (shouldStopSubscriptionWhenBackgrounded || !subscriptionRef.current) {
+                        startSubscription(catchUpSteps);
+                    }
                 }
+                // Keep the original timestamp until after catch-up to retain
+                // background-duration context for phantom-step guards.
+                backgroundedAtRef.current = null;
             } else {
                 backgroundedAtRef.current = Date.now();
 
@@ -280,13 +289,21 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         });
                         return cId;
                     });
-                    stopSubscription();
+                    if (shouldStopSubscriptionWhenBackgrounded) {
+                        stopSubscription();
+                    }
                     return safePrev;
                 });
             }
         });
         return () => sub.remove();
-    }, [startSubscription, stopSubscription, toSafeStepNumber, getSystemStepsSinceStart]);
+    }, [
+        startSubscription,
+        stopSubscription,
+        toSafeStepNumber,
+        getSystemStepsSinceStart,
+        shouldStopSubscriptionWhenBackgrounded,
+    ]);
 
     const startTracking = useCallback(async (base: number, cId: number, dISO: string) => {
         const hasPermission = await ensureActivityPermission();
