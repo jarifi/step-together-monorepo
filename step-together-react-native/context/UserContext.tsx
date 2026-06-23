@@ -11,8 +11,6 @@ interface UserContextProps {
   setToken: (t: string | null) => void;
   userId: string | null;
   setUserId: (i: string | null) => void;
-  pendingInviteCount: number;
-  setPendingInviteCount: (n: number) => void;
 }
 
 const UserContext = createContext<UserContextProps>({
@@ -22,15 +20,12 @@ const UserContext = createContext<UserContextProps>({
   setToken: () => { },
   userId: null,
   setUserId: () => { },
-  pendingInviteCount: 0,
-  setPendingInviteCount: () => { },
 });
 
 export const UserProvider = ({ children }: { children: any }) => {
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [pendingInviteCount, setPendingInviteCount] = useState<number>(0);
 
   const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl;
 
@@ -86,7 +81,7 @@ export const UserProvider = ({ children }: { children: any }) => {
   }, [token]);
 
   return (
-    <UserContext.Provider value={{ user, setUser, token, setToken, userId, setUserId, pendingInviteCount, setPendingInviteCount }}>
+    <UserContext.Provider value={{ user, setUser, token, setToken, userId, setUserId }}>
       {children}
     </UserContext.Provider>
   );

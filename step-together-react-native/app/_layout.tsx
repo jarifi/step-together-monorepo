@@ -59,7 +59,7 @@ function AppContent() {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { setPendingInviteCount, token } = useUser();
+  const { token } = useUser();
 
   const isTablet = width >= 768;
 
@@ -170,23 +170,17 @@ const contentTopPadding = useMemo(
   // recreated when they change identity between renders.
   const showAlertRef = useRef(showAlert);
   showAlertRef.current = showAlert;
-  const setPendingRef = useRef(setPendingInviteCount);
-  setPendingRef.current = setPendingInviteCount;
 
   // The check function lives in a ref so setInterval captures a stable pointer.
   // Re-assigning every render ensures it always closes over fresh values.
   const checkRef = useRef(async () => { });
   checkRef.current = async () => {
-    if (!token) {
-      setPendingRef.current(0);
-      return;
-    }
+    if (!token) return;
 
     if (inviteAlertRef.current) return;
     try {
       const data = await getMyInvites();
       const pending = asArray(data).filter((i: any) => i.status === 'pending');
-      setPendingRef.current(pending.length);
       if (pending.length === 0) return;
 
       const raw = await AsyncStorage.getItem(SHOWN_POPUP_KEY);

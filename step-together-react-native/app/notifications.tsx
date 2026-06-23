@@ -13,7 +13,6 @@ import {
   View,
 } from 'react-native';
 
-import { useUser } from '../context/UserContext';
 import {
   acceptChallengeInvite,
   declineChallengeInvite,
@@ -290,7 +289,6 @@ function ChallengeNotifCard({
 }
 
 export default function NotificationsScreen() {
-  const { setPendingInviteCount } = useUser();
 
   const router = useRouter();
   const [challenges, setChallenges] = useState<NotifChallenge[]>([]);
@@ -356,16 +354,13 @@ export default function NotificationsScreen() {
 
       const filtered = enriched.filter((c) => c.inviteStatus !== 'declined');
       setChallenges(filtered);
-
-      const pendingCount = invites.filter((i: any) => i.status === 'pending').length;
-      setPendingInviteCount(pendingCount);
     } catch (e) {
       console.error('Benachrichtigungen laden fehlgeschlagen:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [setPendingInviteCount]);
+  }, []);
 
   const handleAccept = async (challengeId: any, inviteId: any) => {
     try {

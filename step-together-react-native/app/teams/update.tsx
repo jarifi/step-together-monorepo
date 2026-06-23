@@ -18,7 +18,7 @@ import {
     removeTeamMember,
     updateTeam,
 } from '../../services/teamService';
-import { searchUsers } from '../../services/userService';
+import { getUsers, searchUsers } from '../../services/userService';
 
 type UpdateTeamSearchParams = {
     id?: string | string[];
@@ -84,6 +84,7 @@ export default function UpdateTeamScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
     const [searching, setSearching] = useState(false);
+    const [visibleResults, setVisibleResults] = useState(4);
 
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -194,28 +195,27 @@ export default function UpdateTeamScreen() {
         }
     };
 
+    const loadUserList = async (query = '') => {
+        setSearching(true);
+        try {
+            const results = query.trim()
+                ? await searchUsers(query.trim(), 0, 15)
+                : await getUsers(0, 15);
+            setSearchResults(Array.isArray(results) ? (results as SearchUser[]) : []);
+            setVisibleResults(4);
+        } catch {
+            setSearchResults([]);
+        } finally {
+            setSearching(false);
+        }
+    };
+
     const handleSearch = (query: string) => {
         setSearchQuery(query);
         if (searchTimeout.current) {
             clearTimeout(searchTimeout.current);
         }
-
-        if (!query.trim()) {
-            setSearchResults([]);
-            return;
-        }
-
-        searchTimeout.current = setTimeout(async () => {
-            setSearching(true);
-            try {
-                const results = await searchUsers(query.trim(), 0, 10);
-                setSearchResults(Array.isArray(results) ? (results as SearchUser[]) : []);
-            } catch {
-                setSearchResults([]);
-            } finally {
-                setSearching(false);
-            }
-        }, 400);
+        searchTimeout.current = setTimeout(() => void loadUserList(query), query.trim() ? 400 : 0);
     };
 
     const handleAdd = (user: SearchUser) => {
@@ -289,7 +289,7 @@ export default function UpdateTeamScreen() {
                                 )}
                             </View>
 
-                            {filteredResults.map((user) => (
+                            {filteredResults.slice(0, visibleResults).map((user) => (
                                 <View key={String(user.id)} style={styles.resultRow}>
                                     <View style={styles.resultIcon}>
                                         <MaterialIcons name="person" size={18} color={COLORS.accent} />
@@ -306,6 +306,17 @@ export default function UpdateTeamScreen() {
                                     </Pressable>
                                 </View>
                             ))}
+
+                            {visibleResults < Math.min(filteredResults.length, 15) && (
+                                <Pressable
+                                    onPress={() => setVisibleResults((v) => Math.min(v + 5, 15))}
+                                    style={({ pressed }) => [styles.showMoreBtn, pressed && styles.pressed]}
+                                >
+                                    <Text style={styles.showMoreText}>
+                                        {'Mehr anzeigen (' + (Math.min(filteredResults.length, 15) - visibleResults) + ' weitere)'}
+                                    </Text>
+                                </Pressable>
+                            )}
 
                             {searchQuery.trim() && !searching && filteredResults.length === 0 && (
                                 <Text style={styles.noResults}>Keine Benutzer gefunden.</Text>
@@ -351,7 +362,7 @@ export default function UpdateTeamScreen() {
                     ) : null
                 }
                 ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-                contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16 }}
+                contentContainerStyle={{ paddingBottom: 180, paddingHorizontal: 16 }}
                 showsVerticalScrollIndicator={false}
             />
 
@@ -507,6 +518,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     noResults: { fontSize: 13, color: COLORS.sub, textAlign: 'center', paddingVertical: 8 },
+    showMoreBtn: {
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        marginTop: 4,
+    },
+    showMoreText: { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
 
     listLabel: {
         fontSize: 11,

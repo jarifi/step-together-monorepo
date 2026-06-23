@@ -42,7 +42,7 @@ export default function Sidebar({
     onWidthChange?.(SIDEBAR_WIDTH);
   }, [SIDEBAR_WIDTH, onWidthChange]);
 
-  const { user, setUser, setToken, setUserId, pendingInviteCount } = useUser();
+  const { user, setUser, setToken, setUserId } = useUser();
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [isOpenLocal, setIsOpenLocal] = useState(false);
@@ -168,20 +168,11 @@ export default function Sidebar({
               <Link href="/notifications" asChild>
                 <Pressable style={styles.navLink} onPress={closeSidebar}>
                   <View style={[styles.navInner, active ? styles.navLinkActive : styles.navLinkInactive]}>
-                    <View style={styles.badgeIconWrap}>
-                      <MaterialIcons
-                        name="notifications"
-                        size={iconSize}
-                        color={active ? '#F7F8F5' : '#4B5563'}
-                      />
-                      {pendingInviteCount > 0 && (
-                        <View style={styles.badgeCircle}>
-                          <Text style={styles.badgeCircleTxt}>
-                            {pendingInviteCount > 9 ? '9+' : String(pendingInviteCount)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                    <MaterialIcons
+                      name="notifications"
+                      size={iconSize}
+                      color={active ? '#F7F8F5' : '#4B5563'}
+                    />
                     <Text style={[styles.navLinkText, active && styles.navLinkTextActive]}>
                       Benachrichtigungen
                     </Text>
@@ -352,33 +343,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#DDE5D2',
     marginVertical: 12,
     borderRadius: 1,
-  },
-  badgeIconWrap: {
-    position: 'relative',
-    width: 24,
-    height: 24,
-    marginRight: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeCircle: {
-    position: 'absolute',
-    top: -5,
-    right: -6,
-    minWidth: 17,
-    height: 17,
-    borderRadius: 9,
-    backgroundColor: '#DC2626',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 2,
-    borderColor: '#F7F8F5',
-  },
-  badgeCircleTxt: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#fff',
-    lineHeight: 11,
   },
 });

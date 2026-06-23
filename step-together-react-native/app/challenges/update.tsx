@@ -720,7 +720,13 @@ export default function UpdateChallengeScreen() {
       try {
         const invites = await getChallengeInvites(challengeId);
         const ids: (number | string)[] = (invites as any[])
-          .map((inv: any) => inv.invitee_user_id ?? inv.user_id ?? inv.user?.id)
+          .filter((inv: any) => {
+            const status = String(inv.status ?? '').toLowerCase();
+            return status !== 'declined' && status !== 'cancelled';
+          })
+          .map((inv: any) =>
+            inv.inviteeUserId ?? inv.invitee_user_id ?? inv.inviteeId ?? inv.invitee_id ?? inv.user_id ?? inv.user?.id
+          )
           .filter(Boolean)
           .map(Number);
         if (mounted) { setSelectedUserIds(ids); setUsersPreLoaded(true); }
@@ -960,7 +966,7 @@ export default function UpdateChallengeScreen() {
                 <>
                   {users.slice(0, visibleUsers).map((user, i, arr) => (
                     <View key={String(user.id)}>
-                      <UserRow user={user} selected={selectedUserIds.includes(user.id)} onToggle={toggleUser} />
+                      <UserRow user={user} selected={selectedUserIds.map(Number).includes(Number(user.id))} onToggle={toggleUser} />
                       {i < arr.length - 1 && <View style={s.teamDivider} />}
                     </View>
                   ))}
@@ -987,7 +993,7 @@ export default function UpdateChallengeScreen() {
                 <>
                   {filteredTeams.slice(0, visibleTeams).map((team, i, arr) => (
                     <View key={String(team.id)}>
-                      <TeamRow team={team} selected={selectedTeamIds.includes(team.id)} onToggle={toggleTeam} />
+                      <TeamRow team={team} selected={selectedTeamIds.map(Number).includes(Number(team.id))} onToggle={toggleTeam} />
                       {i < arr.length - 1 && <View style={s.teamDivider} />}
                     </View>
                   ))}
