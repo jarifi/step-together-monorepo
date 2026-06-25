@@ -167,6 +167,7 @@ const Dashboard: React.FC = () => {
   const [showExpiredWarning, setShowExpiredWarning] = useState(true);
 
   const [isTracking, setIsTracking] = useState(false);
+  const [isStoppingTracking, setIsStoppingTracking] = useState(false);
   const [sessionSteps, setSessionSteps] = useState(0);
   const [sessionStart, setSessionStart] = useState<number | null>(null);
   const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
@@ -607,7 +608,9 @@ const Dashboard: React.FC = () => {
   };
 
   const stopTracking = async () => {
+    if (isStoppingTracking) return;
     try {
+      setIsStoppingTracking(true);
       if (subscriptionRef.current) {
         subscriptionRef.current.remove();
         subscriptionRef.current = null;
@@ -624,6 +627,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setSessionSteps(0);
       setSessionStart(null);
+      setIsStoppingTracking(false);
     }
   };
 
@@ -920,10 +924,30 @@ const Dashboard: React.FC = () => {
             </Text>
           </View>
 
-          <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <Text style={[styles.font, { color: '#6B7280' }]}>Session</Text>
-            <Text style={[styles.font, { fontSize: 22, fontWeight: '800', color: '#2F3E34' }]}>{sessionSteps}</Text>
-          </View>
+          {isTracking && (
+            <View style={{ marginTop: 14, alignItems: 'center' }}>
+              <View style={{
+                backgroundColor: '#EAF4ED',
+                borderRadius: 18,
+                paddingHorizontal: 28,
+                paddingVertical: 12,
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: '#C8DFD0',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2F6B45' }} />
+                  <Text style={[styles.font, { fontSize: 11, color: '#5A8B6A', fontWeight: '700', letterSpacing: 0.8 }]}>SESSION</Text>
+                </View>
+                <Text style={[styles.font, { fontSize: 30, fontWeight: '800', color: '#2F6B45', lineHeight: 34 }]}>
+                  {Number.isFinite(Number(sessionSteps))
+                    ? Number(sessionSteps).toLocaleString('de-DE')
+                    : '0'}
+                </Text>
+                <Text style={[styles.font, { fontSize: 12, color: '#7FA88C', marginTop: 2 }]}>Schritte</Text>
+              </View>
+            </View>
+          )}
 
           {errorMsg ? (
             <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#B91C1C' }]}>
@@ -954,14 +978,16 @@ const Dashboard: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.dangerActionBtn,
-                (!isTracking || !isTodaySelected) && styles.buttonDisabled,
+                (!isTracking || !isTodaySelected || isStoppingTracking) && styles.buttonDisabled,
               ]}
-              disabled={!isTracking || !isTodaySelected}
+              disabled={!isTracking || !isTodaySelected || isStoppingTracking}
               onPress={stopTracking}
               activeOpacity={0.9}
             >
               <Ionicons name="stop" size={18} color="#fff" />
-              <Text style={[styles.dangerActionBtnText, styles.font]}>Stopp & speichern</Text>
+              <Text style={[styles.dangerActionBtnText, styles.font]}>
+                {isStoppingTracking ? 'Speichert…' : 'Stopp & speichern'}
+              </Text>
             </TouchableOpacity>
 
             {!isTodaySelected && (
