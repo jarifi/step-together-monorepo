@@ -18,7 +18,8 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 
 import { useUser } from "../context/UserContext";
-import { authenticateWithPasskey, getLastEmail, getPasswordSecurely, isPasskeySupported, saveLastEmail, savePasswordSecurely, saveTokens, saveUserId, saveUserRole } from "../lib/auth";
+import { authenticateWithPasskey, getAndClearSessionExpiredFlag, getLastEmail, getPasswordSecurely, isPasskeySupported, saveLastEmail, savePasswordSecurely, saveTokens, saveUserId, saveUserRole } from "../lib/auth";
+import { resetSessionExpiredState } from "../services/api";
 import { isValidEmail } from "../services/authClient";
 import { acceptPrivacyPolicy } from "../services/userService";
 
@@ -94,6 +95,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -167,6 +169,7 @@ export default function LoginScreen() {
         activeChallenges: data.activeChallenges,
       });
 
+      resetSessionExpiredState();
       router.replace("/challenges/dashboard/challengesDashboard");
     } catch (err: any) {
       if (__DEV__) {
@@ -202,6 +205,9 @@ export default function LoginScreen() {
   useEffect(() => {
     checkPasskeyAvailability();
     loadLastEmail();
+    getAndClearSessionExpiredFlag().then((expired) => {
+      if (expired) setSessionExpiredNotice(true);
+    });
     return () => {
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
@@ -303,6 +309,7 @@ export default function LoginScreen() {
         activeChallenges: data.activeChallenges,
       });
 
+      resetSessionExpiredState();
       router.replace("/challenges/dashboard/challengesDashboard");
     } catch (err: any) {
       if (__DEV__) {
@@ -366,6 +373,7 @@ export default function LoginScreen() {
         activeChallenges: data.activeChallenges,
       });
 
+      resetSessionExpiredState();
       router.replace("/challenges/dashboard/challengesDashboard");
     } catch (err: any) {
       showError(err?.message || "Fehler beim Akzeptieren der Datenschutzerklärung.");
@@ -439,6 +447,15 @@ export default function LoginScreen() {
               />
             </Pressable>
           </View>
+
+          {sessionExpiredNotice && (
+            <View style={styles.sessionExpiredBanner}>
+              <Ionicons name="information-circle-outline" size={16} color="#fff" style={{ marginTop: 1 }} />
+              <Text style={styles.sessionExpiredText}>
+                Du wurdest automatisch ausgeloggt. Deine Schritte wurden gesichert und werden nach der Anmeldung synchronisiert.
+              </Text>
+            </View>
+          )}
 
           {errorMessage && (
             <Text style={styles.error} testID="login-error">
@@ -813,5 +830,22 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: "#fff",
     fontWeight: "700",
+  },
+
+  sessionExpiredBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+
+  sessionExpiredText: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

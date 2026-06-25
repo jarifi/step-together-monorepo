@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 60
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 0  # wenn > 0, überschreibt DAYS (nur für Tests)
 
     class Config:
         env_file = ".env" 

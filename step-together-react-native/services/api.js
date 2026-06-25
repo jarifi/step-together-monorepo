@@ -9,6 +9,26 @@ const API_BASE_URL = String(Constants.expoConfig?.extra?.apiBaseUrl ?? '').repla
 let isRefreshing = false;
 let refreshPromise = null; // Promise that resolves when refresh finished
 
+// --- Session-expired callback ---
+// Called exactly once when both the access token AND the refresh token are
+// definitively expired (refresh attempted + retry still returns 401).
+let _authExpiredHandler = null;
+let _sessionExpiredFired = false;
+
+export const setAuthExpiredHandler = (fn) => {
+  _authExpiredHandler = fn;
+};
+
+export const resetSessionExpiredState = () => {
+  _sessionExpiredFired = false;
+};
+
+const _callAuthExpiredHandler = () => {
+  if (_sessionExpiredFired || !_authExpiredHandler) return;
+  _sessionExpiredFired = true;
+  _authExpiredHandler();
+};
+
 const waitForRefresh = async () => {
   if (!isRefreshing) return;
   try {
@@ -201,7 +221,8 @@ const authedFetch = async (path, options = {}, retry = true) => {
       err.status = retryRes.status;
       err.payload = payload;
       if (isUnauthorizedStatus(err.status)) {
-        console.warn('🟠 [API] retry unauthorized:', err.status, payload);
+        console.warn('🟠 [API] retry unauthorized — session definitively expired:', err.status, payload);
+        _callAuthExpiredHandler();
       } else {
         console.error('🔴 [API] retry failed:', err.status, JSON.stringify(payload));
       }

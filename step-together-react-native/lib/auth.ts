@@ -9,6 +9,7 @@ const USER_ID_KEY = "userId";
 const USER_ROLE_KEY = "role";
 const LAST_EMAIL_KEY = "lastEmail";
 const SECURE_PASSWORD_KEY = "securePassword";
+const SESSION_EXPIRED_KEY = "step_together_session_expired";
 
 export const saveTokens = async (accessToken: string, refreshToken: string) => {
   await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
@@ -44,6 +45,20 @@ export const removeTokens = async () => {
   await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
   await AsyncStorage.removeItem(USER_ID_KEY);
   await AsyncStorage.removeItem(USER_ROLE_KEY);
+};
+
+export const markSessionExpired = async () => {
+  await AsyncStorage.setItem(SESSION_EXPIRED_KEY, '1');
+  await removeTokens();
+};
+
+export const getAndClearSessionExpiredFlag = async (): Promise<boolean> => {
+  const val = await AsyncStorage.getItem(SESSION_EXPIRED_KEY);
+  if (val) {
+    await AsyncStorage.removeItem(SESSION_EXPIRED_KEY);
+    return true;
+  }
+  return false;
 };
 
 export const isLoggedIn = async (): Promise<boolean> => {

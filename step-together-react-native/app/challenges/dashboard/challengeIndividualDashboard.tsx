@@ -487,7 +487,7 @@ const IndividualDashboard: React.FC = () => {
     );
 
     const saveAbsoluteStepsForSelectedDay = useCallback(
-        async (newValue: number) => {
+        async (newValue: number, withPending = false) => {
             if (!vm?.challenge?.id) return;
 
             const dateSafe = clampDate(displayDate, minDate, maxDate);
@@ -503,16 +503,38 @@ const IndividualDashboard: React.FC = () => {
             setWeekSteps(next);
             setStepsToday(next[idx]);
 
+            if (withPending) {
+                await AsyncStorage.setItem(
+                    PENDING_STEPS_KEY,
+                    JSON.stringify({ dateISO, steps: next[idx], challengeId: vm.challenge.id })
+                );
+            }
+
             try {
                 await upsertStepsForDate(dateISO, next[idx], {
                     challengeId: vm.challenge.id,
                 });
+                if (withPending) {
+                    await AsyncStorage.removeItem(PENDING_STEPS_KEY);
+                    setHasPendingSteps(false);
+                }
                 await refreshWeek();
             } catch (e) {
-                setWeekSteps(prev);
-                setStepsToday(prev[idx] ?? 0);
-                console.warn('Save steps failed:', e);
-                setErrorMsg('Schritte konnten nicht gespeichert werden.');
+                if (withPending) {
+                    // Nicht zurücksetzen — Wert bleibt und wird später synchronisiert
+                    setHasPendingSteps(true);
+                    console.warn('Save tracked steps failed (pending):', e);
+                    if (isUnauthorizedError(e)) {
+                        setErrorMsg('Session bleibt aktiv. Schritte werden später automatisch synchronisiert.');
+                    } else {
+                        setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
+                    }
+                } else {
+                    setWeekSteps(prev);
+                    setStepsToday(prev[idx] ?? 0);
+                    console.warn('Save steps failed:', e);
+                    setErrorMsg('Schritte konnten nicht gespeichert werden.');
+                }
             }
         },
         [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek]
@@ -606,7 +628,9 @@ const IndividualDashboard: React.FC = () => {
             const { sessionSteps: stepsToSave } = await pedometer.stopTracking();
             const finalSteps = Math.max(0, Math.floor(stepsToSave));
             if (finalSteps > 0) {
-                await saveAbsoluteStepsForSelectedDay(capturedBase + finalSteps);
+                // withPending=true: schreibt in PENDING_STEPS_KEY vor dem API-Call,
+                // damit Schritte bei Token-Ablauf nicht verloren gehen.
+                await saveAbsoluteStepsForSelectedDay(capturedBase + finalSteps, true);
             }
         } catch (e) {
             console.warn('stopTracking failed:', e);

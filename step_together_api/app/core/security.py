@@ -143,25 +143,37 @@ async def get_current_user(
 
 
 REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
+
+def _refresh_token_delta() -> timedelta:
+    """Liefert die Ablaufzeit für Refresh-Tokens.
+    Wenn REFRESH_TOKEN_EXPIRE_MINUTES > 0, wird dieser Wert (in Minuten) genutzt —
+    praktisch für kurze Test-Zyklen. Sonst gelten die konfigurierten Tage."""
+    minutes = settings.REFRESH_TOKEN_EXPIRE_MINUTES
+    if minutes > 0:
+        return timedelta(minutes=minutes)
+    return timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
 def create_refresh_token() -> str:
     """Creates a secure random refresh token."""
     return secrets.token_urlsafe(64)
 
 def get_refresh_token_expiry() -> datetime:
     """Returns the expiry datetime for refresh tokens."""
-    return datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    return datetime.now(timezone.utc) + _refresh_token_delta()
 
 from app.models.refresh_token import RefreshToken
 from sqlalchemy.orm import Session
 
-def create_db_refresh_token(db: Session, user_id: int, expire_days: int = 30) -> str:
-    """Generates a new refresh token, stores it in DB, and returns the token string."""
+def create_db_refresh_token(db: Session, user_id: int, expire_days: int = 0) -> str:
+    """Generates a new refresh token, stores it in DB, and returns the token string.
+    expire_days=0 bedeutet: Einstellung aus config.py verwenden."""
     token_str = secrets.token_urlsafe(64)
     now = datetime.now(timezone.utc)
+    delta = timedelta(days=expire_days) if expire_days > 0 else _refresh_token_delta()
     refresh_token = RefreshToken(
         token=token_str,
         user_id=user_id,
-        expires_at=now + timedelta(days=expire_days),
+        expires_at=now + delta,
         created_at=now,
         revoked=False
     )

@@ -23,7 +23,8 @@ import Sidebar from '../components/Sidebar';
 import { PedometerProvider } from '../context/PedometerContext';
 import { UserProvider, useUser } from '../context/UserContext';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { isLoggedIn } from '../lib/auth';
+import { isLoggedIn, markSessionExpired } from '../lib/auth';
+import { setAuthExpiredHandler } from '../services/api';
 import {
   getChallengeById,
   getMyInvites,
@@ -71,6 +72,17 @@ function AppContent() {
   const contentLeft = useRef(new Animated.Value(0)).current;
   const redirectingRef = useRef(false);
   const mountedRef = useRef(true);
+
+  useEffect(() => {
+    setAuthExpiredHandler(async () => {
+      await markSessionExpired();
+      if (mountedRef.current && !redirectingRef.current) {
+        redirectingRef.current = true;
+        router.replace('/login');
+      }
+    });
+    return () => setAuthExpiredHandler(null);
+  }, []);
 
   const [inviteAlert, setInviteAlert] = useState<{
     challenge: any;

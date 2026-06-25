@@ -38,6 +38,9 @@ import styles from '../../styles/dashboardStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
+const PENDING_STEPS_KEY = 'step_together_pending_save';
+const isUnauthorizedError = (err: any) => Number(err?.status) === 401;
+
 export type StepsEntry = {
   date: string;
   dayOfWeek: string;
@@ -149,6 +152,7 @@ const Dashboard: React.FC = () => {
   const [vm, setVm] = useState<HomeInitDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [hasPendingSteps, setHasPendingSteps] = useState(false);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [stepInput, setStepInput] = useState('');
@@ -441,6 +445,32 @@ const Dashboard: React.FC = () => {
     await AsyncStorage.setItem(DAILY_GOAL_KEY, String(value));
   };
 
+  const flushPendingSteps = useCallback(async () => {
+    if (!vm?.challenge?.id || !vm?.team?.id) return;
+    let pending: { dateISO: string; steps: number; challengeId: number } | null = null;
+    try {
+      const raw = await AsyncStorage.getItem(PENDING_STEPS_KEY);
+      if (!raw) return;
+      pending = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!pending || Number(pending.challengeId) !== Number(vm.challenge.id)) return;
+    try {
+      await upsertStepsForDate(pending.dateISO, pending.steps, {
+        challengeId: pending.challengeId,
+        teamId: vm.team.id,
+      });
+      await AsyncStorage.removeItem(PENDING_STEPS_KEY);
+      setHasPendingSteps(false);
+      setErrorMsg(null);
+      await refreshWeek();
+      await checkGoal();
+    } catch {
+      // Wird beim nächsten Focus/Foreground erneut versucht
+    }
+  }, [vm?.challenge?.id, vm?.team?.id, refreshWeek, checkGoal]);
+
   useEffect(() => {
     if (!vm?.user?.id || !vm?.challenge?.id) return;
 
@@ -505,7 +535,7 @@ const Dashboard: React.FC = () => {
   );
 
   const saveAbsoluteStepsForSelectedDay = useCallback(
-    async (newValue: number) => {
+    async (newValue: number, withPending = false) => {
       if (!vm?.challenge?.id || !vm?.team?.id) return;
 
       const dateSafe = clampDate(displayDate, minDate, maxDate);
@@ -521,18 +551,39 @@ const Dashboard: React.FC = () => {
       setWeekSteps(next);
       setStepsToday(next[idx]);
 
+      if (withPending) {
+        await AsyncStorage.setItem(
+          PENDING_STEPS_KEY,
+          JSON.stringify({ dateISO, steps: next[idx], challengeId: vm.challenge.id })
+        );
+      }
+
       try {
         await upsertStepsForDate(dateISO, next[idx], {
           challengeId: vm.challenge.id,
           teamId: vm.team.id,
         });
+        if (withPending) {
+          await AsyncStorage.removeItem(PENDING_STEPS_KEY);
+          setHasPendingSteps(false);
+        }
         await refreshWeek();
         await checkGoal();
       } catch (e) {
-        setWeekSteps(prev);
-        setStepsToday(prev[idx] ?? 0);
-        console.warn('Save steps failed:', e);
-        setErrorMsg('Schritte konnten nicht gespeichert werden.');
+        if (withPending) {
+          setHasPendingSteps(true);
+          console.warn('Save tracked steps failed (pending):', e);
+          if (isUnauthorizedError(e)) {
+            setErrorMsg('Session bleibt aktiv. Schritte werden später automatisch synchronisiert.');
+          } else {
+            setErrorMsg('Schritte konnten nicht gespeichert werden. Werden automatisch synchronisiert.');
+          }
+        } else {
+          setWeekSteps(prev);
+          setStepsToday(prev[idx] ?? 0);
+          console.warn('Save steps failed:', e);
+          setErrorMsg('Schritte konnten nicht gespeichert werden.');
+        }
       }
     },
     [vm?.challenge?.id, vm?.team?.id, displayDate, minDate, maxDate, weekSteps, refreshWeek, checkGoal]
@@ -609,17 +660,18 @@ const Dashboard: React.FC = () => {
 
   const stopTracking = async () => {
     if (isStoppingTracking) return;
+    const capturedBase = stepsToday;
+    const capturedSession = sessionSteps;
     try {
       setIsStoppingTracking(true);
       if (subscriptionRef.current) {
         subscriptionRef.current.remove();
         subscriptionRef.current = null;
       }
-
       setIsTracking(false);
 
-      if (sessionSteps > 0) {
-        await saveTrackedSteps(sessionSteps);
+      if (capturedSession > 0) {
+        await saveAbsoluteStepsForSelectedDay(capturedBase + capturedSession, true);
       }
     } catch (e) {
       console.warn('stopTracking failed:', e);
@@ -691,23 +743,41 @@ const Dashboard: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      refreshWeek();
+      if (!isTracking && !isStoppingTracking) {
+        refreshWeek();
+        flushPendingSteps();
+      }
       return undefined;
-    }, [refreshWeek])
+    }, [refreshWeek, flushPendingSteps, isTracking, isStoppingTracking])
   );
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refreshWeek();
+      if (state === 'active' && !isTracking && !isStoppingTracking) {
+        refreshWeek();
+        flushPendingSteps();
+      }
     });
     return () => sub.remove();
-  }, [refreshWeek]);
+  }, [refreshWeek, flushPendingSteps, isTracking, isStoppingTracking]);
 
   useEffect(() => {
-    if (!vm?.user?.id) return;
+    if (!vm?.user?.id || isTracking || isStoppingTracking) return;
     const id = setInterval(() => refreshWeek(), 30000);
     return () => clearInterval(id);
-  }, [vm?.user?.id, vm?.challenge?.id, refreshWeek]);
+  }, [vm?.user?.id, vm?.challenge?.id, refreshWeek, isTracking, isStoppingTracking]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(PENDING_STEPS_KEY).then((v) => {
+      if (v) setHasPendingSteps(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isTracking || isStoppingTracking) return;
+    if (!hasPendingSteps || !vm?.challenge?.id) return;
+    flushPendingSteps();
+  }, [hasPendingSteps, vm?.challenge?.id, flushPendingSteps, isTracking, isStoppingTracking]);
 
   const EmptyChallengeCard = () => (
     <View style={{ flex: 1, backgroundColor: '#F5F7F4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
@@ -953,6 +1023,20 @@ const Dashboard: React.FC = () => {
             <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#B91C1C' }]}>
               {errorMsg}
             </Text>
+          ) : null}
+
+          {hasPendingSteps ? (
+            <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <MaterialIcons name="sync" size={16} color="#D97706" />
+              <Text style={[styles.font, { color: '#D97706', fontSize: 13 }]}>
+                Schritte ausstehend — werden synchronisiert (Session bleibt aktiv)
+              </Text>
+              <TouchableOpacity onPress={flushPendingSteps} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={[styles.font, { color: '#D97706', fontSize: 13, textDecorationLine: 'underline' }]}>
+                  Jetzt
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
 
           {isPedometerAvailable === false ? (
