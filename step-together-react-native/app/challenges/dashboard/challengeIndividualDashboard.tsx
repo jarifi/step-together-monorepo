@@ -602,6 +602,12 @@ const IndividualDashboard: React.FC = () => {
                 return;
             }
 
+            if (pedometer.isTracking && pedometer.challengeId !== vm.challenge.id) {
+                const name = pedometer.challengeName ?? `Challenge ${pedometer.challengeId}`;
+                setErrorMsg(`In „${name}" läuft bereits eine Session. Beende diese zuerst, um eine neue zu starten.`);
+                return;
+            }
+
             if (isFutureSelected || isChallengeExpired) {
                 setErrorMsg('Schritte können für diesen Tag nicht getrackt werden.');
                 return;
@@ -613,7 +619,7 @@ const IndividualDashboard: React.FC = () => {
             const base = Number(weekSteps[idx] ?? stepsToday ?? 0);
             const dateISO = toIsoUtcMidnight(dateSafe);
 
-            await pedometer.startTracking(base, vm.challenge.id, dateISO);
+            await pedometer.startTracking(base, vm.challenge.id, dateISO, vm.challenge.name);
         } catch (e) {
             console.warn('startTracking failed:', e);
             setErrorMsg('Pedometer konnte nicht gestartet werden.');
@@ -628,8 +634,6 @@ const IndividualDashboard: React.FC = () => {
             const { sessionSteps: stepsToSave } = await pedometer.stopTracking();
             const finalSteps = Math.max(0, Math.floor(stepsToSave));
             if (finalSteps > 0) {
-                // withPending=true: schreibt in PENDING_STEPS_KEY vor dem API-Call,
-                // damit Schritte bei Token-Ablauf nicht verloren gehen.
                 await saveAbsoluteStepsForSelectedDay(capturedBase + finalSteps, true);
             }
         } catch (e) {

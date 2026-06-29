@@ -609,6 +609,12 @@ const Dashboard: React.FC = () => {
         return;
       }
 
+      if (pedometer.isTracking && pedometer.challengeId !== vm.challenge.id) {
+        const name = pedometer.challengeName ?? `Challenge ${pedometer.challengeId}`;
+        setErrorMsg(`In „${name}" läuft bereits eine Session. Beende diese zuerst, um eine neue zu starten.`);
+        return;
+      }
+
       if (isFutureSelected || isChallengeExpired) {
         setErrorMsg('Schritte können für diesen Tag nicht getrackt werden.');
         return;
@@ -620,7 +626,7 @@ const Dashboard: React.FC = () => {
       const base = Number(weekSteps[idx] ?? stepsToday ?? 0);
       const dateISO = toIsoUtcMidnight(dateSafe);
 
-      await pedometer.startTracking(base, vm.challenge.id, dateISO);
+      await pedometer.startTracking(base, vm.challenge.id, dateISO, vm.challenge.name);
     } catch (e) {
       console.warn('startTracking failed:', e);
       setErrorMsg('Pedometer konnte nicht gestartet werden.');

@@ -7,15 +7,11 @@ const PEDOMETER_SESSION_KEY = 'step_together_pedometer_session';
 
 type PedometerSession = {
     isTracking: boolean;
-    // Steps accumulated in previous subscription windows (e.g. after app restore).
-    // watchStepCount resets its counter each time a new subscription starts, so we
-    // carry over whatever was already counted before the current subscription began.
     stepOffset?: number;
-    // ISO timestamp of when tracking started — used to query system pedometer
-    // history (getStepCountAsync) so background/locked steps are not lost.
     sessionStartTime?: string;
     baseSteps: number;
     challengeId: number;
+    challengeName?: string;
     dateISO: string;
 };
 
@@ -23,10 +19,11 @@ type PedometerContextType = {
     isTracking: boolean;
     sessionSteps: number;
     challengeId: number | null;
+    challengeName: string | null;
     dateISO: string | null;
     baseSteps: number;
     isPedometerAvailable: boolean | null;
-    startTracking: (baseSteps: number, challengeId: number, dateISO: string) => Promise<void>;
+    startTracking: (baseSteps: number, challengeId: number, dateISO: string, challengeName?: string) => Promise<void>;
     stopTracking: () => Promise<{ sessionSteps: number }>;
 };
 
@@ -34,6 +31,7 @@ const PedometerContext = createContext<PedometerContextType>({
     isTracking: false,
     sessionSteps: 0,
     challengeId: null,
+    challengeName: null,
     dateISO: null,
     baseSteps: 0,
     isPedometerAvailable: null,
@@ -47,6 +45,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [isTracking, setIsTracking] = useState(false);
     const [sessionSteps, setSessionSteps] = useState(0);
     const [challengeId, setChallengeId] = useState<number | null>(null);
+    const [challengeName, setChallengeName] = useState<string | null>(null);
     const [dateISO, setDateISO] = useState<string | null>(null);
     const [baseSteps, setBaseSteps] = useState(0);
     const [isPedometerAvailable, setIsPedometerAvailable] = useState<boolean | null>(null);
@@ -56,14 +55,8 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const isTrackingRef = useRef(false);
     isTrackingRef.current = isTracking;
 
-    // Steps counted before the current watchStepCount window.
-    // watchStepCount resets to 0 on each new subscription, so we track the
-    // cumulative offset from previous windows here.
     const stepOffsetRef = useRef(0);
 
-    // ISO string of when the current session started — needed so we can query
-    // getStepCountAsync(sessionStart, now) to capture steps taken while the app
-    // was in the background or the phone was locked.
     const sessionStartTimeRef = useRef<string | null>(null);
     const subscriptionBaselineRef = useRef<number | null>(null);
     const backgroundedAtRef = useRef<number | null>(null);
@@ -210,6 +203,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 if (isMountedRef.current) {
                     setIsTracking(true);
                     setChallengeId(session.challengeId);
+                    setChallengeName(session.challengeName ?? null);
                     setDateISO(session.dateISO);
                     setBaseSteps(session.baseSteps);
                     setSessionSteps(restoredOffset);
@@ -305,7 +299,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         shouldStopSubscriptionWhenBackgrounded,
     ]);
 
-    const startTracking = useCallback(async (base: number, cId: number, dISO: string) => {
+    const startTracking = useCallback(async (base: number, cId: number, dISO: string, cName?: string) => {
         const hasPermission = await ensureActivityPermission();
         if (!hasPermission) {
             setIsPedometerAvailable(false);
@@ -325,6 +319,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             sessionStartTime: startTime,
             baseSteps: base,
             challengeId: cId,
+            challengeName: cName,
             dateISO: dISO,
         };
         await AsyncStorage.setItem(PEDOMETER_SESSION_KEY, JSON.stringify(session));
@@ -332,6 +327,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsTracking(true);
         setSessionSteps(0);
         setChallengeId(cId);
+        setChallengeName(cName ?? null);
         setDateISO(dISO);
         setBaseSteps(base);
         startSubscription(0);
@@ -353,6 +349,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         setIsTracking(false);
         setChallengeId(null);
+        setChallengeName(null);
         setDateISO(null);
         setBaseSteps(0);
         stepOffsetRef.current = 0;
@@ -366,6 +363,7 @@ export const PedometerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             isTracking,
             sessionSteps,
             challengeId,
+            challengeName,
             dateISO,
             baseSteps,
             isPedometerAvailable,
