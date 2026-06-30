@@ -939,6 +939,19 @@ const IndividualDashboard: React.FC = () => {
                         </View>
                     </View>
 
+                    {isTracking && (
+                        <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#2F6B45' }} />
+                            <Text style={[styles.font, { fontSize: 12, color: '#2F6B45', fontWeight: '700', letterSpacing: 0.6 }]}>SESSION</Text>
+                            <Text style={[styles.font, { fontSize: 14, fontWeight: '800', color: '#2F6B45' }]}>
+                                {Number.isFinite(Number(pedometer.sessionSteps))
+                                    ? Number(pedometer.sessionSteps).toLocaleString('de-DE')
+                                    : '0'}
+                            </Text>
+                            <Text style={[styles.font, { fontSize: 12, color: '#7FA88C' }]}>Schritte</Text>
+                        </View>
+                    )}
+
                     <View style={{ marginTop: 16, marginBottom: 4 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                             <Text style={[styles.font, { fontSize: 13, color: '#6B7280' }]}>Tagesziel</Text>
@@ -959,31 +972,6 @@ const IndividualDashboard: React.FC = () => {
                             {Math.round(goalProgress * 100)} %{dailyGoalReached ? ' — Ziel erreicht!' : ` von ${dailyGoal.toLocaleString('de-DE')}`}
                         </Text>
                     </View>
-
-                    {isTracking && (
-                        <View style={{ marginTop: 14, alignItems: 'center' }}>
-                            <View style={{
-                                backgroundColor: '#EAF4ED',
-                                borderRadius: 18,
-                                paddingHorizontal: 28,
-                                paddingVertical: 12,
-                                alignItems: 'center',
-                                borderWidth: 1,
-                                borderColor: '#C8DFD0',
-                            }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2F6B45' }} />
-                                    <Text style={[styles.font, { fontSize: 11, color: '#5A8B6A', fontWeight: '700', letterSpacing: 0.8 }]}>SESSION</Text>
-                                </View>
-                                <Text style={[styles.font, { fontSize: 30, fontWeight: '800', color: '#2F6B45', lineHeight: 34 }]}>
-                                    {Number.isFinite(Number(pedometer.sessionSteps))
-                                        ? Number(pedometer.sessionSteps).toLocaleString('de-DE')
-                                        : '0'}
-                                </Text>
-                                <Text style={[styles.font, { fontSize: 12, color: '#7FA88C', marginTop: 2 }]}>Schritte</Text>
-                            </View>
-                        </View>
-                    )}
 
                     {errorMsg ? (
                         <Text style={[styles.font, { marginTop: 12, textAlign: 'center', color: '#B91C1C' }]}>
